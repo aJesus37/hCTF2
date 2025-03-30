@@ -1,0 +1,22 @@
+meta {
+  name: Create Challenge
+  type: http
+  seq: 3
+}
+
+post {
+  url: 0.0.0.0:8090/api/v1/challenges
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTc0MzQ1ODU3MiwiaWQiOiI5NHkwOTN1NDh4NG5uNjYiLCJyZWZyZXNoYWJsZSI6ZmFsc2UsInR5cGUiOiJhdXRoIn0.fjStJZj-WJBlGhyavFMn9hi1ui9nXfr0CxWWaKIld6c
+}
+
+body:json {
+  {
+    "name": "Test Challenge",
+    "description": "This is a test challenge"
+  }
+}

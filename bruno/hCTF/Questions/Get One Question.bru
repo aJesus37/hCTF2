@@ -1,0 +1,15 @@
+meta {
+  name: Get One Question
+  type: http
+  seq: 4
+}
+
+get {
+  url: 0.0.0.0:8090/api/v1/questions/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: r12db792892acfd
+}

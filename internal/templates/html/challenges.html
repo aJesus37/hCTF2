@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-dark">
+    {{ template "head" "Questions" }}
+  <body class="has-background-black-ter">
+    {{  template "navbar" .}}
+    
+    <main class="container content pl-5 pr-5">
+        <br>
+        <h1 class="title is-1">Challenges</h1>
+
+        <p>Welcome to the challenges page!</p>
+        
+        <p>Here you can find a list of challenges to solve.</p>
+    
+        {{ range .Questions }}
+            {{ template "challenge-card" . }}
+        {{ end }}
+    </main>
+    <footer class="footer pb-5 pt-5">
+      <center>Copyright 2025 Heaven-Labs</center>
+    </footer>
+  </body>
+</html>
+

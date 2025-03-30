@@ -1,0 +1,15 @@
+{
+  "version": "1",
+  "name": "hCTF",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ],
+  "size": 0.000766754150390625,
+  "filesCount": 3,
+  "presets": {
+    "requestType": "http",
+    "requestUrl": "0.0.0.0:8090"
+  }
+}

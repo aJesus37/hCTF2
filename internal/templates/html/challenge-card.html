@@ -1,0 +1,54 @@
+{{ define "challenge-card" }}
+    <div x-data="{ hintModalActive: false}" class="card container block">
+        <header class="card-header has-background-black-bis">
+            <p class="card-header-title">{{.Name}}</p>
+        </header>
+        <div class="card-content has-background-black-ter">
+            <div class="content">
+                <p>{{.Description}}</p>
+            </div>
+        </div>
+        <div class="field has-addons pl-5 pb-3 mb-0 pr-5 has-background-black-ter">
+            <form hx-post="/api/v1/questions/{{ .ID }}/answers" hx-target="this">
+                <div class="control">
+                    <input class="input" type="text" name="flag" required placeholder="{{.FlagMask}}" x-model="flag">
+                </div>
+                <div class="control">
+                    <button type="submit" class="button">Submit</button>
+                </div>
+            </form>
+        </div>
+        <div class="control pl-5 pb-1 link has-background-black-ter">
+            <a @click="hintModalActive = true"><small>Hint</small></a>
+        </div>
+
+        <div class="modal pl-5 pr-5" :class="{'is-active': hintModalActive}" x-show="hintModalActive">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+                <div class="modal-card-head has-background-black-bis">
+                    <p class="modal-card-title mb-0">Hints</p>
+                    <button class="delete is-large" aria-label="close" @click="hintModalActive = false"></button>
+                </div>
+                <div x-data="{'data': {{ .Hints }}, 'current': 0, 'hint': false, 'hintBtn': true}" class="modal-content has-background-black-ter pr-5">
+                    <nav  class="pagination is-centered pt-2" role="navigation" aria-label="pagination">
+                        <ul class="pagination-list">
+                           <template x-for="(value, index) in data" :key="index">
+                                <li>
+                                    <a @click="hint = false; current = index; hintBtn = true" :class="{'is-current': (current == index)}" class="pagination-link" :aria-label="'Page' + index" x-text="index"></a>
+                                </li>
+                           </template>
+                        </ul>
+                    </nav>
+                    <div class="container pl-5 pr-5 pb-5">
+                        <a @click="hint = true; hintBtn = false" x-show="hintBtn">Show Hint</a>
+                        <div x-show="hint">
+                            <p x-text="data[current]"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            
+        </div>
+    </div>
+{{end}}

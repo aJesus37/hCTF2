@@ -1,0 +1,18 @@
+meta {
+  name: Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: 0.0.0.0:8090/api/collections/users/auth-with-password
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "identity": "user@heaven-labs.com",
+    "password": "userpassword123"
+  }
+}

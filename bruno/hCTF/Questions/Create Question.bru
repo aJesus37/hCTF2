@@ -1,0 +1,48 @@
+meta {
+  name: Create Question
+  type: http
+  seq: 2
+}
+
+post {
+  url: 0.0.0.0:8090/api/v1/challenges/:id/questions
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: l5v7v0o268pnj8p
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTc0MzQ2MzgxOCwiaWQiOiI5NHkwOTN1NDh4NG5uNjYiLCJyZWZyZXNoYWJsZSI6ZmFsc2UsInR5cGUiOiJhdXRoIn0.OXn__Pqr7Ubi8adtvHaiAucJVm7Dbs_ePGr-DgdQlso
+}
+
+body:json {
+  {
+    "name": 
+  }
+}
+
+vars:pre-request {
+  challenge_id: l5v7v0o268pnj8p
+}
+
+script:pre-request {
+  const { faker } = require('@faker-js/faker');
+  
+  const question = {
+    name: faker.lorem.words({ min: 2, max: 4 }),
+    description: faker.lorem.sentence(),
+    hints: Array.from({ length: faker.number.int({ min: 1, max: 3 }) }, () => 
+      faker.lorem.sentence()
+    ),
+    category: faker.word.noun(),
+    case_sensitive: faker.datatype.boolean(),
+    challenge_id: "{{challenge_id}}",
+    flag: faker.word.noun()
+  };
+  
+  req.setBody(question);
+  
+}

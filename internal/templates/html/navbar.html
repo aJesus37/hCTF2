@@ -1,0 +1,40 @@
+{{ define "navbar"}}
+<nav class="navbar is-dark" role="navigation" aria-label="main navigation" x-data="{ isActive: false, isHiddenTouch: false }">
+  <div class="navbar-brand">
+    <a class="navbar-item" href="/">
+      <svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M0 110L10 40L50 0L100 50L70 80L110 120L50 160L0 110Z" fill="#00D1B2"/>
+</svg>
+
+    </a>
+
+    <a 
+  role="button" 
+  class="navbar-burger"
+  :class="{'is-active': isActive}"
+  @click="isActive = !isActive"
+>
+  <span aria-hidden="true"></span>
+  <span aria-hidden="true"></span>
+  <span aria-hidden="true"></span>
+  <span aria-hidden="true"></span>
+</a>
+  </div>
+
+  <div id="navbarBasicExample" class="navbar-menu" :class="{'is-active': isActive}">
+    <div class="navbar-start">
+      <a class="navbar-item" href="/">
+        Home
+      </a>
+
+      <a class="navbar-item" href="/challenges">
+        Challenges
+      </a>
+
+      <a class="navbar-item" href="/learn">
+        Learn
+      </a>
+    </div>
+  </div>
+</nav>
+{{ end }}
