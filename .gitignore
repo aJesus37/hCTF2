@@ -1,4 +1,4 @@
 tmp/*
 bruno/hCTF/node_modules
 pb_data
-app
+./app
