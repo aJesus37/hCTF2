@@ -1,22 +1,22 @@
 meta {
   name: Create Challenge
   type: http
-  seq: 3
+  seq: 4
 }
 
 post {
-  url: 0.0.0.0:8090/api/v1/challenges
+  url: {{host}}/api/v1/challenges
   body: json
   auth: bearer
 }
 
 auth:bearer {
-  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTc0MzQ1ODU3MiwiaWQiOiI5NHkwOTN1NDh4NG5uNjYiLCJyZWZyZXNoYWJsZSI6ZmFsc2UsInR5cGUiOiJhdXRoIn0.fjStJZj-WJBlGhyavFMn9hi1ui9nXfr0CxWWaKIld6c
+  token: {{adminToken}}
 }
 
 body:json {
   {
-    "name": "Test Challenge",
-    "description": "This is a test challenge"
+    "name": "Test Challenge2",
+    "description": "This is a test challenge2"
   }
 }

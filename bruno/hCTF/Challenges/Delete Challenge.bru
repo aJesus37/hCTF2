@@ -1,21 +1,21 @@
 meta {
   name: Delete Challenge
   type: http
-  seq: 4
+  seq: 5
 }
 
 delete {
-  url: challengesAuth0.0.0.0:8090/api/v1/challenges/:id
+  url: {{host}}/api/v1/challenges/:id
   body: json
   auth: bearer
 }
 
 params:path {
-  id: r7f71aeeb1e92b3
+  id: r3d6acefd609038
 }
 
 auth:bearer {
-  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTc0MzQ1ODU3MiwiaWQiOiI5NHkwOTN1NDh4NG5uNjYiLCJyZWZyZXNoYWJsZSI6ZmFsc2UsInR5cGUiOiJhdXRoIn0.fjStJZj-WJBlGhyavFMn9hi1ui9nXfr0CxWWaKIld6c
+  token: {{adminToken}}
 }
 
 body:json {

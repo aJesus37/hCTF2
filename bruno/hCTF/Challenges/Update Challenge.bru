@@ -1,11 +1,11 @@
 meta {
   name: Update Challenge
   type: http
-  seq: 5
+  seq: 6
 }
 
 put {
-  url: 0.0.0.0:8090/api/v1/challenges/:id
+  url: {{host}}/api/v1/challenges/:id
   body: json
   auth: bearer
 }
@@ -15,12 +15,15 @@ params:path {
 }
 
 auth:bearer {
-  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTc0MzUwNDUxNiwiaWQiOiI5NHkwOTN1NDh4NG5uNjYiLCJyZWZyZXNoYWJsZSI6ZmFsc2UsInR5cGUiOiJhdXRoIn0.SSrQiuKO9Il_JkGzUFFW7qP6ErvrwTNHrz52zdsQavY
+  token: {{adminToken}}
 }
 
 body:json {
   {
-      "name": "Test Updated Challenge",
-      "description": "This is a test challenge that has been updated"
+      "name": "Test Updated Challenge XXXXXXXX",
+      "description": "This is a test challenge that has been updated",
+    "tags":[
+      "firstTag", "secondTag"
+    ]
   }
 }

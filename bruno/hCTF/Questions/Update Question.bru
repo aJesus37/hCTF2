@@ -5,7 +5,7 @@ meta {
 }
 
 put {
-  url: 0.0.0.0:8090/api/v1/questions/:id
+  url: {{host}}/api/v1/questions/:id
   body: json
   auth: bearer
 }
@@ -15,20 +15,21 @@ params:path {
 }
 
 auth:bearer {
-  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTc0MzUwNDUxNiwiaWQiOiI5NHkwOTN1NDh4NG5uNjYiLCJyZWZyZXNoYWJsZSI6ZmFsc2UsInR5cGUiOiJhdXRoIn0.SSrQiuKO9Il_JkGzUFFW7qP6ErvrwTNHrz52zdsQavY
+  token: {{adminToken}}
 }
 
 body:json {
   {
       "name": "Updated Question",
       "description": "Pectus doloribus delibero alo confugo vero canonicus.",
-      "flag_mask": "",
+      "flag_mask": "ZXCZXCZXCZXCZXC",
       "hints": [
         "Caelum atque aegrotatio cedo tempora desino tenuis accedo.",
         "Dang son is that true?",
         "Possimus adduco aut coaegresco textilis."
       ],
       "category": "nani",
-      "case_sensitive": false
+      "case_sensitive": false,
+      "flag": "this is my answer"
     }
 }

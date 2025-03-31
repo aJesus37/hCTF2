@@ -3,5 +3,9 @@ auth {
 }
 
 auth:bearer {
-  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJfcGJfdXNlcnNfYXV0aF8iLCJleHAiOjE3NDM5NzAwMzMsImlkIjoiczFibzg3ZDExZHJqNTNkIiwicmVmcmVzaGFibGUiOnRydWUsInR5cGUiOiJhdXRoIn0.CvvzBfKTsoY-ZPhM4JJHwJVd4Bga2HG-Xcj51fkkkYU
+  token: {{userToken}}
+}
+
+vars:pre-request {
+  host: 0.0.0.0:8090
 }

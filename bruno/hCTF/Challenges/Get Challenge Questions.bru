@@ -1,0 +1,23 @@
+meta {
+  name: Get Challenge Questions
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{host}}/api/v1/challenges/:id/questions?q=flag
+  body: none
+  auth: bearer
+}
+
+params:query {
+  q: flag
+}
+
+params:path {
+  id: l5v7v0o268pnj8p
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

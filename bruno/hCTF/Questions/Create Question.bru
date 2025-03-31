@@ -1,11 +1,11 @@
 meta {
   name: Create Question
   type: http
-  seq: 2
+  seq: 3
 }
 
 post {
-  url: 0.0.0.0:8090/api/v1/challenges/:id/questions
+  url: {{host}}/api/v1/challenges/:id/questions
   body: json
   auth: bearer
 }
@@ -15,7 +15,7 @@ params:path {
 }
 
 auth:bearer {
-  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTc0MzQ2MzgxOCwiaWQiOiI5NHkwOTN1NDh4NG5uNjYiLCJyZWZyZXNoYWJsZSI6ZmFsc2UsInR5cGUiOiJhdXRoIn0.OXn__Pqr7Ubi8adtvHaiAucJVm7Dbs_ePGr-DgdQlso
+  token: {{adminToken}}
 }
 
 vars:pre-request {

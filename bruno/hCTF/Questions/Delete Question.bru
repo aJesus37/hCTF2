@@ -1,21 +1,21 @@
 meta {
   name: Delete Question
   type: http
-  seq: 3
+  seq: 4
 }
 
 delete {
-  url: 0.0.0.0:8090/api/v1/questions/:id
+  url: {{host}}/api/v1/questions/:id
   body: json
   auth: bearer
 }
 
 params:path {
-  id: r14f16edf4d73d8
+  id: r0b4cf70d7ea56c
 }
 
 auth:bearer {
-  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTc0MzQ2MzgxOCwiaWQiOiI5NHkwOTN1NDh4NG5uNjYiLCJyZWZyZXNoYWJsZSI6ZmFsc2UsInR5cGUiOiJhdXRoIn0.OXn__Pqr7Ubi8adtvHaiAucJVm7Dbs_ePGr-DgdQlso
+  token: {{adminToken}}
 }
 
 body:json {
