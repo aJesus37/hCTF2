@@ -17,8 +17,8 @@ import (
 )
 
 type Result struct {
-	Success bool `json:"success"`
-	RawQuestion
+	Success     bool `json:"success"`
+	RawQuestion *core.Record
 }
 
 type Challenge struct {
@@ -31,15 +31,16 @@ type Challenge struct {
 // ValidateFlag validates a submitted flag
 func SubmitQuestionAnswer(app *pocketbase.PocketBase, templateRegistry *template.Registry, re *core.RequestEvent) error {
 	flag := re.Request.FormValue("flag")
-	fmt.Printf("Flag submitted: %s\n", flag)
 	questionId := re.Request.PathValue("id")
 
-	// Fetch the question from the database
-	question := RawQuestion{}
-
-	err := app.DB().NewQuery("SELECT * FROM questions WHERE id = {:id}").Bind(dbx.Params{"id": questionId}).One(&question)
+	questions, err := app.FindCollectionByNameOrId("questions")
 	if err != nil {
-		return apis.NewInternalServerError("Database error", err)
+		return apis.NewInternalServerError("could not find table", err)
+	}
+
+	question, err := app.FindRecordById(questions, questionId)
+	if err != nil {
+		return apis.NewBadRequestError("invalid question id", err)
 	}
 
 	result := Result{
@@ -48,17 +49,17 @@ func SubmitQuestionAnswer(app *pocketbase.PocketBase, templateRegistry *template
 	}
 
 	// Check if the provided flag matches the stored flag
-	if question.CaseSensitive {
-		fmt.Printf("Case sensitive flag check: %s vs %s\n", flag, question.Flag)
-		if flag == question.Flag {
+	if question.GetBool("case_sensitive") {
+		fmt.Printf("Case sensitive flag check: %s vs %s\n", flag, question.GetString("flag"))
+		if flag == question.GetString("flag") {
 			result = Result{
 				Success:     true,
 				RawQuestion: question,
 			}
 		}
 	} else {
-		fmt.Printf("Case insensitive flag check: %s vs %s\n", strings.ToLower(flag), strings.ToLower(question.Flag))
-		if strings.EqualFold(flag, question.Flag) {
+		fmt.Printf("Case insensitive flag check: %s vs %s\n", strings.ToLower(flag), strings.ToLower(question.GetString("flag")))
+		if strings.EqualFold(flag, question.GetString("flag")) {
 			result = Result{
 				Success:     true,
 				RawQuestion: question,
@@ -97,21 +98,30 @@ func ListChallenges(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 // APIGetQuestions returns questions for a challenge
 func ListChallengeQuestions(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 	challengeID := re.Request.PathValue("id")
+	query := re.Request.URL.Query()
 
-	// Fetch all questions for the given challenge from the database
-	questions := []Question{}
-	err := app.DB().NewQuery("SELECT * FROM questions WHERE challenge_id = {:id}").Bind(dbx.Params{"id": challengeID}).All(&questions)
+	questions, err := app.FindCollectionByNameOrId("questions")
 	if err != nil {
-		return apis.NewInternalServerError("Could not list questions", err)
+		return apis.NewInternalServerError("could not find table", err)
 	}
 
-	jsonData, err := json.Marshal(questions)
+	challengeQuestions, err := app.FindRecordsByFilter(questions, "challenge_id = {:challenge_id}", "", -1, 0, dbx.Params{"challenge_id": challengeID})
 	if err != nil {
-		return apis.NewInternalServerError("Failed to serialize questions", err)
+		return apis.NewBadRequestError("could not find challenge", err)
 	}
 
-	re.Response.WriteHeader(http.StatusOK)
-	re.Response.Write(jsonData)
+	fmt.Printf("Query: %v, == flag %v\n", query.Get("q"), query.Get("q") == "flag")
+	fmt.Printf("SuperUser? %v\n", re.HasSuperuserAuth())
+
+	for _, challenge := range challengeQuestions {
+
+		challenge.Hide("collectionId", "collectionName")
+		if !(query.Get("q") == "flag") || !re.HasSuperuserAuth() {
+			challenge.Hide("flag")
+		}
+	}
+
+	re.JSON(http.StatusOK, challengeQuestions)
 	return nil
 }
 
@@ -121,15 +131,20 @@ func CreateChallenge(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 		return apis.NewBadRequestError("Invalid request body", err)
 	}
 
-	// Insert the new challenge into the database
-	_, err := app.DB().NewQuery("INSERT INTO challenges (name, description) VALUES ({:name}, {:description})").Bind(dbx.Params{
-		"name":        challenge.Name,
-		"description": challenge.Description,
-	}).Execute()
-
+	challenges, err := app.FindCollectionByNameOrId("challenges")
 	if err != nil {
-		fmt.Printf("Error inserting challenge: %v\n", err)
-		return apis.NewInternalServerError("Could not create challenge", err)
+		return apis.NewInternalServerError("could not find table", err)
+	}
+
+	record := core.NewRecord(challenges)
+
+	record.Set("name", challenge.Name)
+	record.Set("description", challenge.Description)
+	record.Set("tags", challenge.Tags)
+
+	err = app.Save(record)
+	if err != nil {
+		return apis.NewInternalServerError("could not save challenge", err)
 	}
 
 	re.Response.WriteHeader(http.StatusCreated)
@@ -139,10 +154,19 @@ func CreateChallenge(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 func DeleteChallenge(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 	challengeID := re.Request.PathValue("id")
 
-	// Delete the challenge from the database
-	_, err := app.DB().NewQuery("DELETE FROM challenges WHERE id = {:id}").Bind(dbx.Params{"id": challengeID}).Execute()
+	challenges, err := app.FindCollectionByNameOrId("challenges")
 	if err != nil {
-		return apis.NewInternalServerError("Could not delete challenge", err)
+		return apis.NewInternalServerError("could not find table", err)
+	}
+
+	record, err := app.FindRecordById(challenges, challengeID)
+	if err != nil {
+		return apis.NewBadRequestError("invalid challenge id", err)
+	}
+
+	err = app.Delete(record)
+	if err != nil {
+		return apis.NewInternalServerError("could not delete challenge", err)
 	}
 
 	re.Response.WriteHeader(http.StatusNoContent)
@@ -151,13 +175,11 @@ func DeleteChallenge(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 
 func GetChallenge(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 	record, err := app.FindRecordById("challenges", re.Request.PathValue("id"))
-
 	if err != nil {
 		return apis.NewBadRequestError("Invalid challenge ID", err)
 	}
 
 	record = record.Hide("collectionId", "collectionName")
-
 	re.JSON(http.StatusOK, record)
 	return nil
 }
@@ -199,10 +221,19 @@ func CreateQuestion(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 func DeleteQuestion(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 	questionID := re.Request.PathValue("id")
 
-	// Delete the question from the database
-	_, err := app.DB().NewQuery("DELETE FROM questions WHERE id = {:id}").Bind(dbx.Params{"id": questionID}).Execute()
+	questions, err := app.FindCollectionByNameOrId("questions")
 	if err != nil {
-		return apis.NewInternalServerError("Could not delete question", err)
+		return apis.NewInternalServerError("Could not find table", err)
+	}
+
+	question, err := app.FindRecordById(questions, questionID)
+	if err != nil {
+		return apis.NewBadRequestError("Invalid question ID", err)
+	}
+
+	err = app.Delete(question)
+	if err != nil {
+		return apis.NewInternalServerError("Failed to remove question", err)
 	}
 
 	re.Response.WriteHeader(http.StatusNoContent)
@@ -212,20 +243,19 @@ func DeleteQuestion(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 func GetQuestion(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 	questionID := re.Request.PathValue("id")
 
-	// Fetch the question from the database
-	question := Question{}
-	err := app.DB().NewQuery("SELECT * FROM questions WHERE id = {:id}").Bind(dbx.Params{"id": questionID}).One(&question)
+	questions, err := app.FindCollectionByNameOrId("questions")
 	if err != nil {
-		return apis.NewInternalServerError("Could not get question", err)
+		return apis.NewInternalServerError("Failed to get table", err)
 	}
 
-	jsonData, err := json.Marshal(question)
+	record, err := app.FindRecordById(questions, questionID)
 	if err != nil {
-		return apis.NewInternalServerError("Failed to serialize question", err)
+		return apis.NewBadRequestError("Invalid question ID", err)
 	}
 
-	re.Response.WriteHeader(http.StatusOK)
-	re.Response.Write(jsonData)
+	record = record.Hide("collectionId", "collectionName", "flag")
+
+	re.JSON(http.StatusOK, record)
 	return nil
 }
 
@@ -233,22 +263,29 @@ func UpdateQuestion(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 	questionID := re.Request.PathValue("id")
 	rawQuestion := RawQuestion{}
 
+	questions, err := app.FindCollectionByNameOrId("questions")
+	if err != nil {
+		return apis.NewInternalServerError("Failed to get table", err)
+	}
+
 	if err := json.NewDecoder(re.Request.Body).Decode(&rawQuestion); err != nil {
 		return apis.NewBadRequestError("Invalid request body", err)
 	}
 
-	// Update the question in the database
-	_, err := app.DB().NewQuery("UPDATE questions SET name = {:name}, description = {:description}, flag = {:flag}, case_sensitive = {:case_sensitive}, category = {:category}, flag_mask = {:flag_mask}, hints = {:hints} WHERE id = {:id}").Bind(dbx.Params{
-		"name":           rawQuestion.Name,
-		"description":    rawQuestion.Description,
-		"flag":           rawQuestion.Flag,
-		"case_sensitive": rawQuestion.CaseSensitive,
-		"category":       rawQuestion.Category,
-		"flag_mask":      rawQuestion.FlagMask,
-		"hints":          rawQuestion.Hints,
-		"id":             questionID,
-	}).Execute()
+	record, err := app.FindRecordById(questions, questionID)
+	if err != nil {
+		return apis.NewBadRequestError("Invalid question ID", err)
+	}
 
+	record.Set("name", rawQuestion.Name)
+	record.Set("description", rawQuestion.Description)
+	record.Set("flag", rawQuestion.Flag)
+	record.Set("case_sensitive", rawQuestion.CaseSensitive)
+	record.Set("category", rawQuestion.Category)
+	record.Set("flag_mask", rawQuestion.FlagMask)
+	record.Set("hints", rawQuestion.Hints)
+
+	err = app.Save(record)
 	if err != nil {
 		fmt.Printf("Error updating question: %v\n", err)
 		return apis.NewInternalServerError("Could not update question", err)
@@ -259,20 +296,28 @@ func UpdateQuestion(app *pocketbase.PocketBase, re *core.RequestEvent) error {
 }
 
 func UpdateChallenge(app *pocketbase.PocketBase, re *core.RequestEvent) error {
-	challengeID := re.Request.PathValue("id")
 	challenge := Challenge{}
+	challengeID := re.Request.PathValue("id")
+
+	challenges, err := app.FindCollectionByNameOrId("challenges")
+	if err != nil {
+		return apis.NewInternalServerError("Failed to get table", err)
+	}
 
 	if err := json.NewDecoder(re.Request.Body).Decode(&challenge); err != nil {
 		return apis.NewBadRequestError("Invalid request body", err)
 	}
 
-	// Update the challenge in the database
-	_, err := app.DB().NewQuery("UPDATE challenges SET name = {:name}, description = {:description} WHERE id = {:id}").Bind(dbx.Params{
-		"name":        challenge.Name,
-		"description": challenge.Description,
-		"id":          challengeID,
-	}).Execute()
+	record, err := app.FindRecordById(challenges, challengeID)
+	if err != nil {
+		return apis.NewBadRequestError("Invalid challenge ID", err)
+	}
 
+	record.Set("name", challenge.Name)
+	record.Set("description", challenge.Description)
+	record.Set("tags", challenge.Tags)
+
+	err = app.Save(record)
 	if err != nil {
 		fmt.Printf("Error updating challenge: %v\n", err)
 		return apis.NewInternalServerError("Could not update challenge", err)
