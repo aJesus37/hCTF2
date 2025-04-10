@@ -60,6 +60,9 @@ func (a *App) setupRoutes() {
 		// Register API routes
 		api.RegisterAPIRoutes(se, a.pb, a.templateRegistry)
 
+		// Register Hooks
+		api.RegisterHooks(se, a.pb)
+
 		return se.Next()
 	})
 }

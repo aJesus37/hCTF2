@@ -79,3 +79,33 @@ func RegisterAPIRoutes(se *core.ServeEvent, app *pocketbase.PocketBase, template
 		return routes.DeleteQuestion(app, re)
 	}).Bind(apis.RequireAuth("_superusers"))
 }
+
+func RegisterHooks(se *core.ServeEvent, app *pocketbase.PocketBase) {
+
+	// These 2 will guarantee that if a non-admin
+	app.OnRecordCreateRequest("teams").BindFunc(func(e *core.RecordRequestEvent) error {
+		e.Record.Set("created_by", e.Auth.Id)
+
+		return e.Next()
+	})
+	app.OnRecordAfterCreateSuccess("teams").BindFunc(func(e *core.RecordEvent) error {
+		if e.Record.IsSuperuser() {
+			return e.Next()
+		}
+		users, err := app.FindCollectionByNameOrId("users")
+		if err != nil {
+			return apis.NewInternalServerError("failed to find users collection", err)
+		}
+
+		user, err := app.FindRecordById(users, e.Record.GetString("created_by"))
+		if err != nil {
+			return apis.NewInternalServerError("failed to find user that created the team", err)
+		}
+
+		user.Set("team", e.Record.GetString("id"))
+
+		app.Save(user)
+
+		return e.Next()
+	})
+}
