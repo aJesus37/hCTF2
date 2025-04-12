@@ -121,8 +121,16 @@ func RegisterHooks(se *core.ServeEvent, app *pocketbase.PocketBase) {
 		return e.Next()
 	})
 
+	// Remove fields that are deemed not important or useful in most scenarios
 	app.OnRecordEnrich("teams").BindFunc(func(e *core.RecordEnrichEvent) error {
 		e.Record.Hide("collectionName", "updated", "created_by", "created_by_admin")
+
+		return e.Next()
+	})
+
+	// Sets the "Set-Cookie" response header, so that the browser retains the token as a Cookie
+	app.OnRecordAuthRequest().BindFunc(func(e *core.RecordAuthRequestEvent) error {
+		e.Response.Header().Set("Set-Cookie", "Authorization="+e.Token)
 
 		return e.Next()
 	})
