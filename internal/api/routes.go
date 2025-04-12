@@ -82,7 +82,7 @@ func RegisterAPIRoutes(se *core.ServeEvent, app *pocketbase.PocketBase, template
 
 func RegisterHooks(se *core.ServeEvent, app *pocketbase.PocketBase) {
 
-	// These 2 will guarantee that if a non-admin
+	// These 2 will guarantee that if a non-admin creates a team, the team will be added to them
 	app.OnRecordCreateRequest("teams").BindFunc(func(e *core.RecordRequestEvent) error {
 		e.Record.Set("created_by", e.Auth.Id)
 
@@ -104,7 +104,10 @@ func RegisterHooks(se *core.ServeEvent, app *pocketbase.PocketBase) {
 
 		user.Set("team", e.Record.GetString("id"))
 
-		app.Save(user)
+		err = app.Save(user)
+		if err != nil {
+			return apis.NewInternalServerError("could not attach team to user", err)
+		}
 
 		return e.Next()
 	})
