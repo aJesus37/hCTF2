@@ -40,13 +40,13 @@
 
         <div class="mt-6">
             <h4 class="font-bold text-white mb-2">Examples</h4>
-            <button onclick="setQuery(exampleQueries[0])" class="text-left w-full text-sm text-blue-400 hover:text-blue-300 mb-2">
+            <button onclick="window.setQuery(window.exampleQueries[0])" class="text-left w-full text-sm text-blue-400 hover:text-blue-300 mb-2">
                 Top 10 users
             </button>
-            <button onclick="setQuery(exampleQueries[1])" class="text-left w-full text-sm text-blue-400 hover:text-blue-300 mb-2">
+            <button onclick="window.setQuery(window.exampleQueries[1])" class="text-left w-full text-sm text-blue-400 hover:text-blue-300 mb-2">
                 Hardest challenges
             </button>
-            <button onclick="setQuery(exampleQueries[2])" class="text-left w-full text-sm text-blue-400 hover:text-blue-300">
+            <button onclick="window.setQuery(window.exampleQueries[2])" class="text-left w-full text-sm text-blue-400 hover:text-blue-300">
                 Category stats
             </button>
         </div>
@@ -67,11 +67,11 @@ ORDER BY solves DESC;</textarea>
         </div>
 
         <div class="flex gap-2">
-            <button onclick="executeQuery()"
+            <button onclick="window.executeQuery()"
                     class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded">
                 Run Query
             </button>
-            <button onclick="clearQuery()"
+            <button onclick="window.clearQuery()"
                     class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded">
                 Clear
             </button>
@@ -83,8 +83,20 @@ ORDER BY solves DESC;</textarea>
     </div>
 </div>
 
-<script src="/static/duckdb/duckdb.js"></script>
-<script>
+<!-- Import map to resolve module dependencies -->
+<script type="importmap">
+{
+    "imports": {
+        "apache-arrow": "https://cdn.jsdelivr.net/npm/apache-arrow@13.0.0/+esm"
+    }
+}
+</script>
+
+<script type="module">
+    // Import DuckDB WASM and Apache Arrow as ES modules from CDN
+    import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-browser.mjs';
+    import * as arrow from 'apache-arrow';
+
     let db, conn;
     let duckdbReady = false;
 
@@ -120,6 +132,7 @@ FROM (
 GROUP BY category;`
     ];
 
+    // Expose to global scope for onclick handlers
     window.exampleQueries = exampleQueries;
 
     window.setQuery = function(query) {
@@ -137,7 +150,7 @@ GROUP BY category;`
 
         const resultsDiv = document.getElementById('query-results');
 
-        if (!duckdbReady || !db) {
+        if (!duckdbReady || !db || !conn) {
             resultsDiv.innerHTML = '<p class="text-yellow-400">⚠️ Database is still loading. Please wait...</p>';
             return;
         }
@@ -180,28 +193,24 @@ GROUP BY category;`
 
     async function initDB() {
         const resultsDiv = document.getElementById('query-results');
-        resultsDiv.innerHTML = '<p class="text-gray-400">Loading DuckDB...</p>';
+        resultsDiv.innerHTML = '<p class="text-gray-400">Loading DuckDB WASM...</p>';
 
         try {
-            const duckdb = await import('/static/duckdb/duckdb.js');
-            const JSDELIVR_BUNDLES = duckdb.JSDELIVR_BUNDLES;
+            // Select appropriate bundle based on browser capabilities
+            const DUCKDB_CONFIG = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
 
-            // Use local files instead of CDN
-            const bundle = JSDELIVR_BUNDLES[JSDELIVR_BUNDLES.length - 1];
-            bundle.mainModule = '/static/duckdb/duckdb-mvp.wasm';
-            bundle.mainWorker = '/static/duckdb/duckdb-browser-mvp.worker.js';
-
+            // Initialize DuckDB with worker
             const logger = new duckdb.ConsoleLogger();
-            const worker = await duckdb.getPlatformWorker('/static/duckdb/duckdb-browser-mvp.worker.js');
-            const logger_instance = new duckdb.Logger(logger);
-            db = new duckdb.AsyncDuckDB(logger_instance, worker);
-            await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+            const worker = await duckdb.createWorker(DUCKDB_CONFIG.mainWorker);
+            db = new duckdb.AsyncDuckDB(logger, worker);
+
+            await db.instantiate(DUCKDB_CONFIG.mainModule, DUCKDB_CONFIG.pthreadWorker);
             conn = await db.connect();
 
-            // Load snapshot data
+            // Load snapshot data from server
             const snapshot = await fetch('/api/sql/snapshot').then(r => r.json());
 
-            // Create tables and populate data
+            // Create tables and populate data using Arrow
             if (snapshot.challenges && snapshot.challenges.length > 0) {
                 const challengeRecords = snapshot.challenges.map(c => ({
                     id: c.id,
@@ -211,7 +220,7 @@ GROUP BY category;`
                     visible: c.visible ? 1 : 0
                 }));
                 await conn.insertArrowTable(
-                    await duckdb.arrow.Table.from(challengeRecords),
+                    arrow.tableFromJSON(challengeRecords),
                     { name: 'challenges' }
                 );
             }
@@ -224,7 +233,7 @@ GROUP BY category;`
                     points: q.points
                 }));
                 await conn.insertArrowTable(
-                    await duckdb.arrow.Table.from(questionRecords),
+                    arrow.tableFromJSON(questionRecords),
                     { name: 'questions' }
                 );
             }
@@ -238,7 +247,7 @@ GROUP BY category;`
                     created_at: s.created_at
                 }));
                 await conn.insertArrowTable(
-                    await duckdb.arrow.Table.from(submissionRecords),
+                    arrow.tableFromJSON(submissionRecords),
                     { name: 'submissions' }
                 );
             }
@@ -250,7 +259,7 @@ GROUP BY category;`
                     team_id: u.team_id || null
                 }));
                 await conn.insertArrowTable(
-                    await duckdb.arrow.Table.from(userRecords),
+                    arrow.tableFromJSON(userRecords),
                     { name: 'users' }
                 );
             }
@@ -260,7 +269,7 @@ GROUP BY category;`
         } catch (error) {
             duckdbReady = false;
             console.error('DuckDB initialization error:', error);
-            resultsDiv.innerHTML = `<p class="text-red-400">Failed to initialize DuckDB</p><p class="text-gray-400 text-sm mt-2">Error: ${error.message}</p>`;
+            resultsDiv.innerHTML = `<p class="text-red-400">Failed to initialize DuckDB</p><p class="text-gray-400 text-sm mt-2">Error: ${error.message}</p><p class="text-gray-400 text-sm mt-1">Check browser console for details.</p>`;
         }
     }
 

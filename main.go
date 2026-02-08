@@ -108,7 +108,7 @@ func main() {
 	// Setup router
 	r := chi.NewRouter()
 
-	// CORS middleware for DuckDB WASM worker loading
+	// CORS middleware for CDN resources and DuckDB WASM
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Allow cross-origin requests for static files (needed for web workers)
@@ -117,11 +117,14 @@ func main() {
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			w.Header().Set("Access-Control-Max-Age", "86400")
 
-			// Required for web workers to function
-			w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
-			w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+			// Only set restrictive COEP/COOP headers for SQL page (DuckDB WASM)
+			// These headers block external CDN resources, so we only use them where needed
+			if r.URL.Path == "/sql" {
+				w.Header().Set("Cross-Origin-Embedder-Policy", "credentialless")
+				w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+			}
 
-			// For static files, allow shared array buffers
+			// For static files, also allow shared array buffers
 			if strings.HasPrefix(r.URL.Path, "/static/") {
 				w.Header().Set("Cross-Origin-Embedder-Policy", "credentialless")
 			}
