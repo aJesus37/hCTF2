@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -16,10 +15,10 @@ import (
 	"github.com/yourusername/hctf2/internal/handlers"
 )
 
-//go:embed ../../internal/views/templates/*
+//go:embed internal/views/templates/*
 var templatesFS embed.FS
 
-//go:embed ../../internal/views/static/*
+//go:embed internal/views/static
 var staticFS embed.FS
 
 type Server struct {
@@ -53,7 +52,7 @@ func main() {
 	}
 
 	// Parse templates
-	tmpl, err := template.ParseFS(templatesFS, "../../internal/views/templates/*.html")
+	tmpl, err := template.ParseFS(templatesFS, "internal/views/templates/*.html")
 	if err != nil {
 		log.Fatalf("Failed to parse templates: %v", err)
 	}

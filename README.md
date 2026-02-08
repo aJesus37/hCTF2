@@ -30,10 +30,31 @@ A modern, beautiful CTF (Capture The Flag) platform built with Go, featuring a u
 
 ### Prerequisites
 
+**Option 1: Native (Go)**
 - Go 1.24 or higher
 - Task (https://taskfile.dev) - Install: `go install github.com/go-task/task/v3/cmd/task@latest`
 
+**Option 2: Docker (Recommended for quick setup)**
+- Docker 20.10+
+- Docker Compose v2+
+
 ### Installation
+
+**Option 1: Docker (Quick Start)**
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/hctf2.git
+cd hctf2
+
+# Start with docker compose
+docker compose -f docker-compose.dev.yml up -d
+
+# Access: http://localhost:8090
+# Admin: admin@hctf.local / changeme
+```
+
+**Option 2: Native Go**
 
 ```bash
 # Clone the repository
@@ -132,6 +153,18 @@ task fmt
 ```
 
 ## Deployment
+
+### Docker (Recommended)
+
+See [DOCKER.md](DOCKER.md) for comprehensive Docker deployment guide.
+
+```bash
+# Production deployment
+docker compose up -d
+
+# With custom config
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
 
 ### Systemd Service
 

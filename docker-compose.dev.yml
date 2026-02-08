@@ -1,0 +1,29 @@
+services:
+  hctf2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hctf2-dev
+    ports:
+      - "8090:8090"
+    volumes:
+      # Persist database
+      - ./data:/app/data
+      # Mount source for development (optional - requires rebuild)
+      # - .:/app
+    command:
+      - --port
+      - "8090"
+      - --db
+      - /app/data/hctf2.db
+      - --admin-email
+      - admin@hctf.local
+      - --admin-password
+      - changeme
+    restart: on-failure
+    networks:
+      - hctf2-network
+
+networks:
+  hctf2-network:
+    driver: bridge

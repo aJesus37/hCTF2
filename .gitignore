@@ -16,6 +16,7 @@ hctf2-*
 *.db
 *.db-shm
 *.db-wal
+data/
 
 # Go workspace file
 go.work

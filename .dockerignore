@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+hctf2
+hctf2-*
+*.db
+*.db-shm
+*.db-wal
+
+# Documentation
+*.md
+!README.md
+LICENSE
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+*_test.go
+
+# Task and CI
+.github
+Taskfile.yml
+Makefile
+
+# Config examples (included in image)
+.env.example
+
+# Claude
+.claude

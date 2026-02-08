@@ -2,7 +2,7 @@ version: '3'
 
 vars:
   BINARY_NAME: hctf2
-  MAIN_PATH: cmd/server/main.go
+  MAIN_PATH: main.go
   BUILD_FLAGS: -ldflags="-s -w"
 
 tasks:
