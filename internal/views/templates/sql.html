@@ -1,7 +1,7 @@
 {{define "sql-content"}}
 <div class="mb-8">
     <h1 class="text-4xl font-bold text-purple-400 mb-4">SQL Playground</h1>
-    <p class="text-gray-300">Query CTF data using SQL (powered by sql.js - pure JavaScript)</p>
+    <p class="text-gray-300">Query CTF data using SQL (powered by DuckDB WASM)</p>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -83,10 +83,10 @@ ORDER BY solves DESC;</textarea>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/sql-wasm.js"></script>
+<script src="/static/duckdb/duckdb.js"></script>
 <script>
-    let db;
-    let sqlReady = false;
+    let db, conn;
+    let duckdbReady = false;
 
     const exampleQueries = [
         `-- Top 10 users by points
@@ -109,9 +109,14 @@ ORDER BY solve_count ASC
 LIMIT 10;`,
 
         `-- Category statistics
-SELECT category, COUNT(*) as challenge_count
-FROM challenges
-WHERE visible = 1
+SELECT category, COUNT(*) as challenge_count, AVG(solve_count) as avg_solves
+FROM (
+    SELECT c.category, c.id, COUNT(s.id) as solve_count
+    FROM challenges c
+    LEFT JOIN questions q ON c.id = q.challenge_id
+    LEFT JOIN submissions s ON q.id = s.question_id AND s.is_correct = 1
+    GROUP BY c.category, c.id
+)
 GROUP BY category;`
     ];
 
@@ -126,13 +131,13 @@ GROUP BY category;`
         document.getElementById('query-results').innerHTML = '<p class="text-gray-400">Results will appear here...</p>';
     };
 
-    window.executeQuery = function() {
+    window.executeQuery = async function() {
         const query = document.getElementById('query-editor').value.trim();
         if (!query) return;
 
         const resultsDiv = document.getElementById('query-results');
 
-        if (!sqlReady || !db) {
+        if (!duckdbReady || !db) {
             resultsDiv.innerHTML = '<p class="text-yellow-400">⚠️ Database is still loading. Please wait...</p>';
             return;
         }
@@ -140,16 +145,15 @@ GROUP BY category;`
         resultsDiv.innerHTML = '<p class="text-gray-400">Executing query...</p>';
 
         try {
-            const result = db.exec(query);
+            const result = await conn.query(query);
+            const rows = result.toArray();
 
-            if (!result || result.length === 0) {
+            if (rows.length === 0) {
                 resultsDiv.innerHTML = '<p class="text-yellow-400">No results found</p>';
                 return;
             }
 
-            const columns = result[0].columns;
-            const values = result[0].values;
-
+            const columns = Object.keys(rows[0]);
             let html = '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-dark-bg"><tr>';
 
             columns.forEach(col => {
@@ -157,115 +161,106 @@ GROUP BY category;`
             });
             html += '</tr></thead><tbody class="divide-y divide-dark-border">';
 
-            values.forEach(row => {
+            rows.forEach(row => {
                 html += '<tr class="hover:bg-dark-bg">';
-                row.forEach(cell => {
-                    const value = cell === null ? '-' : cell;
+                columns.forEach(col => {
+                    const value = row[col] === null ? '-' : row[col];
                     html += `<td class="px-4 py-2 text-gray-300">${value}</td>`;
                 });
                 html += '</tr>';
             });
 
             html += '</tbody></table></div>';
-            html += `<p class="mt-4 text-sm text-gray-400">${values.length} row(s) returned</p>`;
+            html += `<p class="mt-4 text-sm text-gray-400">${rows.length} row(s) returned</p>`;
             resultsDiv.innerHTML = html;
         } catch (error) {
             resultsDiv.innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
         }
     };
 
-    // Initialize database with sql.js
     async function initDB() {
         const resultsDiv = document.getElementById('query-results');
-        resultsDiv.innerHTML = '<p class="text-gray-400">Loading SQL engine...</p>';
+        resultsDiv.innerHTML = '<p class="text-gray-400">Loading DuckDB...</p>';
 
         try {
-            // sql.js loads from CDN and works without any CORS issues!
-            const SQL = await initSqlJs();
-            db = new SQL.Database();
+            const duckdb = await import('/static/duckdb/duckdb.js');
+            const JSDELIVR_BUNDLES = duckdb.JSDELIVR_BUNDLES;
+
+            // Use local files instead of CDN
+            const bundle = JSDELIVR_BUNDLES[JSDELIVR_BUNDLES.length - 1];
+            bundle.mainModule = '/static/duckdb/duckdb-mvp.wasm';
+            bundle.mainWorker = '/static/duckdb/duckdb-browser-mvp.worker.js';
+
+            const logger = new duckdb.ConsoleLogger();
+            const worker = await duckdb.getPlatformWorker('/static/duckdb/duckdb-browser-mvp.worker.js');
+            const logger_instance = new duckdb.Logger(logger);
+            db = new duckdb.AsyncDuckDB(logger_instance, worker);
+            await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+            conn = await db.connect();
 
             // Load snapshot data
             const snapshot = await fetch('/api/sql/snapshot').then(r => r.json());
 
-            // Create challenges table
+            // Create tables and populate data
             if (snapshot.challenges && snapshot.challenges.length > 0) {
-                db.run(`
-                    CREATE TABLE challenges (
-                        id TEXT PRIMARY KEY,
-                        name TEXT,
-                        category TEXT,
-                        difficulty TEXT,
-                        visible INTEGER
-                    )
-                `);
-                snapshot.challenges.forEach(c => {
-                    db.run(
-                        `INSERT INTO challenges VALUES (?, ?, ?, ?, ?)`,
-                        [c.id, c.name, c.category, c.difficulty, c.visible ? 1 : 0]
-                    );
-                });
+                const challengeRecords = snapshot.challenges.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    category: c.category,
+                    difficulty: c.difficulty,
+                    visible: c.visible ? 1 : 0
+                }));
+                await conn.insertArrowTable(
+                    await duckdb.arrow.Table.from(challengeRecords),
+                    { name: 'challenges' }
+                );
             }
 
-            // Create questions table
             if (snapshot.questions && snapshot.questions.length > 0) {
-                db.run(`
-                    CREATE TABLE questions (
-                        id TEXT PRIMARY KEY,
-                        challenge_id TEXT,
-                        name TEXT,
-                        points INTEGER
-                    )
-                `);
-                snapshot.questions.forEach(q => {
-                    db.run(
-                        `INSERT INTO questions VALUES (?, ?, ?, ?)`,
-                        [q.id, q.challenge_id, q.name, q.points]
-                    );
-                });
+                const questionRecords = snapshot.questions.map(q => ({
+                    id: q.id,
+                    challenge_id: q.challenge_id,
+                    name: q.name,
+                    points: q.points
+                }));
+                await conn.insertArrowTable(
+                    await duckdb.arrow.Table.from(questionRecords),
+                    { name: 'questions' }
+                );
             }
 
-            // Create submissions table
             if (snapshot.submissions && snapshot.submissions.length > 0) {
-                db.run(`
-                    CREATE TABLE submissions (
-                        id TEXT PRIMARY KEY,
-                        question_id TEXT,
-                        user_id TEXT,
-                        is_correct INTEGER,
-                        created_at TEXT
-                    )
-                `);
-                snapshot.submissions.forEach(s => {
-                    db.run(
-                        `INSERT INTO submissions VALUES (?, ?, ?, ?, ?)`,
-                        [s.id, s.question_id, s.user_id, s.is_correct ? 1 : 0, s.created_at]
-                    );
-                });
+                const submissionRecords = snapshot.submissions.map(s => ({
+                    id: s.id,
+                    question_id: s.question_id,
+                    user_id: s.user_id,
+                    is_correct: s.is_correct ? 1 : 0,
+                    created_at: s.created_at
+                }));
+                await conn.insertArrowTable(
+                    await duckdb.arrow.Table.from(submissionRecords),
+                    { name: 'submissions' }
+                );
             }
 
-            // Create users table
             if (snapshot.users && snapshot.users.length > 0) {
-                db.run(`
-                    CREATE TABLE users (
-                        id TEXT PRIMARY KEY,
-                        name TEXT,
-                        team_id TEXT
-                    )
-                `);
-                snapshot.users.forEach(u => {
-                    db.run(
-                        `INSERT INTO users VALUES (?, ?, ?)`,
-                        [u.id, u.name, u.team_id || null]
-                    );
-                });
+                const userRecords = snapshot.users.map(u => ({
+                    id: u.id,
+                    name: u.name,
+                    team_id: u.team_id || null
+                }));
+                await conn.insertArrowTable(
+                    await duckdb.arrow.Table.from(userRecords),
+                    { name: 'users' }
+                );
             }
 
-            sqlReady = true;
+            duckdbReady = true;
             resultsDiv.innerHTML = '<p class="text-green-400">✅ Database loaded! Run a query to get started.</p>';
         } catch (error) {
-            sqlReady = false;
-            console.error('SQL.js initialization error:', error);
-            resultsDiv.innerHTML = `<p class="text-red-400">Failed to initialize SQL engine</p><p class="text-gray-400 text-sm mt-2">Error: ${error.message}</p>`;
+            duckdbReady = false;
+            console.error('DuckDB initialization error:', error);
+            resultsDiv.innerHTML = `<p class="text-red-400">Failed to initialize DuckDB</p><p class="text-gray-400 text-sm mt-2">Error: ${error.message}</p>`;
         }
     }
 

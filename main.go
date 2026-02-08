@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -45,6 +46,26 @@ type Server struct {
 	challengeH *handlers.ChallengeHandler
 	scoreboardH *handlers.ScoreboardHandler
 	sqlH      *handlers.SQLHandler
+}
+
+// customFileHandler wraps the file server to set proper content types for WASM and workers
+type customFileHandler struct {
+	fs http.Handler
+}
+
+func (h *customFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Set proper content types
+	if strings.HasSuffix(r.URL.Path, ".wasm") {
+		w.Header().Set("Content-Type", "application/wasm")
+	} else if strings.HasSuffix(r.URL.Path, ".worker.js") {
+		w.Header().Set("Content-Type", "application/javascript")
+	}
+
+	// Set CORS headers for all static files
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
+	h.fs.ServeHTTP(w, r)
 }
 
 func main() {
@@ -86,12 +107,42 @@ func main() {
 
 	// Setup router
 	r := chi.NewRouter()
+
+	// CORS middleware for DuckDB WASM worker loading
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Allow cross-origin requests for static files (needed for web workers)
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Max-Age", "86400")
+
+			// Required for web workers to function
+			w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
+			w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+
+			// For static files, allow shared array buffers
+			if strings.HasPrefix(r.URL.Path, "/static/") {
+				w.Header().Set("Cross-Origin-Embedder-Policy", "credentialless")
+			}
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(auth.AuthMiddleware)
 
-	// Static files
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+	// Static files with proper content types for WASM and workers
+	r.Handle("/static/*", http.StripPrefix("/static/", &customFileHandler{
+		fs: http.FileServer(http.FS(staticFS)),
+	}))
 
 	// Public routes
 	r.Get("/", s.handleIndex)
