@@ -4,7 +4,20 @@
     <p class="text-gray-300">Manage challenges and questions for the CTF</p>
 </div>
 
-<div x-data="{ tab: 'challenges', showCreateForm: false, editingId: null }" class="space-y-8">
+<div x-data="{
+    tab: 'challenges',
+    showCreateForm: false,
+    editingId: null,
+    notification: null,
+    showNotification: false
+}" class="space-y-8">
+    <!-- Notification -->
+    <div x-show="showNotification"
+         x-transition
+         class="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+         @click="showNotification = false">
+        <p x-text="notification"></p>
+    </div>
     <!-- Tab Navigation -->
     <div class="border-b border-dark-border">
         <div class="flex space-x-8">
@@ -38,8 +51,8 @@
             <form
                 hx-post="/api/admin/challenges"
                 hx-target="#challenges-list"
-                hx-swap="beforeend"
-                @htmx:afterSwap="showCreateForm = false; $el.reset()"
+                hx-swap="beforeend scroll:#challenges-list:bottom"
+                @htmx:afterSwap="showCreateForm = false; $el.reset(); notification = 'Challenge created successfully!'; showNotification = true; setTimeout(() => showNotification = false, 3000)"
                 class="space-y-4">
 
                 <div>
@@ -183,8 +196,19 @@
             <form
                 hx-post="/api/admin/questions"
                 hx-target="#questions-list"
-                hx-swap="beforeend"
-                @htmx:afterSwap="showCreateForm = false; $el.reset()"
+                hx-swap="beforeend scroll:#questions-list:bottom"
+                @htmx:afterSwap="
+                    showCreateForm = false;
+                    notification = 'Question created successfully!';
+                    showNotification = true;
+                    setTimeout(() => showNotification = false, 3000);
+                    $el.querySelector('[name=name]').value = '';
+                    $el.querySelector('[name=description]').value = '';
+                    $el.querySelector('[name=flag]').value = '';
+                    $el.querySelector('[name=flag_mask]').value = '';
+                    $el.querySelector('[name=points]').value = '100';
+                    $el.querySelector('[name=case_sensitive]').checked = false;
+                "
                 class="space-y-4">
 
                 <div>

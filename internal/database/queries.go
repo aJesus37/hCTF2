@@ -396,3 +396,24 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 
 	return snapshot, nil
 }
+
+// GetChallengeCount returns the total number of visible challenges
+func (db *DB) GetChallengeCount() (int, error) {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM challenges WHERE visible = 1").Scan(&count)
+	return count, err
+}
+
+// GetUserCount returns the total number of users
+func (db *DB) GetUserCount() (int, error) {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+	return count, err
+}
+
+// GetCorrectSubmissionCount returns the total number of correct submissions
+func (db *DB) GetCorrectSubmissionCount() (int, error) {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM submissions WHERE is_correct = 1").Scan(&count)
+	return count, err
+}

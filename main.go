@@ -156,10 +156,12 @@ func main() {
 	r.Get("/login", s.handleLoginPage)
 	r.Get("/register", s.handleRegisterPage)
 
-	// Admin UI route
+	// Admin UI routes
 	r.Group(func(r chi.Router) {
 		r.Use(auth.RequireAdmin)
 		r.Get("/admin", s.handleAdminDashboard)
+		r.Get("/admin/challenges/{id}/edit", s.handleEditChallenge)
+		r.Get("/admin/questions/{id}/edit", s.handleEditQuestion)
 	})
 
 	// API routes - Auth
@@ -264,14 +266,19 @@ func (s *Server) render(w http.ResponseWriter, name string, data interface{}) {
 
 // Page handlers
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	// Fetch statistics
+	challenges, _ := s.db.GetChallengeCount()
+	users, _ := s.db.GetUserCount()
+	solves, _ := s.db.GetCorrectSubmissionCount()
+
 	data := map[string]interface{}{
 		"Title": "Home",
 		"Page":  "index",
 		"User":  auth.GetUserFromContext(r.Context()),
 		"Stats": map[string]int{
-			"Challenges": 0, // TODO: implement
-			"Users":      0,
-			"Solves":     0,
+			"Challenges": challenges,
+			"Users":      users,
+			"Solves":     solves,
 		},
 	}
 	s.render(w, "base.html", data)
@@ -397,4 +404,130 @@ func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		"Questions":  questions,
 	}
 	s.render(w, "base.html", data)
+}
+
+// Edit handlers - return forms for editing challenges/questions
+func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	challenge, err := s.db.GetChallengeByID(id)
+	if err != nil {
+		http.Error(w, "Challenge not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	visibleChecked := ""
+	if challenge.Visible {
+		visibleChecked = "checked"
+	}
+
+	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6">
+		<div class="bg-dark-bg border border-dark-border rounded p-4 space-y-4 mb-4">
+			<h4 class="text-lg font-bold text-white">Edit Challenge</h4>
+			<form hx-put="/api/admin/challenges/%s" hx-target="this" hx-swap="outerHTML" class="space-y-3">
+				<input type="text" name="name" value="%s" placeholder="Challenge name" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+				<textarea name="description" placeholder="Description" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>%s</textarea>
+				<select name="category" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+					<option value="web" %s>Web</option>
+					<option value="crypto" %s>Crypto</option>
+					<option value="pwn" %s>Pwn</option>
+					<option value="forensics" %s>Forensics</option>
+					<option value="misc" %s>Misc</option>
+				</select>
+				<select name="difficulty" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+					<option value="easy" %s>Easy</option>
+					<option value="medium" %s>Medium</option>
+					<option value="hard" %s>Hard</option>
+				</select>
+				<label class="flex items-center text-sm text-gray-300">
+					<input type="checkbox" name="visible" value="on" %s class="mr-2"> Visible to users
+				</label>
+				<div class="flex gap-2">
+					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm">Save</button>
+					<button type="button" hx-get="/admin" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
+				</div>
+			</form>
+		</div>
+	</div>`,
+		id, id,
+		challenge.Name,
+		challenge.Description,
+		map[string]string{"web": "selected", "crypto": "", "pwn": "", "forensics": "", "misc": ""}[challenge.Category],
+		map[string]string{"web": "", "crypto": "selected", "pwn": "", "forensics": "", "misc": ""}[challenge.Category],
+		map[string]string{"web": "", "crypto": "", "pwn": "selected", "forensics": "", "misc": ""}[challenge.Category],
+		map[string]string{"web": "", "crypto": "", "pwn": "", "forensics": "selected", "misc": ""}[challenge.Category],
+		map[string]string{"web": "", "crypto": "", "pwn": "", "forensics": "", "misc": "selected"}[challenge.Category],
+		map[string]string{"easy": "selected", "medium": "", "hard": ""}[challenge.Difficulty],
+		map[string]string{"easy": "", "medium": "selected", "hard": ""}[challenge.Difficulty],
+		map[string]string{"easy": "", "medium": "", "hard": "selected"}[challenge.Difficulty],
+		visibleChecked,
+		id)
+
+	w.Write([]byte(html))
+}
+
+// handleEditQuestion returns an edit form for a question
+func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	question, err := s.db.GetQuestionByID(id)
+	if err != nil {
+		http.Error(w, "Question not found", http.StatusNotFound)
+		return
+	}
+
+	// Get all challenges for dropdown
+	challenges, _ := s.db.GetChallenges(false)
+	challengeOptions := ""
+	for _, c := range challenges {
+		selected := ""
+		if c.ID == question.ChallengeID {
+			selected = "selected"
+		}
+		challengeOptions += fmt.Sprintf(`<option value="%s" %s>%s</option>`, c.ID, selected, c.Name)
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	caseSensitiveChecked := ""
+	if question.CaseSensitive {
+		caseSensitiveChecked = "checked"
+	}
+
+	flagMask := ""
+	if question.FlagMask != nil {
+		flagMask = *question.FlagMask
+	}
+
+	html := fmt.Sprintf(`<div id="question-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6">
+		<div class="bg-dark-bg border border-dark-border rounded p-4 space-y-4 mb-4">
+			<h4 class="text-lg font-bold text-white">Edit Question</h4>
+			<form hx-put="/api/admin/questions/%s" hx-target="this" hx-swap="outerHTML" class="space-y-3">
+				<select name="challenge_id" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+					%s
+				</select>
+				<input type="text" name="name" value="%s" placeholder="Question name" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+				<textarea name="description" placeholder="Description" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>%s</textarea>
+				<input type="text" name="flag" value="%s" placeholder="flag{...}" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+				<input type="number" name="points" value="%d" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+				<input type="text" name="flag_mask" value="%s" placeholder="flag{****}" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">
+				<label class="flex items-center text-sm text-gray-300">
+					<input type="checkbox" name="case_sensitive" value="on" %s class="mr-2"> Case sensitive flag
+				</label>
+				<div class="flex gap-2">
+					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm">Save</button>
+					<button type="button" hx-get="/admin" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
+				</div>
+			</form>
+		</div>
+	</div>`,
+		id, id,
+		challengeOptions,
+		question.Name,
+		question.Description,
+		question.Flag,
+		question.Points,
+		flagMask,
+		caseSensitiveChecked,
+		id)
+
+	w.Write([]byte(html))
 }
