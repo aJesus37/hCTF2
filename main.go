@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -24,7 +25,18 @@ import (
 var templatesFS embed.FS
 
 //go:embed internal/views/static
-var staticFS embed.FS
+var embedFS embed.FS
+
+// staticFS is a SubFS starting at internal/views/static
+var staticFS fs.FS
+
+func init() {
+	var err error
+	staticFS, err = fs.Sub(embedFS, "internal/views/static")
+	if err != nil {
+		log.Fatalf("Failed to create staticFS SubFS: %v", err)
+	}
+}
 
 type Server struct {
 	db        *database.DB

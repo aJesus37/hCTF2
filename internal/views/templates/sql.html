@@ -83,7 +83,7 @@ ORDER BY solves DESC;</textarea>
     </div>
 </div>
 
-<script type="module">
+<script>
     let db, conn;
     let duckdbReady = false;
 
@@ -136,8 +136,8 @@ GROUP BY category;`
 
         const resultsDiv = document.getElementById('query-results');
 
-        if (!duckdbReady) {
-            resultsDiv.innerHTML = '<p class="text-yellow-400">⚠️ SQL Playground is not available. This feature requires loading DuckDB WASM from a CDN, which may not work on localhost or with CORS restrictions.</p><p class="text-gray-400 mt-2">Other features (challenges, scoreboard, etc.) are working normally.</p>';
+        if (!duckdbReady || !db) {
+            resultsDiv.innerHTML = '<p class="text-yellow-400">⚠️ Database is still loading. Please wait...</p>';
             return;
         }
 
@@ -179,56 +179,22 @@ GROUP BY category;`
 
     async function initDB() {
         const resultsDiv = document.getElementById('query-results');
-        resultsDiv.innerHTML = '<p class="text-gray-400">Loading SQL Playground...</p>';
-
-        let duckdbModule = null;
-        let source = 'CDN';
+        resultsDiv.innerHTML = '<p class="text-gray-400">Loading DuckDB...</p>';
 
         try {
-            // Try to load DuckDB from CDN first (preferred for production)
-            duckdbModule = await import('https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/+esm');
-        } catch (cdnError) {
-            // CDN failed, try local fallback (for localhost development)
-            try {
-                console.log('CDN load failed, trying local fallback...');
-                duckdbModule = await import('/static/duckdb/duckdb-wasm.js');
-                source = 'Local';
-            } catch (localError) {
-                duckdbModule = null;
-            }
-        }
+            // Load DuckDB from our local server (no CORS issues!)
+            const duckdb = await import('/static/duckdb/duckdb.js');
 
-        if (!duckdbModule) {
-            duckdbReady = false;
-            resultsDiv.innerHTML = `<p class="text-yellow-400">⚠️ SQL Playground could not load</p><p class="text-gray-400 text-sm mt-2">Could not load DuckDB WASM from CDN or local fallback.</p><p class="text-gray-400 text-sm">Try one of:</p><ul class="text-gray-400 text-sm ml-4"><li>✓ Use Docker: <code>docker compose -f docker-compose.dev.yml up</code></li><li>✓ Deploy to production (CDN works better)</li><li>✓ Check your internet connection</li></ul><p class="text-gray-400 text-sm mt-2">Other features (challenges, scoreboard, etc.) are working normally.</p>`;
-            return;
-        }
-
-        try {
-            // Determine bundle URLs based on source
-            let bundleUrls;
-            if (source === 'CDN') {
-                bundleUrls = {
-                    mvp: {
-                        mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-mvp.wasm',
-                        mainWorker: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-browser-mvp.worker.js'
-                    }
-                };
-            } else {
-                // Local fallback uses local relative paths
-                bundleUrls = {
-                    mvp: {
-                        mainModule: '/static/duckdb/duckdb-mvp.wasm',
-                        mainWorker: '/static/duckdb/duckdb-browser-mvp.worker.js'
-                    }
-                };
-            }
-
-            const bundle = await duckdbModule.selectBundle(bundleUrls);
+            const bundle = await duckdb.selectBundle({
+                mvp: {
+                    mainModule: '/static/duckdb/duckdb-mvp.wasm',
+                    mainWorker: '/static/duckdb/duckdb-browser-mvp.worker.js'
+                }
+            });
 
             const worker = new Worker(bundle.mainWorker);
-            const logger = new duckdbModule.ConsoleLogger();
-            db = new duckdbModule.AsyncDuckDB(logger, worker);
+            const logger = new duckdb.ConsoleLogger();
+            db = new duckdb.AsyncDuckDB(logger, worker);
             await db.instantiate(bundle.mainModule);
 
             conn = await db.connect();
@@ -243,14 +209,19 @@ GROUP BY category;`
             await conn.insertJSONFromPath('users', { data: snapshot.users });
 
             duckdbReady = true;
-            resultsDiv.innerHTML = `<p class="text-green-400">✅ Database loaded (from ${source})! Run a query to get started.</p>`;
+            resultsDiv.innerHTML = '<p class="text-green-400">✅ Database loaded! Run a query to get started.</p>';
         } catch (error) {
             duckdbReady = false;
-            resultsDiv.innerHTML = `<p class="text-yellow-400">⚠️ SQL Playground initialization failed</p><p class="text-gray-400 text-sm mt-2">Error: ${error.message}</p><p class="text-gray-400 text-sm">Source: ${source}</p><p class="text-gray-400 text-sm mt-2">Try using Docker for better compatibility:<br/><code>docker compose -f docker-compose.dev.yml up</code></p>`;
+            console.error('DuckDB init error:', error);
+            resultsDiv.innerHTML = `<p class="text-yellow-400">⚠️ SQL Playground could not load</p><p class="text-gray-400 text-sm mt-2">Error: ${error.message}</p><p class="text-gray-400 text-sm mt-2">Troubleshooting:</p><ul class="text-gray-400 text-sm ml-4"><li>Check browser console (F12) for details</li><li>Try rebuilding: <code>task build</code></li><li>Restart the server: <code>task run</code></li></ul>`;
         }
     }
 
-    // Auto-init on page load
-    initDB();
+    // Auto-init when page loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDB);
+    } else {
+        initDB();
+    }
 </script>
 {{end}}
