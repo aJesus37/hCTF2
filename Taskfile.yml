@@ -38,7 +38,7 @@ tasks:
       - rm -f {{.BINARY_NAME}} {{.BINARY_NAME}}-* *.db *.db-shm *.db-wal
 
   test:
-    desc: Run tests
+    desc: Run all tests with verbose output
     cmds:
       - go test ./... -v
 
