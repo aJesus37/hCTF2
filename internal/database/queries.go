@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/yourusername/hctf2/internal/models"
 )
@@ -231,9 +232,18 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 	rank := 1
 	for rows.Next() {
 		var e models.ScoreboardEntry
-		if err := rows.Scan(&e.UserID, &e.UserName, &e.TeamID, &e.TeamName, &e.Points, &e.SolveCount, &e.LastSolve); err != nil {
+		var lastSolveStr string
+		if err := rows.Scan(&e.UserID, &e.UserName, &e.TeamID, &e.TeamName, &e.Points, &e.SolveCount, &lastSolveStr); err != nil {
 			return nil, err
 		}
+
+		// Parse the date string from SQLite
+		parsedTime, err := time.Parse("2006-01-02 15:04:05", lastSolveStr)
+		if err != nil {
+			// If parsing fails, use current time
+			parsedTime = time.Now()
+		}
+		e.LastSolve = parsedTime
 		e.Rank = rank
 		rank++
 		entries = append(entries, e)

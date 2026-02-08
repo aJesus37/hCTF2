@@ -194,6 +194,7 @@ func (s *Server) render(w http.ResponseWriter, name string, data interface{}) {
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"Title": "Home",
+		"Page":  "index",
 		"User":  auth.GetUserFromContext(r.Context()),
 		"Stats": map[string]int{
 			"Challenges": 0, // TODO: implement
@@ -202,7 +203,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	s.render(w, "base.html", data)
-	s.templates.ExecuteTemplate(w, "index.html", data)
 }
 
 func (s *Server) handleChallenges(w http.ResponseWriter, r *http.Request) {
@@ -217,11 +217,11 @@ func (s *Server) handleChallenges(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]interface{}{
 		"Title":      "Challenges",
+		"Page":       "challenges",
 		"User":       claims,
 		"Challenges": challenges,
 	}
 	s.render(w, "base.html", data)
-	s.templates.ExecuteTemplate(w, "challenges.html", data)
 }
 
 func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
@@ -249,12 +249,12 @@ func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]interface{}{
 		"Title":     challenge.Name,
+		"Page":      "challenge",
 		"User":      claims,
 		"Challenge": challenge,
 		"Questions": questions,
 	}
 	s.render(w, "base.html", data)
-	s.templates.ExecuteTemplate(w, "challenge.html", data)
 }
 
 func (s *Server) handleScoreboard(w http.ResponseWriter, r *http.Request) {
@@ -266,36 +266,36 @@ func (s *Server) handleScoreboard(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]interface{}{
 		"Title":   "Scoreboard",
+		"Page":    "scoreboard",
 		"User":    auth.GetUserFromContext(r.Context()),
 		"Entries": entries,
 	}
 	s.render(w, "base.html", data)
-	s.templates.ExecuteTemplate(w, "scoreboard.html", data)
 }
 
 func (s *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"Title": "SQL Playground",
+		"Page":  "sql",
 		"User":  auth.GetUserFromContext(r.Context()),
 	}
 	s.render(w, "base.html", data)
-	s.templates.ExecuteTemplate(w, "sql.html", data)
 }
 
 func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"Title": "Login",
+		"Page":  "login",
 		"User":  auth.GetUserFromContext(r.Context()),
 	}
 	s.render(w, "base.html", data)
-	s.templates.ExecuteTemplate(w, "login.html", data)
 }
 
 func (s *Server) handleRegisterPage(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"Title": "Register",
+		"Page":  "register",
 		"User":  auth.GetUserFromContext(r.Context()),
 	}
 	s.render(w, "base.html", data)
-	s.templates.ExecuteTemplate(w, "register.html", data)
 }

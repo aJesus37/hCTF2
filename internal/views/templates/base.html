@@ -67,7 +67,21 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {{template "content" .}}
+        {{if eq .Page "login"}}
+            {{template "login-content" .}}
+        {{else if eq .Page "register"}}
+            {{template "register-content" .}}
+        {{else if eq .Page "challenges"}}
+            {{template "challenges-content" .}}
+        {{else if eq .Page "challenge"}}
+            {{template "challenge-content" .}}
+        {{else if eq .Page "scoreboard"}}
+            {{template "scoreboard-content" .}}
+        {{else if eq .Page "sql"}}
+            {{template "sql-content" .}}
+        {{else}}
+            {{template "index-content" .}}
+        {{end}}
     </main>
 
     <footer class="mt-auto border-t border-dark-border py-6">
