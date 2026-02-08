@@ -143,6 +143,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 	})
 
+	w.Header().Set("HX-Redirect", "/")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Logged out"))
 }

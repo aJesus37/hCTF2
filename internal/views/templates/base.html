@@ -57,7 +57,9 @@
                         {{if .User.IsAdmin}}
                             <a href="/admin" class="text-sm text-purple-400 hover:text-purple-300 mr-4">Admin</a>
                         {{end}}
-                        <button hx-post="/api/auth/logout" hx-redirect="/" class="text-sm text-red-400 hover:text-red-300">
+                        <button hx-post="/api/auth/logout"
+                                hx-on::response="if(this.status === 200) { window.location.href = '/'; }"
+                                class="text-sm text-red-400 hover:text-red-300">
                             Logout
                         </button>
                     {{else}}

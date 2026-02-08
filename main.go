@@ -201,6 +201,11 @@ func main() {
 	// API routes - Scoreboard
 	r.Get("/api/scoreboard", s.scoreboardH.GetScoreboard)
 
+	// 404 handler for unmatched routes
+	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.renderError(w, 404, "Page Not Found", "The page you're looking for doesn't exist.")
+	}))
+
 	// Start server
 	addr := fmt.Sprintf(":%d", *port)
 	server := &http.Server{
