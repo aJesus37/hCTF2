@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -88,7 +93,12 @@ func main() {
 	// API routes - Auth
 	r.Post("/api/auth/register", s.authH.Register)
 	r.Post("/api/auth/login", s.authH.Login)
-	r.Post("/api/auth/logout", s.authH.Logout)
+
+	// Protected Auth routes
+	r.Group(func(r chi.Router) {
+		r.Use(auth.RequireAuth)
+		r.Post("/api/auth/logout", s.authH.Logout)
+	})
 
 	// API routes - Challenges (public read)
 	r.Get("/api/challenges", s.challengeH.ListChallenges)
@@ -119,10 +129,37 @@ func main() {
 
 	// Start server
 	addr := fmt.Sprintf(":%d", *port)
+	server := &http.Server{
+		Addr:    addr,
+		Handler: r,
+	}
+
+	// Channel to handle shutdown
+	shutdownDone := make(chan struct{})
+
+	// Handle signals gracefully
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+
+		log.Println("\nShutting down server...")
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			log.Printf("Server shutdown error: %v", err)
+		}
+		close(shutdownDone)
+	}()
+
 	log.Printf("Server starting on http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, r); err != nil {
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server failed: %v", err)
 	}
+
+	<-shutdownDone
+	log.Println("Server stopped")
 }
 
 func createAdminUser(db *database.DB, email, password string) {

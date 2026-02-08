@@ -84,9 +84,8 @@ ORDER BY solves DESC;</textarea>
 </div>
 
 <script type="module">
-    import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/+esm';
-
     let db, conn;
+    let duckdbReady = false;
 
     const exampleQueries = [
         `-- Top 10 users by points
@@ -136,13 +135,15 @@ GROUP BY category;`
         if (!query) return;
 
         const resultsDiv = document.getElementById('query-results');
+
+        if (!duckdbReady) {
+            resultsDiv.innerHTML = '<p class="text-yellow-400">⚠️ SQL Playground is not available. This feature requires loading DuckDB WASM from a CDN, which may not work on localhost or with CORS restrictions.</p><p class="text-gray-400 mt-2">Other features (challenges, scoreboard, etc.) are working normally.</p>';
+            return;
+        }
+
         resultsDiv.innerHTML = '<p class="text-gray-400">Executing query...</p>';
 
         try {
-            if (!conn) {
-                await initDB();
-            }
-
             const result = await conn.query(query);
             const rows = result.toArray();
 
@@ -178,32 +179,41 @@ GROUP BY category;`
 
     async function initDB() {
         const resultsDiv = document.getElementById('query-results');
-        resultsDiv.innerHTML = '<p class="text-gray-400">Loading database...</p>';
+        resultsDiv.innerHTML = '<p class="text-gray-400">Loading SQL Playground...</p>';
 
-        const bundle = await duckdb.selectBundle({
-            mvp: {
-                mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-mvp.wasm',
-                mainWorker: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-browser-mvp.worker.js'
-            }
-        });
+        try {
+            // Dynamically import DuckDB
+            const duckdb = await import('https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/+esm');
 
-        const worker = new Worker(bundle.mainWorker);
-        const logger = new duckdb.ConsoleLogger();
-        db = new duckdb.AsyncDuckDB(logger, worker);
-        await db.instantiate(bundle.mainModule);
+            const bundle = await duckdb.selectBundle({
+                mvp: {
+                    mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-mvp.wasm',
+                    mainWorker: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-browser-mvp.worker.js'
+                }
+            });
 
-        conn = await db.connect();
+            const worker = new Worker(bundle.mainWorker);
+            const logger = new duckdb.ConsoleLogger();
+            db = new duckdb.AsyncDuckDB(logger, worker);
+            await db.instantiate(bundle.mainModule);
 
-        // Load snapshot data
-        const snapshot = await fetch('/api/sql/snapshot').then(r => r.json());
+            conn = await db.connect();
 
-        // Create tables from JSON data
-        await conn.insertJSONFromPath('challenges', { data: snapshot.challenges });
-        await conn.insertJSONFromPath('questions', { data: snapshot.questions });
-        await conn.insertJSONFromPath('submissions', { data: snapshot.submissions });
-        await conn.insertJSONFromPath('users', { data: snapshot.users });
+            // Load snapshot data
+            const snapshot = await fetch('/api/sql/snapshot').then(r => r.json());
 
-        resultsDiv.innerHTML = '<p class="text-green-400">Database loaded! Run a query to get started.</p>';
+            // Create tables from JSON data
+            await conn.insertJSONFromPath('challenges', { data: snapshot.challenges });
+            await conn.insertJSONFromPath('questions', { data: snapshot.questions });
+            await conn.insertJSONFromPath('submissions', { data: snapshot.submissions });
+            await conn.insertJSONFromPath('users', { data: snapshot.users });
+
+            duckdbReady = true;
+            resultsDiv.innerHTML = '<p class="text-green-400">✅ Database loaded! Run a query to get started.</p>';
+        } catch (error) {
+            duckdbReady = false;
+            resultsDiv.innerHTML = `<p class="text-yellow-400">⚠️ SQL Playground could not load</p><p class="text-gray-400 text-sm mt-2">Error: ${error.message}</p><p class="text-gray-400 text-sm">This feature requires loading DuckDB WASM from a CDN. It may not work on localhost, with CORS restrictions, or in some network environments.</p><p class="text-gray-400 text-sm mt-2">Other features (challenges, scoreboard, etc.) are working normally.</p>`;
+        }
     }
 
     // Auto-init on page load

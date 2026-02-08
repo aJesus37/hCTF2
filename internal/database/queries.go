@@ -202,9 +202,9 @@ func (db *DB) HasUserSolved(questionID, userID string) (bool, error) {
 }
 
 func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
+	// SQLite doesn't support ROW_NUMBER() in the same way, so we calculate rank in Go
 	query := `
 		SELECT
-			ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(q.points), 0) DESC, MAX(s.created_at)) as rank,
 			u.id as user_id,
 			u.name as user_name,
 			u.team_id,
@@ -228,11 +228,14 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 	defer rows.Close()
 
 	var entries []models.ScoreboardEntry
+	rank := 1
 	for rows.Next() {
 		var e models.ScoreboardEntry
-		if err := rows.Scan(&e.Rank, &e.UserID, &e.UserName, &e.TeamID, &e.TeamName, &e.Points, &e.SolveCount, &e.LastSolve); err != nil {
+		if err := rows.Scan(&e.UserID, &e.UserName, &e.TeamID, &e.TeamName, &e.Points, &e.SolveCount, &e.LastSolve); err != nil {
 			return nil, err
 		}
+		e.Rank = rank
+		rank++
 		entries = append(entries, e)
 	}
 	return entries, nil
