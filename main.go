@@ -158,10 +158,12 @@ func main() {
 
 	// Admin UI routes
 	r.Group(func(r chi.Router) {
-		r.Use(auth.RequireAdmin)
+		r.Use(s.requireAdmin)
 		r.Get("/admin", s.handleAdminDashboard)
 		r.Get("/admin/challenges/{id}/edit", s.handleEditChallenge)
+		r.Get("/admin/challenges/{id}/view", s.handleViewChallenge)
 		r.Get("/admin/questions/{id}/edit", s.handleEditQuestion)
+		r.Get("/admin/questions/{id}/view", s.handleViewQuestion)
 	})
 
 	// API routes - Auth
@@ -186,7 +188,7 @@ func main() {
 
 	// API routes - Admin (protected)
 	r.Group(func(r chi.Router) {
-		r.Use(auth.RequireAdmin)
+		r.Use(s.requireAdmin)
 		r.Post("/api/admin/challenges", s.challengeH.CreateChallenge)
 		r.Put("/api/admin/challenges/{id}", s.challengeH.UpdateChallenge)
 		r.Delete("/api/admin/challenges/{id}", s.challengeH.DeleteChallenge)
@@ -204,6 +206,11 @@ func main() {
 	// 404 handler for unmatched routes
 	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, 404, "Page Not Found", "The page you're looking for doesn't exist.")
+	}))
+
+	// 405 handler for method not allowed
+	r.MethodNotAllowed(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.renderError(w, 405, "Method Not Allowed", "The HTTP method used is not supported for this endpoint.")
 	}))
 
 	// Start server
@@ -280,6 +287,18 @@ func (s *Server) renderError(w http.ResponseWriter, statusCode int, title, messa
 		"Message":    message,
 	}
 	s.render(w, "base.html", data)
+}
+
+// requireAdmin middleware with proper error page rendering
+func (s *Server) requireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims := auth.GetUserFromContext(r.Context())
+		if claims == nil || !claims.IsAdmin {
+			s.renderError(w, 403, "Access Forbidden", "You don't have permission to access this page.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Page handlers
@@ -442,7 +461,7 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6">
 		<div class="bg-dark-bg border border-dark-border rounded p-4 space-y-4 mb-4">
 			<h4 class="text-lg font-bold text-white">Edit Challenge</h4>
-			<form hx-put="/api/admin/challenges/%s" hx-target="this" hx-swap="outerHTML" class="space-y-3">
+			<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">
 				<input type="text" name="name" value="%s" placeholder="Challenge name" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
 				<textarea name="description" placeholder="Description" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>%s</textarea>
 				<select name="category" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
@@ -462,12 +481,12 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 				</label>
 				<div class="flex gap-2">
 					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm">Save</button>
-					<button type="button" hx-get="/admin" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
+					<button type="button" hx-get="/admin/challenges/%s/view" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
 				</div>
 			</form>
 		</div>
 	</div>`,
-		id, id,
+		id, id, id,
 		challenge.Name,
 		challenge.Description,
 		map[string]string{"web": "selected", "crypto": "", "pwn": "", "forensics": "", "misc": ""}[challenge.Category],
@@ -479,7 +498,77 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		map[string]string{"easy": "", "medium": "selected", "hard": ""}[challenge.Difficulty],
 		map[string]string{"easy": "", "medium": "", "hard": "selected"}[challenge.Difficulty],
 		visibleChecked,
-		id)
+		id, id)
+
+	w.Write([]byte(html))
+}
+
+// handleViewChallenge returns a challenge card view (for Cancel button)
+func (s *Server) handleViewChallenge(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	challenge, err := s.db.GetChallengeByID(id)
+	if err != nil {
+		http.Error(w, "Challenge not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+
+	difficultyColor := map[string]string{
+		"easy":   "text-green-400",
+		"medium": "text-yellow-400",
+		"hard":   "text-red-400",
+	}[challenge.Difficulty]
+
+	hiddenBadge := ""
+	if !challenge.Visible {
+		hiddenBadge = `<span class="ml-2 text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Hidden</span>`
+	}
+
+	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+		<div class="flex justify-between items-start mb-3">
+			<div>
+				<h3 class="text-xl font-bold text-white">%s</h3>
+				<p class="text-sm text-gray-400">
+					Category: <span class="text-blue-400">%s</span> •
+					Difficulty: <span class="font-medium %s">%s</span>
+					%s
+				</p>
+			</div>
+		</div>
+		<p class="text-gray-300 mb-4">%s</p>
+		<div class="flex gap-2">
+			<button
+				hx-get="/admin/challenges/%s/edit"
+				hx-target="#challenge-%s"
+				hx-swap="outerHTML"
+				class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
+				Edit
+			</button>
+			<button
+				@click="if(confirm('Delete this challenge? This action cannot be undone.')) { htmx.trigger('#del-challenge-%s', 'click') }"
+				class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
+				Delete
+			</button>
+			<button
+				style="display:none"
+				id="del-challenge-%s"
+				hx-delete="/api/admin/challenges/%s"
+				hx-target="#challenge-%s"
+				hx-swap="outerHTML swap:1s">
+			</button>
+		</div>
+	</div>`,
+		id,
+		challenge.Name,
+		challenge.Category,
+		difficultyColor,
+		challenge.Difficulty,
+		hiddenBadge,
+		challenge.Description,
+		id, id,
+		id,
+		id, id, id)
 
 	w.Write([]byte(html))
 }
@@ -518,7 +607,7 @@ func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
 	html := fmt.Sprintf(`<div id="question-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6">
 		<div class="bg-dark-bg border border-dark-border rounded p-4 space-y-4 mb-4">
 			<h4 class="text-lg font-bold text-white">Edit Question</h4>
-			<form hx-put="/api/admin/questions/%s" hx-target="this" hx-swap="outerHTML" class="space-y-3">
+			<form hx-put="/api/admin/questions/%s" hx-target="closest #question-%s" hx-swap="outerHTML" class="space-y-3">
 				<select name="challenge_id" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
 					%s
 				</select>
@@ -532,12 +621,12 @@ func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
 				</label>
 				<div class="flex gap-2">
 					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm">Save</button>
-					<button type="button" hx-get="/admin" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
+					<button type="button" hx-get="/admin/questions/%s/view" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
 				</div>
 			</form>
 		</div>
 	</div>`,
-		id, id,
+		id, id, id,
 		challengeOptions,
 		question.Name,
 		question.Description,
@@ -545,7 +634,72 @@ func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
 		question.Points,
 		flagMask,
 		caseSensitiveChecked,
-		id)
+		id, id)
+
+	w.Write([]byte(html))
+}
+
+// handleViewQuestion returns a question card view (for Cancel button)
+func (s *Server) handleViewQuestion(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	question, err := s.db.GetQuestionByID(id)
+	if err != nil {
+		http.Error(w, "Question not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+
+	flagMaskDisplay := ""
+	if question.FlagMask != nil && *question.FlagMask != "" {
+		flagMaskDisplay = fmt.Sprintf(`<span class="ml-2">Mask: <code class="bg-dark-bg px-2 py-1 rounded text-yellow-400">%s</code></span>`, *question.FlagMask)
+	}
+
+	html := fmt.Sprintf(`<div id="question-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+		<div class="mb-3">
+			<h3 class="text-xl font-bold text-white">%s</h3>
+			<p class="text-sm text-gray-400">
+				Challenge ID: <span class="text-blue-400">%s</span> •
+				Points: <span class="text-green-400 font-medium">%d</span>
+			</p>
+		</div>
+		<p class="text-gray-300 mb-2 text-sm">%s</p>
+		<p class="text-gray-400 text-xs mb-4">
+			Flag: <code class="bg-dark-bg px-2 py-1 rounded text-purple-400">%s</code>
+			%s
+		</p>
+		<div class="flex gap-2">
+			<button
+				hx-get="/admin/questions/%s/edit"
+				hx-target="#question-%s"
+				hx-swap="outerHTML"
+				class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
+				Edit
+			</button>
+			<button
+				@click="if(confirm('Delete this question? This action cannot be undone.')) { htmx.trigger('#del-question-%s', 'click') }"
+				class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
+				Delete
+			</button>
+			<button
+				style="display:none"
+				id="del-question-%s"
+				hx-delete="/api/admin/questions/%s"
+				hx-target="#question-%s"
+				hx-swap="outerHTML swap:1s">
+			</button>
+		</div>
+	</div>`,
+		id,
+		question.Name,
+		question.ChallengeID,
+		question.Points,
+		question.Description,
+		question.Flag,
+		flagMaskDisplay,
+		id, id,
+		id,
+		id, id, id)
 
 	w.Write([]byte(html))
 }

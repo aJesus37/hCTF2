@@ -158,7 +158,8 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		// Form data from HTMX
 		if err := r.ParseForm(); err != nil {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(`<div class="text-red-400">Invalid request</div>`))
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`Invalid request`))
 			return
 		}
 		req.Name = r.FormValue("name")
@@ -174,7 +175,8 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "Failed to create challenge", http.StatusInternalServerError)
 		} else {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(`<div class="text-red-400">Failed to create challenge</div>`))
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`Failed to create challenge`))
 		}
 		return
 	}
@@ -257,7 +259,8 @@ func (h *ChallengeHandler) UpdateChallenge(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "Failed to update challenge", http.StatusInternalServerError)
 		} else {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(`<div class="text-red-400">Failed to update challenge</div>`))
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`Failed to update challenge`))
 		}
 		return
 	}
@@ -353,7 +356,8 @@ func (h *ChallengeHandler) CreateQuestion(w http.ResponseWriter, r *http.Request
 		// Form data from HTMX
 		if err := r.ParseForm(); err != nil {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(`<div class="text-red-400">Invalid request</div>`))
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`Invalid request`))
 			return
 		}
 		req.ChallengeID = r.FormValue("challenge_id")
@@ -378,7 +382,8 @@ func (h *ChallengeHandler) CreateQuestion(w http.ResponseWriter, r *http.Request
 			http.Error(w, "Failed to create question", http.StatusInternalServerError)
 		} else {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(`<div class="text-red-400">Failed to create question</div>`))
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`Failed to create question`))
 		}
 		return
 	}
@@ -466,7 +471,8 @@ func (h *ChallengeHandler) UpdateQuestion(w http.ResponseWriter, r *http.Request
 			http.Error(w, "Failed to update question", http.StatusInternalServerError)
 		} else {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(`<div class="text-red-400">Failed to update question</div>`))
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`Failed to update question`))
 		}
 		return
 	}
@@ -524,7 +530,8 @@ func (h *ChallengeHandler) DeleteQuestion(w http.ResponseWriter, r *http.Request
 			http.Error(w, "Failed to delete question", http.StatusInternalServerError)
 		} else {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(`<div class="text-red-400">Failed to delete question</div>`))
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`Failed to delete question`))
 		}
 		return
 	}

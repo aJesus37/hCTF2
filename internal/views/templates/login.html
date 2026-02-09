@@ -6,7 +6,9 @@
         <form hx-post="/api/auth/login"
               hx-target="#message"
               hx-swap="innerHTML"
-              class="space-y-4">
+              hx-indicator="#message"
+              class="space-y-4"
+              @htmx:before-request="document.querySelector('#message').innerHTML = ''">
             <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">Email</label>
                 <input type="email"
