@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/yourusername/hctf2/internal/auth"
@@ -100,13 +101,33 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Get user
 	user, err := h.db.GetUserByEmail(req.Email)
 	if err != nil {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		// Check if this is an HTMX request
+		contentType := r.Header.Get("Content-Type")
+		if strings.Contains(contentType, "application/x-www-form-urlencoded") {
+			// HTMX request - return 200 with error HTML so it gets swapped
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`<p class="text-red-400 text-center">Invalid credentials - please try again</p>`))
+		} else {
+			// API request - return 401
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		}
 		return
 	}
 
 	// Verify password
 	if !auth.VerifyPassword(req.Password, user.PasswordHash) {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		// Check if this is an HTMX request
+		contentType := r.Header.Get("Content-Type")
+		if strings.Contains(contentType, "application/x-www-form-urlencoded") {
+			// HTMX request - return 200 with error HTML so it gets swapped
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`<p class="text-red-400 text-center">Invalid credentials - please try again</p>`))
+		} else {
+			// API request - return 401
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		}
 		return
 	}
 
@@ -127,11 +148,21 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user":  user,
-		"token": token,
-	})
+	// Check if this is an HTMX request (form-data) or API request (JSON)
+	contentType := r.Header.Get("Content-Type")
+	if strings.Contains(contentType, "application/x-www-form-urlencoded") {
+		// HTMX form submission - redirect to home
+		w.Header().Set("HX-Redirect", "/")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(""))
+	} else {
+		// API request - send JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"user":  user,
+			"token": token,
+		})
+	}
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {

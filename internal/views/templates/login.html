@@ -5,8 +5,7 @@
 
         <form hx-post="/api/auth/login"
               hx-target="#message"
-              hx-swap="none"
-              hx-on::response="if(this.status === 200) { window.location.href = '/'; } else { document.getElementById('message').innerHTML = '<p class=&quot;text-red-400 text-center&quot;>Invalid credentials - please try again</p>'; }"
+              hx-swap="innerHTML"
               class="space-y-4">
             <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">Email</label>
