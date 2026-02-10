@@ -90,61 +90,63 @@ When you start the server for the first time:
 
 ## Configuration
 
-### Command Line Options
+For detailed configuration options, see [CONFIGURATION.md](CONFIGURATION.md).
 
+**Quick options:**
 ```bash
 ./hctf2 [options]
 
 Options:
-  --port int              Server port (default: 8090)
-  --db string            Database path (default: "./hctf2.db")
-  --admin-email string   Admin email for first-time setup
-  --admin-password string Admin password for first-time setup
+  --port int                Server port (default: 8090)
+  --host string            Server host (default: 0.0.0.0)
+  --database-path string   Database path (default: data/hctf2.db)
+  --jwt-secret string      JWT signing secret
+  --admin-email string     Admin email for first-time setup
+  --admin-password string  Admin password for first-time setup
 ```
 
-### Environment Variables
-
-You can also use environment variables:
-
+**Environment variables:**
 ```bash
 export PORT=8090
-export DB_PATH=./hctf2.db
-export ADMIN_EMAIL=admin@hctf.local
+export HOST=0.0.0.0
+export DATABASE_PATH=data/hctf2.db
+export JWT_SECRET=your-secret
+export ADMIN_EMAIL=admin@example.com
 export ADMIN_PASSWORD=changeme
 
 ./hctf2
 ```
 
-### Configuration File
-
-Copy the example config:
-
-```bash
-cp config.example.yaml config.yaml
-```
-
-Edit `config.yaml`:
-
-```yaml
-server:
-  port: 8090
-  host: 0.0.0.0
-
-database:
-  path: ./hctf2.db
-
-auth:
-  jwt_secret: "your-secret-key-here"
-  session_duration: 168h
-
-admin:
-  email: admin@example.com
-  password: changeme
-```
-
 ## Production Deployment
 
-### Build for Production
+For complete production setup and operations, see [OPERATIONS.md](OPERATIONS.md).
+
+**Quick systemd setup:**
+
+```bash
+# Build
+task build
+
+# Create system user
+sudo useradd -r hctf2
+
+# Create data directory
+sudo mkdir -p /var/lib/hctf2
+sudo chown hctf2:hctf2 /var/lib/hctf2
+
+# Copy binary
+sudo cp hctf2 /usr/local/bin/
+
+# Create systemd service (see OPERATIONS.md)
+# Then enable and start:
+sudo systemctl daemon-reload
+sudo systemctl enable hctf2
+sudo systemctl start hctf2
+```
+
+For Nginx, Docker, and detailed configuration, see [OPERATIONS.md](OPERATIONS.md).
+
+### Build Optimized Binary
 
 ```bash
 # Build optimized binary

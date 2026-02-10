@@ -1,5 +1,0 @@
-- When in the login screen, if I fail to login I receive Invalid Credentials. If I try again, nothing in the page changes to indicate another attempt was made and that it failed again.
-- Right after a successful login, it seems that the answer JWT is added to the place where the login button were. It happens pretty fast, but is visibible
-- In the Edit menu for a Question or Challenge, clicking the Save menu wont do anything. Depending on how the interaction happen, there is a way to break the UI making the whole page be loaded where it was supposed to be the challenge/question card only (It happens after clicking Cancel in the Edit modal)
-- When I click Log Out (logged-in as admin, in /admin page), the logout button turns into "Logged Out", but the page wont re-load or redirect. If I f5 there I get a forbidden error because public cant access /admin
-- There is no 4xx nor 5xx error pages, it is just a plain-text message.

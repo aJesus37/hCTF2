@@ -1,2 +1,0 @@
-- The challenges filters for category and difficulty are not working in the challenges page
-- The submit for challenge answers has broken again, it will submit but give error 500: 2026/02/09 22:30:46 "POST http://localhost:8090/api/questions/d60e8143552492d44989e577b00d560b/submit HTTP/1.1" from [::1]:52608 - 500 28B in 653.579µs

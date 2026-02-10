@@ -174,10 +174,12 @@ hctf2/
 
 ## Resources
 
-- **Full Installation Guide**: INSTALL.md
-- **Architecture Overview**: ARCHITECTURE.md
-- **Main Documentation**: README.md
-- **API Reference**: (coming soon)
+- **Configuration Guide**: [CONFIGURATION.md](CONFIGURATION.md)
+- **Full Installation Guide**: [INSTALL.md](INSTALL.md)
+- **Architecture Overview**: [ARCHITECTURE.md](ARCHITECTURE.md)
+- **Main Documentation**: [README.md](README.md)
+- **API Reference**: [API.md](API.md)
+- **Operations Guide**: [OPERATIONS.md](OPERATIONS.md)
 
 ## Getting Help
 

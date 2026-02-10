@@ -1,4 +1,0 @@
-- After creating a Challenge or a Question, there is no indicator that it was created successfully, only the appended card to the list that is out of the user screen. Would be nice to either add some kind of pop-up, close the modal, or pop-up + emptying the form fields if user wants to create more things. If it is a Question, not emptying the challenge as the user might be creating many questions for the same Challenge. If you find other UX improvements, feel free to make them aswell
-- The Edit button for questions and Challenges is not working.
-- The Total Challenges/Total Users/Total Solves numbers in the home screen are all 0 regardless of those existing or not
-- After I was logged-in as Admin, I could not click the Logout button

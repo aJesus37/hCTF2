@@ -177,9 +177,7 @@
                 <p class="text-gray-300 mb-4">{{.Description}}</p>
                 <div class="flex gap-2">
                     <button
-                        hx-get="/admin/challenges/{{.ID}}/edit"
-                        hx-target="#challenge-{{.ID}}"
-                        hx-swap="outerHTML"
+                        onclick="htmx.ajax('GET', '/admin/challenges/{{.ID}}/edit', {target: '#challenge-{{.ID}}', swap: 'outerHTML'})"
                         class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
                         Edit
                     </button>
@@ -352,9 +350,7 @@
                 </p>
                 <div class="flex gap-2">
                     <button
-                        hx-get="/admin/questions/{{.ID}}/edit"
-                        hx-target="#question-{{.ID}}"
-                        hx-swap="outerHTML"
+                        onclick="htmx.ajax('GET', '/admin/questions/{{.ID}}/edit', {target: '#question-{{.ID}}', swap: 'outerHTML'})"
                         class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
                         Edit
                     </button>

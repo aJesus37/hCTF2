@@ -58,7 +58,7 @@
                 </div>
                 <div class="flex items-center">
                     {{if .User}}
-                        <span class="text-sm text-gray-300 mr-4">{{.User.Name}}</span>
+                        <a href="/profile" class="text-sm text-gray-300 hover:text-white mr-4">{{.User.Name}}</a>
                         {{if .User.IsAdmin}}
                             <a href="/admin" class="text-sm text-purple-400 hover:text-purple-300 mr-4">Admin</a>
                         {{end}}
@@ -81,6 +81,10 @@
             {{template "login-content" .}}
         {{else if eq .Page "register"}}
             {{template "register-content" .}}
+        {{else if eq .Page "forgot-password"}}
+            {{template "forgot-password-content" .}}
+        {{else if eq .Page "reset-password"}}
+            {{template "reset-password-content" .}}
         {{else if eq .Page "challenges"}}
             {{template "challenges-content" .}}
         {{else if eq .Page "challenge"}}
@@ -93,6 +97,8 @@
             {{template "sql-content" .}}
         {{else if eq .Page "admin"}}
             {{template "admin-content" .}}
+        {{else if eq .Page "profile"}}
+            {{template "profile-content" .}}
         {{else if eq .Page "error"}}
             {{template "error-content" .}}
         {{else}}

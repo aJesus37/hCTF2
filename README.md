@@ -84,16 +84,21 @@ task build
 ./hctf2 --port 8090 --admin-email admin@example.com --admin-password yourpassword
 ```
 
-### Command Line Options
+### Configuration
 
+For detailed configuration options, see [CONFIGURATION.md](CONFIGURATION.md).
+
+**Quick options:**
 ```bash
 ./hctf2 [options]
 
 Options:
-  --port int              Server port (default 8090)
-  --db string            Database path (default "./hctf2.db")
-  --admin-email string   Admin email for first-time setup
-  --admin-password string Admin password for first-time setup
+  --port int                Server port (default 8090)
+  --host string            Server host (default 0.0.0.0)
+  --database-path string   Database path (default data/hctf2.db)
+  --jwt-secret string      JWT signing secret
+  --admin-email string     Admin email for first-time setup
+  --admin-password string  Admin password for first-time setup
 ```
 
 ## Usage
@@ -139,11 +144,22 @@ All queries run client-side in the browser using DuckDB WASM, ensuring:
 - **hints** - Optional hints for questions
 - **hint_unlocks** - Track hint usage
 
+## Documentation
+
+- [QUICKSTART.md](QUICKSTART.md) - Get up and running in 5 minutes
+- [CONFIGURATION.md](CONFIGURATION.md) - Configuration options and examples
+- [OPERATIONS.md](OPERATIONS.md) - Production deployment and maintenance
+- [KNOWN_ISSUES.md](KNOWN_ISSUES.md) - Known bugs and workarounds
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture and design
+- [API.md](API.md) - API endpoint reference
+- [DOCKER.md](DOCKER.md) - Docker deployment guide
+- [CLAUDE.md](CLAUDE.md) - Instructions for AI assistants
+
 ## Development
 
 ```bash
 # Run in development mode
-go run cmd/server/main.go --port 8090
+task run
 
 # Run tests
 task test
@@ -154,43 +170,31 @@ task fmt
 
 ## Deployment
 
+For production deployment steps, see [OPERATIONS.md](OPERATIONS.md).
+
 ### Docker (Recommended)
 
 See [DOCKER.md](DOCKER.md) for comprehensive Docker deployment guide.
 
 ```bash
-# Production deployment
+# Development
+docker compose -f docker-compose.dev.yml up -d
+
+# Production
 docker compose up -d
-
-# With custom config
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-### Systemd Service
+### Native Deployment
 
-```ini
-[Unit]
-Description=hCTF2 Platform
-After=network.target
+```bash
+# Build
+task build
 
-[Service]
-Type=simple
-User=hctf
-ExecStart=/usr/local/bin/hctf2 --port 8090 --db /var/lib/hctf2/hctf2.db
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
+# Run
+./hctf2 --port 8080 --admin-email admin@example.com --admin-password password
 ```
 
-### Docker
-
-```dockerfile
-FROM scratch
-COPY hctf2 /hctf2
-EXPOSE 8090
-ENTRYPOINT ["/hctf2"]
-```
+See [OPERATIONS.md](OPERATIONS.md) for systemd service setup and full deployment guide.
 
 ## Project Structure
 
