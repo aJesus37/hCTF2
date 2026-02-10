@@ -696,9 +696,7 @@ func (s *Server) handleViewChallenge(w http.ResponseWriter, r *http.Request) {
 		<p class="text-gray-300 mb-4">%s</p>
 		<div class="flex gap-2">
 			<button
-				hx-get="/admin/challenges/%s/edit"
-				hx-target="#challenge-%s"
-				hx-swap="outerHTML"
+				onclick="htmx.ajax('GET', '/admin/challenges/%s/edit', {target: '#challenge-%s', swap: 'outerHTML'})"
 				class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
 				Edit
 			</button>
@@ -901,9 +899,7 @@ func (s *Server) handleViewQuestion(w http.ResponseWriter, r *http.Request) {
 		</p>
 		<div class="flex gap-2">
 			<button
-				hx-get="/admin/questions/%s/edit"
-				hx-target="#question-%s"
-				hx-swap="outerHTML"
+				onclick="htmx.ajax('GET', '/admin/questions/%s/edit', {target: '#question-%s', swap: 'outerHTML'})"
 				class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
 				Edit
 			</button>

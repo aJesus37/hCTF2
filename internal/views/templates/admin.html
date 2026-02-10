@@ -60,11 +60,7 @@
                 hx-post="/api/admin/challenges"
                 hx-target="#challenges-list"
                 hx-swap="beforeend scroll:#challenges-list:bottom"
-                @htmx:afterSwap="
-                    // Process new elements so HTMX attributes work on newly created items
-                    const newElement = document.querySelector('#challenges-list').lastElementChild;
-                    if(newElement) htmx.process(newElement);
-                "
+                hx-on="htmx:afterSwap: setTimeout(() => { console.log('Processing new challenge'); const elem = document.querySelector('#challenges-list').lastElementChild; console.log('Element:', elem); if(elem) { console.log('Calling htmx.process()'); htmx.process(elem); } }, 10)"
                 @htmx:after-request="
                     if($event.detail.successful) {
                         showCreateForm = false;
@@ -226,11 +222,7 @@
                 hx-post="/api/admin/questions"
                 hx-target="#questions-list"
                 hx-swap="beforeend scroll:#questions-list:bottom"
-                @htmx:afterSwap="
-                    // Process new elements so HTMX attributes work on newly created items
-                    const newElement = document.querySelector('#questions-list').lastElementChild;
-                    if(newElement) htmx.process(newElement);
-                "
+                hx-on="htmx:afterSwap: setTimeout(() => { const elem = document.querySelector('#questions-list').lastElementChild; if(elem) htmx.process(elem); }, 0)"
                 @htmx:after-request="
                     if($event.detail.successful) {
                         showCreateForm = false;
