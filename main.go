@@ -601,42 +601,44 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		visibleChecked = "checked"
 	}
 
-	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6">
-		<div class="bg-dark-bg border border-dark-border rounded p-4 space-y-4 mb-4">
-			<h4 class="text-lg font-bold text-white">Edit Challenge</h4>
+	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+		<div class="bg-dark-bg border border-dark-border rounded-lg p-4 space-y-3 mb-4">
+			<h3 class="text-lg font-bold text-white">Edit Challenge</h3>
 			<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">
 				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Challenge Name</label>
-					<input type="text" name="name" value="%s" placeholder="e.g., Web Security 101" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Name</label>
+					<input type="text" name="name" value="%s" placeholder="e.g., Web Security 101" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Description</label>
-					<textarea name="description" placeholder="Challenge description..." class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>%s</textarea>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Description</label>
+					<textarea name="description" placeholder="Challenge description..." class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>%s</textarea>
 				</div>
-				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Category</label>
-					<select name="category" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-						<option value="web" %s>Web</option>
-						<option value="crypto" %s>Crypto</option>
-						<option value="pwn" %s>Pwn</option>
-						<option value="forensics" %s>Forensics</option>
-						<option value="misc" %s>Misc</option>
-					</select>
-				</div>
-				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Difficulty</label>
-					<select name="difficulty" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-						<option value="easy" %s>Easy</option>
-						<option value="medium" %s>Medium</option>
-						<option value="hard" %s>Hard</option>
-					</select>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="block text-xs font-medium text-gray-300 mb-1">Category</label>
+						<select name="category" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+							<option value="web" %s>Web</option>
+							<option value="crypto" %s>Crypto</option>
+							<option value="pwn" %s>Pwn</option>
+							<option value="forensics" %s>Forensics</option>
+							<option value="misc" %s>Misc</option>
+						</select>
+					</div>
+					<div>
+						<label class="block text-xs font-medium text-gray-300 mb-1">Difficulty</label>
+						<select name="difficulty" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+							<option value="easy" %s>Easy</option>
+							<option value="medium" %s>Medium</option>
+							<option value="hard" %s>Hard</option>
+						</select>
+					</div>
 				</div>
 				<label class="flex items-center text-sm text-gray-300 cursor-pointer">
-					<input type="checkbox" name="visible" value="on" %s class="mr-2"> Visible to users
+					<input type="checkbox" name="visible" value="on" %s class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> Visible to users
 				</label>
-				<div class="flex gap-2 pt-2">
-					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm">Save</button>
-					<button type="button" hx-get="/admin/challenges/%s/view" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
+				<div class="flex gap-2">
+					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
+					<button type="button" hx-get="/admin/challenges/%s/view" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
 				</div>
 			</form>
 		</div>
@@ -813,42 +815,44 @@ func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
 		flagMask = *question.FlagMask
 	}
 
-	html := fmt.Sprintf(`<div id="question-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6">
-		<div class="bg-dark-bg border border-dark-border rounded p-4 space-y-4 mb-4">
-			<h4 class="text-lg font-bold text-white">Edit Question</h4>
+	html := fmt.Sprintf(`<div id="question-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+		<div class="bg-dark-bg border border-dark-border rounded-lg p-4 space-y-3 mb-4">
+			<h3 class="text-lg font-bold text-white">Edit Question</h3>
 			<form hx-put="/api/admin/questions/%s" hx-target="closest #question-%s" hx-swap="outerHTML" class="space-y-3">
 				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Challenge</label>
-					<select name="challenge_id" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Challenge</label>
+					<select name="challenge_id" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 						%s
 					</select>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Question Name</label>
-					<input type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Question Name</label>
+					<input type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Description</label>
-					<textarea name="description" placeholder="Question description and hints..." class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>%s</textarea>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Description</label>
+					<textarea name="description" placeholder="Question description and hints..." class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>%s</textarea>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Flag</label>
-					<input type="text" name="flag" value="%s" placeholder="flag{...}" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Flag</label>
+					<input type="text" name="flag" value="%s" placeholder="flag{...}" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 				</div>
-				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Points</label>
-					<input type="number" name="points" value="%d" placeholder="100" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-				</div>
-				<div>
-					<label class="block text-xs font-medium text-gray-400 mb-1">Flag Mask (leave empty to auto-generate)</label>
-					<input type="text" name="flag_mask" value="%s" placeholder="flag{****}" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="block text-xs font-medium text-gray-300 mb-1">Points</label>
+						<input type="number" name="points" value="%d" placeholder="100" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+					</div>
+					<div>
+						<label class="block text-xs font-medium text-gray-300 mb-1">Flag Mask</label>
+						<input type="text" name="flag_mask" value="%s" placeholder="flag{****}" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+					</div>
 				</div>
 				<label class="flex items-center text-sm text-gray-300 cursor-pointer">
-					<input type="checkbox" name="case_sensitive" value="on" %s class="mr-2"> Case sensitive flag
+					<input type="checkbox" name="case_sensitive" value="on" %s class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> Case sensitive flag
 				</label>
-				<div class="flex gap-2 pt-2">
-					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm">Save</button>
-					<button type="button" hx-get="/admin/questions/%s/view" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
+				<div class="flex gap-2">
+					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
+					<button type="button" hx-get="/admin/questions/%s/view" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
 				</div>
 			</form>
 		</div>

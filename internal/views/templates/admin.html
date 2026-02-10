@@ -61,8 +61,9 @@
                 hx-target="#challenges-list"
                 hx-swap="beforeend scroll:#challenges-list:bottom"
                 @htmx:afterSwap="
-                    // Process new elements so HTMX attributes work
-                    htmx.process(document.querySelector('#challenges-list').lastElementChild);
+                    // Process new elements so HTMX attributes work on newly created items
+                    const newElement = document.querySelector('#challenges-list').lastElementChild;
+                    if(newElement) htmx.process(newElement);
                 "
                 @htmx:after-request="
                     if($event.detail.successful) {
@@ -226,8 +227,9 @@
                 hx-target="#questions-list"
                 hx-swap="beforeend scroll:#questions-list:bottom"
                 @htmx:afterSwap="
-                    // Process new elements so HTMX attributes work
-                    htmx.process(document.querySelector('#questions-list').lastElementChild);
+                    // Process new elements so HTMX attributes work on newly created items
+                    const newElement = document.querySelector('#questions-list').lastElementChild;
+                    if(newElement) htmx.process(newElement);
                 "
                 @htmx:after-request="
                     if($event.detail.successful) {
