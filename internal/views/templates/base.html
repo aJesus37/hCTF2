@@ -38,7 +38,7 @@
         {{end}}
     {{end}}
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen flex flex-col">
     <nav class="bg-dark-surface border-b border-dark-border">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
@@ -81,7 +81,7 @@
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {{if eq .Page "login"}}
             {{template "login-content" .}}
         {{else if eq .Page "register"}}
