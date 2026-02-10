@@ -407,17 +407,16 @@
                         questionSelect.value = selectedQuestionId;
                         if(selectedQuestionId) {
                             // Re-fetch order number for the selected question
-                            htmx.ajax('GET', '/api/questions/' + selectedQuestionId + '/next-hint-order', {
-                                target: '#next-order-target',
-                                swap: 'none',
-                                onAfterRequest: (xhr) => {
-                                    try {
-                                        const data = JSON.parse(xhr.response);
-                                        nextOrder = data.nextOrder;
-                                        $el.querySelector('input[name=order]').value = nextOrder;
-                                    } catch(e) {}
-                                }
-                            });
+                            fetch('/api/questions/' + selectedQuestionId + '/next-hint-order')
+                                .then(r => r.json())
+                                .then(data => {
+                                    nextOrder = data.nextOrder;
+                                    const orderInput = $el.querySelector('input[name=order]');
+                                    if(orderInput) {
+                                        orderInput.value = data.nextOrder;
+                                    }
+                                })
+                                .catch(e => console.error('Error fetching order:', e));
                         }
                         // Focus on content for next hint
                         $el.querySelector('textarea[name=content]').focus();
@@ -444,17 +443,16 @@
                             const qId = $el.value;
                             selectedQuestionId = qId;
                             if(qId) {
-                                htmx.ajax('GET', '/api/questions/' + qId + '/next-hint-order', {
-                                    target: '#next-order-target',
-                                    swap: 'none',
-                                    onAfterRequest: (xhr) => {
-                                        try {
-                                            const data = JSON.parse(xhr.response);
-                                            nextOrder = data.nextOrder;
-                                            document.querySelector('input[name=order]').value = nextOrder;
-                                        } catch(e) {}
-                                    }
-                                });
+                                fetch('/api/questions/' + qId + '/next-hint-order')
+                                    .then(r => r.json())
+                                    .then(data => {
+                                        nextOrder = data.nextOrder;
+                                        const orderInput = document.querySelector('input[name=order]');
+                                        if(orderInput) {
+                                            orderInput.value = data.nextOrder;
+                                        }
+                                    })
+                                    .catch(e => console.error('Error fetching order:', e));
                             }
                         "
                         class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">

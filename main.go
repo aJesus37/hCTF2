@@ -805,18 +805,36 @@ func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
 		<div class="bg-dark-bg border border-dark-border rounded p-4 space-y-4 mb-4">
 			<h4 class="text-lg font-bold text-white">Edit Question</h4>
 			<form hx-put="/api/admin/questions/%s" hx-target="closest #question-%s" hx-swap="outerHTML" class="space-y-3">
-				<select name="challenge_id" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-					%s
-				</select>
-				<input type="text" name="name" value="%s" placeholder="Question name" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-				<textarea name="description" placeholder="Description" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>%s</textarea>
-				<input type="text" name="flag" value="%s" placeholder="flag{...}" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-				<input type="number" name="points" value="%d" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-				<input type="text" name="flag_mask" value="%s" placeholder="flag{****}" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">
-				<label class="flex items-center text-sm text-gray-300">
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Challenge</label>
+					<select name="challenge_id" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+						%s
+					</select>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Question Name</label>
+					<input type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Description</label>
+					<textarea name="description" placeholder="Question description and hints..." class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>%s</textarea>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Flag</label>
+					<input type="text" name="flag" value="%s" placeholder="flag{...}" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Points</label>
+					<input type="number" name="points" value="%d" placeholder="100" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Flag Mask (leave empty to auto-generate)</label>
+					<input type="text" name="flag_mask" value="%s" placeholder="flag{****}" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">
+				</div>
+				<label class="flex items-center text-sm text-gray-300 cursor-pointer">
 					<input type="checkbox" name="case_sensitive" value="on" %s class="mr-2"> Case sensitive flag
 				</label>
-				<div class="flex gap-2">
+				<div class="flex gap-2 pt-2">
 					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm">Save</button>
 					<button type="button" hx-get="/admin/questions/%s/view" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
 				</div>
