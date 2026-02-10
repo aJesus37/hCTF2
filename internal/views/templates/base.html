@@ -81,7 +81,7 @@
         </div>
     </nav>
 
-    <main class="flex-grow {{if eq .Page "scoreboard"}}w-full{{else}}max-w-7xl mx-auto{{end}} px-4 sm:px-6 lg:px-8 py-8">
+    <main class="flex-grow {{if or (eq .Page "scoreboard") (eq .Page "login")}}w-full{{else}}max-w-7xl mx-auto{{end}} px-4 sm:px-6 lg:px-8 py-8">
         {{if eq .Page "login"}}
             {{template "login-content" .}}
         {{else if eq .Page "register"}}
