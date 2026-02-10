@@ -1,20 +1,24 @@
--- Recreate teams table without new columns
+-- Rollback team invites - recreate teams table without new columns
+PRAGMA foreign_keys=OFF;
+
 DROP INDEX IF EXISTS idx_teams_invite_id;
 
-ALTER TABLE teams RENAME TO teams_new;
-
-CREATE TABLE teams (
+CREATE TABLE teams_old (
     id TEXT PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
     description TEXT,
-    owner_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    owner_id TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Copy data back
-INSERT INTO teams (id, name, description, owner_id, created_at, updated_at)
+INSERT INTO teams_old (id, name, description, owner_id, created_at, updated_at)
 SELECT id, name, description, owner_id, created_at, updated_at
-FROM teams_new;
+FROM teams;
 
-DROP TABLE teams_new;
+DROP TABLE teams;
+
+ALTER TABLE teams_old RENAME TO teams;
+
+PRAGMA foreign_keys=ON;
