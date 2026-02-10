@@ -605,24 +605,36 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		<div class="bg-dark-bg border border-dark-border rounded p-4 space-y-4 mb-4">
 			<h4 class="text-lg font-bold text-white">Edit Challenge</h4>
 			<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">
-				<input type="text" name="name" value="%s" placeholder="Challenge name" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-				<textarea name="description" placeholder="Description" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>%s</textarea>
-				<select name="category" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-					<option value="web" %s>Web</option>
-					<option value="crypto" %s>Crypto</option>
-					<option value="pwn" %s>Pwn</option>
-					<option value="forensics" %s>Forensics</option>
-					<option value="misc" %s>Misc</option>
-				</select>
-				<select name="difficulty" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
-					<option value="easy" %s>Easy</option>
-					<option value="medium" %s>Medium</option>
-					<option value="hard" %s>Hard</option>
-				</select>
-				<label class="flex items-center text-sm text-gray-300">
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Challenge Name</label>
+					<input type="text" name="name" value="%s" placeholder="e.g., Web Security 101" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Description</label>
+					<textarea name="description" placeholder="Challenge description..." class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>%s</textarea>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Category</label>
+					<select name="category" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+						<option value="web" %s>Web</option>
+						<option value="crypto" %s>Crypto</option>
+						<option value="pwn" %s>Pwn</option>
+						<option value="forensics" %s>Forensics</option>
+						<option value="misc" %s>Misc</option>
+					</select>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-400 mb-1">Difficulty</label>
+					<select name="difficulty" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm" required>
+						<option value="easy" %s>Easy</option>
+						<option value="medium" %s>Medium</option>
+						<option value="hard" %s>Hard</option>
+					</select>
+				</div>
+				<label class="flex items-center text-sm text-gray-300 cursor-pointer">
 					<input type="checkbox" name="visible" value="on" %s class="mr-2"> Visible to users
 				</label>
-				<div class="flex gap-2">
+				<div class="flex gap-2 pt-2">
 					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm">Save</button>
 					<button type="button" hx-get="/admin/challenges/%s/view" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm">Cancel</button>
 				</div>

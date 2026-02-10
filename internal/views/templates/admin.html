@@ -60,6 +60,10 @@
                 hx-post="/api/admin/challenges"
                 hx-target="#challenges-list"
                 hx-swap="beforeend scroll:#challenges-list:bottom"
+                @htmx:afterSwap="
+                    // Process new elements so HTMX attributes work
+                    htmx.process(document.querySelector('#challenges-list').lastElementChild);
+                "
                 @htmx:after-request="
                     if($event.detail.successful) {
                         showCreateForm = false;
@@ -221,6 +225,10 @@
                 hx-post="/api/admin/questions"
                 hx-target="#questions-list"
                 hx-swap="beforeend scroll:#questions-list:bottom"
+                @htmx:afterSwap="
+                    // Process new elements so HTMX attributes work
+                    htmx.process(document.querySelector('#questions-list').lastElementChild);
+                "
                 @htmx:after-request="
                     if($event.detail.successful) {
                         showCreateForm = false;
