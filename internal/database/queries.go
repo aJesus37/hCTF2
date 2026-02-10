@@ -870,13 +870,14 @@ func (db *DB) GetUserStats(userID string) (*UserStats, error) {
 }
 
 type SubmissionHistory struct {
-	ID           string
-	CreatedAt    time.Time
-	IsCorrect    bool
-	QuestionName string
-	Points       int
+	ID            string
+	CreatedAt     time.Time
+	IsCorrect     bool
+	QuestionName  string
+	Points        int
 	ChallengeName string
-	Category     string
+	ChallengeID   string
+	Category      string
 }
 
 func (db *DB) GetUserRecentSubmissions(userID string, limit int) ([]SubmissionHistory, error) {
@@ -888,6 +889,7 @@ func (db *DB) GetUserRecentSubmissions(userID string, limit int) ([]SubmissionHi
 			q.name as question_name,
 			q.points - COALESCE(hint_costs.cost, 0) as points,
 			c.name as challenge_name,
+			c.id as challenge_id,
 			c.category
 		FROM submissions s
 		JOIN questions q ON s.question_id = q.id
@@ -913,7 +915,7 @@ func (db *DB) GetUserRecentSubmissions(userID string, limit int) ([]SubmissionHi
 	for rows.Next() {
 		var sub SubmissionHistory
 		if err := rows.Scan(&sub.ID, &sub.CreatedAt, &sub.IsCorrect, &sub.QuestionName,
-			&sub.Points, &sub.ChallengeName, &sub.Category); err != nil {
+			&sub.Points, &sub.ChallengeName, &sub.ChallengeID, &sub.Category); err != nil {
 			return nil, err
 		}
 		submissions = append(submissions, sub)
@@ -1004,4 +1006,154 @@ func (db *DB) UpdatePassword(userID, passwordHash string) error {
 	          WHERE id = ?`
 	_, err := db.Exec(query, passwordHash, userID)
 	return err
+}
+
+// Category queries
+
+func (db *DB) GetAllCategories() ([]models.CategoryOption, error) {
+	query := `SELECT id, name, sort_order, created_at FROM categories ORDER BY sort_order, name`
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var categories []models.CategoryOption
+	for rows.Next() {
+		var c models.CategoryOption
+		if err := rows.Scan(&c.ID, &c.Name, &c.SortOrder, &c.CreatedAt); err != nil {
+			return nil, err
+		}
+		categories = append(categories, c)
+	}
+	return categories, nil
+}
+
+func (db *DB) CreateCategory(name string, sortOrder int) (*models.CategoryOption, error) {
+	query := `INSERT INTO categories (name, sort_order) VALUES (?, ?)
+	          RETURNING id, name, sort_order, created_at`
+	var c models.CategoryOption
+	err := db.QueryRow(query, name, sortOrder).Scan(&c.ID, &c.Name, &c.SortOrder, &c.CreatedAt)
+	return &c, err
+}
+
+func (db *DB) UpdateCategory(id, name string, sortOrder int) (*models.CategoryOption, error) {
+	query := `UPDATE categories SET name = ?, sort_order = ? WHERE id = ?
+	          RETURNING id, name, sort_order, created_at`
+	var c models.CategoryOption
+	err := db.QueryRow(query, name, sortOrder, id).Scan(&c.ID, &c.Name, &c.SortOrder, &c.CreatedAt)
+	return &c, err
+}
+
+func (db *DB) DeleteCategory(id string) error {
+	_, err := db.Exec("DELETE FROM categories WHERE id = ?", id)
+	return err
+}
+
+// Difficulty queries
+
+func (db *DB) GetAllDifficulties() ([]models.DifficultyOption, error) {
+	query := `SELECT id, name, color, text_color, sort_order, created_at FROM difficulties ORDER BY sort_order, name`
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var difficulties []models.DifficultyOption
+	for rows.Next() {
+		var d models.DifficultyOption
+		if err := rows.Scan(&d.ID, &d.Name, &d.Color, &d.TextColor, &d.SortOrder, &d.CreatedAt); err != nil {
+			return nil, err
+		}
+		difficulties = append(difficulties, d)
+	}
+	return difficulties, nil
+}
+
+func (db *DB) CreateDifficulty(name, color, textColor string, sortOrder int) (*models.DifficultyOption, error) {
+	query := `INSERT INTO difficulties (name, color, text_color, sort_order) VALUES (?, ?, ?, ?)
+	          RETURNING id, name, color, text_color, sort_order, created_at`
+	var d models.DifficultyOption
+	err := db.QueryRow(query, name, color, textColor, sortOrder).Scan(&d.ID, &d.Name, &d.Color, &d.TextColor, &d.SortOrder, &d.CreatedAt)
+	return &d, err
+}
+
+func (db *DB) UpdateDifficulty(id, name, color, textColor string, sortOrder int) (*models.DifficultyOption, error) {
+	query := `UPDATE difficulties SET name = ?, color = ?, text_color = ?, sort_order = ? WHERE id = ?
+	          RETURNING id, name, color, text_color, sort_order, created_at`
+	var d models.DifficultyOption
+	err := db.QueryRow(query, name, color, textColor, sortOrder, id).Scan(&d.ID, &d.Name, &d.Color, &d.TextColor, &d.SortOrder, &d.CreatedAt)
+	return &d, err
+}
+
+func (db *DB) DeleteDifficulty(id string) error {
+	_, err := db.Exec("DELETE FROM difficulties WHERE id = ?", id)
+	return err
+}
+
+func (db *DB) GetDifficultyByName(name string) (*models.DifficultyOption, error) {
+	query := `SELECT id, name, color, text_color, sort_order, created_at FROM difficulties WHERE name = ?`
+	var d models.DifficultyOption
+	err := db.QueryRow(query, name).Scan(&d.ID, &d.Name, &d.Color, &d.TextColor, &d.SortOrder, &d.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &d, nil
+}
+
+// Site settings queries
+
+func (db *DB) GetSetting(key string) (string, error) {
+	var value string
+	query := `SELECT value FROM site_settings WHERE key = ?`
+	err := db.QueryRow(query, key).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return value, err
+}
+
+func (db *DB) SetSetting(key, value string) error {
+	query := `INSERT INTO site_settings (key, value, updated_at)
+	          VALUES (?, ?, CURRENT_TIMESTAMP)
+	          ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP`
+	_, err := db.Exec(query, key, value, value)
+	return err
+}
+
+func (db *DB) GetCustomCode(page string) (*models.CustomCode, error) {
+	headHTML, _ := db.GetSetting("custom_head_html")
+	bodyEndHTML, _ := db.GetSetting("custom_body_end_html")
+	pagesJSON, _ := db.GetSetting("custom_code_pages")
+
+	var pages []string
+	if pagesJSON != "" {
+		// Simple JSON array parsing: ["all", "login", ...]
+		pagesJSON = strings.Trim(pagesJSON, "[]")
+		if pagesJSON != "" {
+			for _, p := range strings.Split(pagesJSON, ",") {
+				p = strings.Trim(strings.Trim(p, `"`), " ")
+				pages = append(pages, p)
+			}
+		}
+	}
+
+	// Check if code should be injected on this page
+	inject := false
+	for _, p := range pages {
+		if p == "all" || p == page {
+			inject = true
+			break
+		}
+	}
+
+	if !inject {
+		return &models.CustomCode{}, nil
+	}
+
+	return &models.CustomCode{
+		HeadHTML:    headHTML,
+		BodyEndHTML: bodyEndHTML,
+	}, nil
 }

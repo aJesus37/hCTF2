@@ -32,6 +32,11 @@
             color: #e2e8f0;
         }
     </style>
+    {{if .CustomCode}}
+        {{if .CustomCode.HeadHTML}}
+            {{.CustomCode.HeadHTML | safeHTML}}
+        {{end}}
+    {{end}}
 </head>
 <body class="min-h-screen">
     <nav class="bg-dark-surface border-b border-dark-border">
@@ -106,10 +111,15 @@
         {{end}}
     </main>
 
-    <footer class="mt-auto border-t border-dark-border py-6">
+    <footer class="mt-auto border-t border-dark-border py-3">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-400">
             <p>hCTF2 - A modern CTF platform with SQL-powered analytics</p>
         </div>
     </footer>
+    {{if .CustomCode}}
+        {{if .CustomCode.BodyEndHTML}}
+            {{.CustomCode.BodyEndHTML | safeHTML}}
+        {{end}}
+    {{end}}
 </body>
 </html>

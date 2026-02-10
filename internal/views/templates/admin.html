@@ -41,6 +41,12 @@
                 class="pb-3 font-medium transition">
                 Hints
             </button>
+            <button
+                @click="tab = 'settings'"
+                :class="tab === 'settings' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-gray-400 hover:text-gray-300'"
+                class="pb-3 font-medium transition">
+                Settings
+            </button>
         </div>
     </div>
 
@@ -60,7 +66,6 @@
                 hx-post="/api/admin/challenges"
                 hx-target="#challenges-list"
                 hx-swap="beforeend scroll:#challenges-list:bottom"
-                hx-on="htmx:afterSwap: setTimeout(() => { console.log('Processing new challenge'); const elem = document.querySelector('#challenges-list').lastElementChild; console.log('Element:', elem); if(elem) { console.log('Calling htmx.process()'); htmx.process(elem); } }, 10)"
                 @htmx:after-request="
                     if($event.detail.successful) {
                         showCreateForm = false;
@@ -102,30 +107,27 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Category *</label>
-                        <select
-                            name="category"
-                            required
-                            class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
-                            <option value="">Select category</option>
-                            <option value="web">Web</option>
-                            <option value="crypto">Crypto</option>
-                            <option value="pwn">Pwn</option>
-                            <option value="forensics">Forensics</option>
-                            <option value="misc">Misc</option>
-                        </select>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Categories *</label>
+                        <div id="challenge-categories-container" class="space-y-1 bg-dark-bg border border-dark-border rounded p-3">
+                            {{range .Categories}}
+                            <label class="flex items-center text-sm text-gray-300 cursor-pointer">
+                                <input type="checkbox" name="category" value="{{.Name}}" class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> {{.Name}}
+                            </label>
+                            {{end}}
+                        </div>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Difficulty *</label>
                         <select
+                            id="challenge-difficulty-select"
                             name="difficulty"
                             required
                             class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
                             <option value="">Select difficulty</option>
-                            <option value="easy">Easy</option>
-                            <option value="medium">Medium</option>
-                            <option value="hard">Hard</option>
+                            {{range .Difficulties}}
+                            <option value="{{.Name}}">{{.Name}}</option>
+                            {{end}}
                         </select>
                     </div>
                 </div>
@@ -165,11 +167,8 @@
                     <div>
                         <h3 class="text-xl font-bold text-white">{{.Name}}</h3>
                         <p class="text-sm text-gray-400">
-                            Category: <span class="text-blue-400">{{.Category}}</span> •
-                            Difficulty: <span class="font-medium
-                                {{if eq .Difficulty "easy"}}text-green-400
-                                {{else if eq .Difficulty "medium"}}text-yellow-400
-                                {{else}}text-red-400{{end}}">{{.Difficulty}}</span>
+                            Category: {{range $i, $cat := splitCategories .Category}}{{if $i}}, {{end}}<span class="text-blue-400">{{$cat}}</span>{{end}} •
+                            Difficulty: <span class="font-medium {{difficultyColor .Difficulty}}">{{.Difficulty}}</span>
                             {{if not .Visible}}<span class="ml-2 text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Hidden</span>{{end}}
                         </p>
                     </div>
@@ -177,21 +176,19 @@
                 <p class="text-gray-300 mb-4">{{.Description}}</p>
                 <div class="flex gap-2">
                     <button
-                        onclick="htmx.ajax('GET', '/admin/challenges/{{.ID}}/edit', {target: '#challenge-{{.ID}}', swap: 'outerHTML'})"
+                        hx-get="/admin/challenges/{{.ID}}/edit"
+                        hx-target="#challenge-{{.ID}}"
+                        hx-swap="outerHTML"
                         class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
                         Edit
                     </button>
                     <button
-                        @click="if(confirm('Delete this challenge? This action cannot be undone.')) { htmx.trigger('#del-challenge-{{.ID}}', 'click') }"
-                        class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
-                        Delete
-                    </button>
-                    <button
-                        style="display:none"
-                        id="del-challenge-{{.ID}}"
                         hx-delete="/api/admin/challenges/{{.ID}}"
                         hx-target="#challenge-{{.ID}}"
-                        hx-swap="outerHTML swap:1s">
+                        hx-swap="outerHTML swap:1s"
+                        hx-confirm="Delete this challenge? This action cannot be undone."
+                        class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
+                        Delete
                     </button>
                 </div>
             </div>
@@ -220,7 +217,6 @@
                 hx-post="/api/admin/questions"
                 hx-target="#questions-list"
                 hx-swap="beforeend scroll:#questions-list:bottom"
-                hx-on="htmx:afterSwap: setTimeout(() => { const elem = document.querySelector('#questions-list').lastElementChild; if(elem) htmx.process(elem); }, 0)"
                 @htmx:after-request="
                     if($event.detail.successful) {
                         showCreateForm = false;
@@ -350,21 +346,19 @@
                 </p>
                 <div class="flex gap-2">
                     <button
-                        onclick="htmx.ajax('GET', '/admin/questions/{{.ID}}/edit', {target: '#question-{{.ID}}', swap: 'outerHTML'})"
+                        hx-get="/admin/questions/{{.ID}}/edit"
+                        hx-target="#question-{{.ID}}"
+                        hx-swap="outerHTML"
                         class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
                         Edit
                     </button>
                     <button
-                        @click="if(confirm('Delete this question? This action cannot be undone.')) { htmx.trigger('#del-question-{{.ID}}', 'click') }"
-                        class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
-                        Delete
-                    </button>
-                    <button
-                        style="display:none"
-                        id="del-question-{{.ID}}"
                         hx-delete="/api/admin/questions/{{.ID}}"
                         hx-target="#question-{{.ID}}"
-                        hx-swap="outerHTML swap:1s">
+                        hx-swap="outerHTML swap:1s"
+                        hx-confirm="Delete this question? This action cannot be undone."
+                        class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
+                        Delete
                     </button>
                 </div>
             </div>
@@ -594,6 +588,261 @@
                 <p>No hints yet. Create one to help users!</p>
             </div>
             {{end}}
+        </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div x-show="tab === 'settings'" class="space-y-8">
+        <!-- Categories Section -->
+        <div>
+            <h2 class="text-2xl font-bold text-white mb-4">Categories</h2>
+            <div id="categories-list" class="space-y-2 mb-4">
+                {{range .Categories}}
+                <div id="cat-{{.ID}}" x-data="{ editing: false }" class="bg-dark-bg border border-dark-border rounded px-4 py-2">
+                    <div x-show="!editing" class="flex items-center justify-between">
+                        <span class="text-white">{{.Name}} <span class="text-xs text-gray-400">(order: {{.SortOrder}})</span></span>
+                        <div class="flex gap-2">
+                            <button @click="editing = true" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">Edit</button>
+                            <button hx-delete="/api/admin/categories/{{.ID}}" hx-target="#cat-{{.ID}}" hx-swap="outerHTML" hx-confirm="Delete category '{{.Name}}'?"
+                                class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs">Delete</button>
+                        </div>
+                    </div>
+                    <form x-show="editing" hx-put="/api/admin/categories/{{.ID}}" hx-target="#cat-{{.ID}}" hx-swap="outerHTML"
+                        class="flex gap-3 items-end">
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">Name</label>
+                            <input type="text" name="name" value="{{.Name}}" required
+                                class="px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">Sort Order</label>
+                            <input type="number" name="sort_order" value="{{.SortOrder}}" min="0"
+                                class="w-20 px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                        </div>
+                        <button type="submit" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium">Save</button>
+                        <button type="button" @click="editing = false" class="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium">Cancel</button>
+                    </form>
+                </div>
+                {{end}}
+            </div>
+            <form hx-post="/api/admin/categories" hx-target="#categories-list" hx-swap="beforeend"
+                  @htmx:after-request="if($event.detail.successful) {
+                      $el.reset();
+                      htmx.ajax('GET', '/api/categories-checkboxes', {target: '#challenge-categories-container', swap: 'innerHTML'});
+                  }"
+                  class="flex gap-3 items-end">
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1">Name</label>
+                    <input type="text" name="name" required placeholder="e.g., reversing"
+                        class="px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1">Sort Order</label>
+                    <input type="number" name="sort_order" value="0" min="0"
+                        class="w-20 px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                </div>
+                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Add</button>
+            </form>
+        </div>
+
+        <!-- Difficulties Section -->
+        <div>
+            <h2 class="text-2xl font-bold text-white mb-4">Difficulties</h2>
+            <div id="difficulties-list" class="space-y-2 mb-4">
+                {{range .Difficulties}}
+                <div id="diff-{{.ID}}" x-data="{ editing: false }" class="bg-dark-bg border border-dark-border rounded px-4 py-2">
+                    <div x-show="!editing" class="flex items-center justify-between">
+                        <div>
+                            <span class="{{.TextColor}} font-medium">{{.Name}}</span>
+                            <span class="text-xs text-gray-400 ml-2">(order: {{.SortOrder}})</span>
+                            <span class="ml-2 px-2 py-0.5 text-xs rounded {{.Color}}">preview</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="editing = true" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">Edit</button>
+                            <button hx-delete="/api/admin/difficulties/{{.ID}}" hx-target="#diff-{{.ID}}" hx-swap="outerHTML" hx-confirm="Delete difficulty '{{.Name}}'?"
+                                class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs">Delete</button>
+                        </div>
+                    </div>
+                    <form x-show="editing" hx-put="/api/admin/difficulties/{{.ID}}" hx-target="#diff-{{.ID}}" hx-swap="outerHTML"
+                        class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-300 mb-1">Name</label>
+                                <input type="text" name="name" value="{{.Name}}" required
+                                    class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-300 mb-1">Sort Order</label>
+                                <input type="number" name="sort_order" value="{{.SortOrder}}" min="0"
+                                    class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-300 mb-1">Badge Color (Tailwind classes)</label>
+                                <input type="text" name="color" value="{{.Color}}"
+                                    class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-300 mb-1">Text Color (Tailwind class)</label>
+                                <input type="text" name="text_color" value="{{.TextColor}}"
+                                    class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium">Save</button>
+                            <button type="button" @click="editing = false" class="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                {{end}}
+            </div>
+            <form hx-post="/api/admin/difficulties" hx-target="#difficulties-list" hx-swap="beforeend"
+                  @htmx:after-request="if($event.detail.successful) {
+                      $el.reset();
+                      htmx.ajax('GET', '/api/difficulties-dropdown', {target: '#challenge-difficulty-select', swap: 'innerHTML'});
+                  }"
+                  class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1">Name</label>
+                        <input type="text" name="name" required placeholder="e.g., insane"
+                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1">Sort Order</label>
+                        <input type="number" name="sort_order" value="0" min="0"
+                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1">Badge Color (Tailwind classes)</label>
+                        <input type="text" name="color" placeholder="bg-purple-600 text-purple-100" value="bg-gray-600 text-gray-100"
+                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1">Text Color (Tailwind class)</label>
+                        <input type="text" name="text_color" placeholder="text-purple-400" value="text-gray-400"
+                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                    </div>
+                </div>
+                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Add Difficulty</button>
+            </form>
+        </div>
+
+        <!-- Custom Code Injection Section -->
+        <div x-data="{
+            headHTML: '',
+            bodyEndHTML: '',
+            pages: ['all']
+        }" x-init="
+            fetch('/api/admin/custom-code')
+                .then(r => r.json())
+                .then(data => {
+                    headHTML = data.head_html || '';
+                    bodyEndHTML = data.body_end_html || '';
+                    pages = JSON.parse(data.pages_json || '[\"all\"]');
+                });
+        ">
+            <h2 class="text-2xl font-bold text-white mb-4">Custom Code Injection</h2>
+            <div class="bg-yellow-900/20 border border-yellow-600 rounded p-4 mb-4">
+                <p class="text-yellow-400 text-sm">
+                    ⚠️ <strong>Warning:</strong> Custom code is injected directly into pages. Only use trusted code to avoid XSS vulnerabilities.
+                </p>
+            </div>
+
+            <form @submit.prevent="
+                fetch('/api/admin/custom-code', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: new URLSearchParams({
+                        head_html: headHTML,
+                        body_end_html: bodyEndHTML,
+                        pages_json: JSON.stringify(pages)
+                    })
+                }).then(() => {
+                    notification = 'Custom code saved successfully!';
+                    notificationType = 'success';
+                    showNotification = true;
+                    setTimeout(() => showNotification = false, 3000);
+                });
+            " class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                        Inject in &lt;head&gt; (e.g., analytics scripts)
+                    </label>
+                    <textarea x-model="headHTML" rows="6"
+                        placeholder="<script async src='https://analytics.example.com/script.js' data-website-id='...'></script>"
+                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 font-mono text-sm"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                        Inject before &lt;/body&gt; (e.g., tracking pixels)
+                    </label>
+                    <textarea x-model="bodyEndHTML" rows="6"
+                        placeholder="<img src='https://tracking.example.com/pixel.gif' width='1' height='1' />"
+                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 font-mono text-sm"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                        Inject on pages:
+                    </label>
+                    <div class="space-y-2">
+                        <label class="flex items-center text-sm text-gray-300">
+                            <input type="checkbox" x-model="pages" value="all" class="w-4 h-4 rounded mr-2"> All pages
+                        </label>
+                        <label class="flex items-center text-sm text-gray-300">
+                            <input type="checkbox" x-model="pages" value="login" class="w-4 h-4 rounded mr-2"> Login page only
+                        </label>
+                        <label class="flex items-center text-sm text-gray-300">
+                            <input type="checkbox" x-model="pages" value="challenges" class="w-4 h-4 rounded mr-2"> Challenges page only
+                        </label>
+                        <label class="flex items-center text-sm text-gray-300">
+                            <input type="checkbox" x-model="pages" value="admin" class="w-4 h-4 rounded mr-2"> Admin dashboard only
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition">
+                    Save Custom Code
+                </button>
+            </form>
+        </div>
+
+        <!-- MOTD Section -->
+        <div>
+            <h2 class="text-2xl font-bold text-white mb-4">Message of the Day</h2>
+            <p class="text-gray-400 text-sm mb-4">
+                Displayed below login form. Command-line flag <code class="bg-dark-bg px-2 py-1 rounded text-xs">--motd "text"</code> takes priority over database setting.
+            </p>
+            <form x-data="{ motd: '' }"
+                  x-init="fetch('/api/admin/custom-code').then(r => r.json()).then(d => motd = d.motd || '')"
+                  @submit.prevent="
+                      fetch('/api/admin/custom-code', {
+                          method: 'PUT',
+                          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                          body: new URLSearchParams({ motd: motd })
+                      }).then(() => {
+                          notification = 'MOTD saved successfully!';
+                          notificationType = 'success';
+                          showNotification = true;
+                          setTimeout(() => showNotification = false, 3000);
+                      });
+                  " class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">MOTD Text</label>
+                    <textarea x-model="motd" rows="3"
+                        placeholder="Demo credentials: admin@test.com / password123&#10;&#10;Or: System maintenance scheduled for 2 AM UTC"
+                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Supports multi-line text. Plain text only (no HTML).</p>
+                </div>
+                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition">
+                    Save MOTD
+                </button>
+            </form>
         </div>
     </div>
 </div>

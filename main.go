@@ -42,15 +42,17 @@ func init() {
 }
 
 type Server struct {
-	db        *database.DB
-	templates *template.Template
-	authH     *handlers.AuthHandler
-	challengeH *handlers.ChallengeHandler
+	db          *database.DB
+	templates   *template.Template
+	authH       *handlers.AuthHandler
+	challengeH  *handlers.ChallengeHandler
 	scoreboardH *handlers.ScoreboardHandler
-	teamH     *handlers.TeamHandler
-	hintH     *handlers.HintHandler
-	sqlH      *handlers.SQLHandler
-	profileH  *handlers.ProfileHandler
+	teamH       *handlers.TeamHandler
+	hintH       *handlers.HintHandler
+	sqlH        *handlers.SQLHandler
+	profileH    *handlers.ProfileHandler
+	settingsH   *handlers.SettingsHandler
+	motd        string
 }
 
 // customFileHandler wraps the file server to set proper content types for WASM and workers
@@ -79,6 +81,7 @@ func main() {
 		dbPath      = flag.String("db", "./hctf2.db", "Database path")
 		adminEmail  = flag.String("admin-email", "", "Admin email for first-time setup")
 		adminPass   = flag.String("admin-password", "", "Admin password for first-time setup")
+		motd        = flag.String("motd", "", "Message of the Day displayed below login form")
 	)
 	flag.Parse()
 
@@ -98,8 +101,34 @@ func main() {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
 		"markdown":      utils.RenderMarkdown,
 		"stripMarkdown": utils.StripMarkdown,
+		"safeHTML":      func(s string) template.HTML { return template.HTML(s) },
 		"mul":           func(a, b int) int { return a * b },
 		"div":           func(a, b int) int { if b == 0 { return 0 }; return a / b },
+		"difficultyColor": func(name string) string {
+			d, err := db.GetDifficultyByName(name)
+			if err != nil {
+				return "text-gray-400"
+			}
+			return d.TextColor
+		},
+		"difficultyBadge": func(name string) string {
+			d, err := db.GetDifficultyByName(name)
+			if err != nil {
+				return "bg-gray-600 text-gray-100"
+			}
+			return d.Color
+		},
+		"splitCategories": func(csv string) []string {
+			parts := strings.Split(csv, ",")
+			var result []string
+			for _, p := range parts {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					result = append(result, p)
+				}
+			}
+			return result
+		},
 	}).ParseFS(templatesFS, "internal/views/templates/*.html")
 	if err != nil {
 		log.Fatalf("Failed to parse templates: %v", err)
@@ -116,6 +145,8 @@ func main() {
 		hintH:       handlers.NewHintHandler(db),
 		sqlH:        handlers.NewSQLHandler(db),
 		profileH:    handlers.NewProfileHandler(db),
+		settingsH:   handlers.NewSettingsHandler(db),
+		motd:        *motd,
 	}
 
 	// Setup router
@@ -250,6 +281,16 @@ func main() {
 		r.Post("/api/admin/hints", s.challengeH.CreateHint)
 		r.Put("/api/admin/hints/{id}", s.challengeH.UpdateHint)
 		r.Delete("/api/admin/hints/{id}", s.challengeH.DeleteHint)
+		r.Post("/api/admin/categories", s.settingsH.CreateCategory)
+		r.Put("/api/admin/categories/{id}", s.settingsH.UpdateCategory)
+		r.Delete("/api/admin/categories/{id}", s.settingsH.DeleteCategory)
+		r.Post("/api/admin/difficulties", s.settingsH.CreateDifficulty)
+		r.Put("/api/admin/difficulties/{id}", s.settingsH.UpdateDifficulty)
+		r.Delete("/api/admin/difficulties/{id}", s.settingsH.DeleteDifficulty)
+		r.Get("/api/admin/custom-code", s.settingsH.GetCustomCode)
+		r.Put("/api/admin/custom-code", s.settingsH.UpdateCustomCode)
+		r.Get("/api/categories-checkboxes", s.handleCategoriesCheckboxes)
+		r.Get("/api/difficulties-dropdown", s.handleDifficultiesDropdown)
 	})
 
 	// API routes - SQL
@@ -363,6 +404,8 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	users, _ := s.db.GetUserCount()
 	solves, _ := s.db.GetCorrectSubmissionCount()
 
+	customCode, _ := s.db.GetCustomCode("index")
+
 	data := map[string]interface{}{
 		"Title": "Home",
 		"Page":  "index",
@@ -372,6 +415,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			"Users":      users,
 			"Solves":     solves,
 		},
+		"CustomCode": customCode,
 	}
 	s.render(w, "base.html", data)
 }
@@ -386,11 +430,18 @@ func (s *Server) handleChallenges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	categories, _ := s.db.GetAllCategories()
+	difficulties, _ := s.db.GetAllDifficulties()
+	customCode, _ := s.db.GetCustomCode("challenges")
+
 	data := map[string]interface{}{
-		"Title":      "Challenges",
-		"Page":       "challenges",
-		"User":       claims,
-		"Challenges": challenges,
+		"Title":        "Challenges",
+		"Page":         "challenges",
+		"User":         claims,
+		"Challenges":   challenges,
+		"Categories":   categories,
+		"Difficulties": difficulties,
+		"CustomCode":   customCode,
 	}
 	s.render(w, "base.html", data)
 }
@@ -429,6 +480,8 @@ func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	customCode, _ := s.db.GetCustomCode("challenge")
+
 	data := map[string]interface{}{
 		"Title":           challenge.Name,
 		"Page":            "challenge",
@@ -436,6 +489,7 @@ func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
 		"Challenge":       challenge,
 		"Questions":       questions,
 		"SolvedQuestions": solvedQuestions,
+		"CustomCode":      customCode,
 	}
 	s.render(w, "base.html", data)
 }
@@ -447,11 +501,14 @@ func (s *Server) handleScoreboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	customCode, _ := s.db.GetCustomCode("scoreboard")
+
 	data := map[string]interface{}{
-		"Title":   "Scoreboard",
-		"Page":    "scoreboard",
-		"User":    auth.GetUserFromContext(r.Context()),
-		"Entries": entries,
+		"Title":      "Scoreboard",
+		"Page":       "scoreboard",
+		"User":       auth.GetUserFromContext(r.Context()),
+		"Entries":    entries,
+		"CustomCode": customCode,
 	}
 	s.render(w, "base.html", data)
 }
@@ -474,11 +531,14 @@ func (s *Server) handleTeams(w http.ResponseWriter, r *http.Request) {
 		allTeams = []models.Team{}
 	}
 
+	customCode, _ := s.db.GetCustomCode("teams")
+
 	data := map[string]interface{}{
-		"Title":   "Teams",
-		"Page":    "teams",
-		"User":    user,
-		"AllTeams": allTeams,
+		"Title":      "Teams",
+		"Page":       "teams",
+		"User":       user,
+		"AllTeams":   allTeams,
+		"CustomCode": customCode,
 	}
 
 	// If user is in a team, add team details
@@ -503,48 +563,70 @@ func (s *Server) handleTeams(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
+	customCode, _ := s.db.GetCustomCode("sql")
+
 	data := map[string]interface{}{
-		"Title": "SQL Playground",
-		"Page":  "sql",
-		"User":  auth.GetUserFromContext(r.Context()),
+		"Title":      "SQL Playground",
+		"Page":       "sql",
+		"User":       auth.GetUserFromContext(r.Context()),
+		"CustomCode": customCode,
 	}
 	s.render(w, "base.html", data)
 }
 
 func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
+	// Check for MOTD: flag takes priority, then database
+	motdText := s.motd
+	if motdText == "" {
+		motdText, _ = s.db.GetSetting("motd")
+	}
+
+	customCode, _ := s.db.GetCustomCode("login")
+
 	data := map[string]interface{}{
-		"Title": "Login",
-		"Page":  "login",
-		"User":  auth.GetUserFromContext(r.Context()),
+		"Title":      "Login",
+		"Page":       "login",
+		"User":       auth.GetUserFromContext(r.Context()),
+		"CustomCode": customCode,
+		"MOTD":       motdText,
 	}
 	s.render(w, "base.html", data)
 }
 
 func (s *Server) handleRegisterPage(w http.ResponseWriter, r *http.Request) {
+	customCode, _ := s.db.GetCustomCode("register")
+
 	data := map[string]interface{}{
-		"Title": "Register",
-		"Page":  "register",
-		"User":  auth.GetUserFromContext(r.Context()),
+		"Title":      "Register",
+		"Page":       "register",
+		"User":       auth.GetUserFromContext(r.Context()),
+		"CustomCode": customCode,
 	}
 	s.render(w, "base.html", data)
 }
 
 func (s *Server) handleForgotPasswordPage(w http.ResponseWriter, r *http.Request) {
+	customCode, _ := s.db.GetCustomCode("forgot-password")
+
 	data := map[string]interface{}{
-		"Title": "Forgot Password",
-		"Page":  "forgot-password",
-		"User":  auth.GetUserFromContext(r.Context()),
+		"Title":      "Forgot Password",
+		"Page":       "forgot-password",
+		"User":       auth.GetUserFromContext(r.Context()),
+		"CustomCode": customCode,
 	}
 	s.render(w, "base.html", data)
 }
 
 func (s *Server) handleResetPasswordPage(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
+	customCode, _ := s.db.GetCustomCode("reset-password")
+
 	data := map[string]interface{}{
 		"Title":      "Reset Password",
 		"Page":       "reset-password",
 		"User":       auth.GetUserFromContext(r.Context()),
 		"ResetToken": token,
+		"CustomCode": customCode,
 	}
 	s.render(w, "base.html", data)
 }
@@ -575,13 +657,22 @@ func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Fetch categories and difficulties
+	categories, _ := s.db.GetAllCategories()
+	difficulties, _ := s.db.GetAllDifficulties()
+
+	customCode, _ := s.db.GetCustomCode("admin")
+
 	data := map[string]interface{}{
-		"Title":      "Admin Dashboard",
-		"Page":       "admin",
-		"User":       claims,
-		"Challenges": challenges,
-		"Questions":  questionsWithChallenge,
-		"Hints":      hints,
+		"Title":        "Admin Dashboard",
+		"Page":         "admin",
+		"User":         claims,
+		"Challenges":   challenges,
+		"Questions":    questionsWithChallenge,
+		"Hints":        hints,
+		"Categories":   categories,
+		"Difficulties": difficulties,
+		"CustomCode":   customCode,
 	}
 	s.render(w, "base.html", data)
 }
@@ -601,59 +692,72 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		visibleChecked = "checked"
 	}
 
+	// Get dynamic categories and difficulties
+	categories, _ := s.db.GetAllCategories()
+	difficulties, _ := s.db.GetAllDifficulties()
+
+	// Build category checkboxes (multi-select) - split current categories
+	currentCats := make(map[string]bool)
+	for _, c := range strings.Split(challenge.Category, ",") {
+		currentCats[strings.TrimSpace(c)] = true
+	}
+	categoryCheckboxes := ""
+	for _, cat := range categories {
+		checked := ""
+		if currentCats[cat.Name] {
+			checked = "checked"
+		}
+		categoryCheckboxes += fmt.Sprintf(`<label class="flex items-center text-sm text-gray-300 cursor-pointer">
+			<input type="checkbox" name="category" value="%s" %s class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> %s
+		</label>`, cat.Name, checked, cat.Name)
+	}
+
+	// Build difficulty options
+	difficultyOptions := ""
+	for _, d := range difficulties {
+		selected := ""
+		if d.Name == challenge.Difficulty {
+			selected = "selected"
+		}
+		difficultyOptions += fmt.Sprintf(`<option value="%s" %s>%s</option>`, d.Name, selected, d.Name)
+	}
+
 	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
-		<div class="bg-dark-bg border border-dark-border rounded-lg p-4 space-y-3 mb-4">
-			<h3 class="text-lg font-bold text-white">Edit Challenge</h3>
-			<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">
+		<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">
+			<div>
+				<label class="block text-xs font-medium text-gray-300 mb-1">Name</label>
+				<input type="text" name="name" value="%s" placeholder="e.g., Web Security 101" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+			</div>
+			<div>
+				<label class="block text-xs font-medium text-gray-300 mb-1">Description</label>
+				<textarea name="description" placeholder="Challenge description..." class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>%s</textarea>
+			</div>
+			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label class="block text-xs font-medium text-gray-300 mb-1">Name</label>
-					<input type="text" name="name" value="%s" placeholder="e.g., Web Security 101" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Categories</label>
+					<div class="space-y-1">%s</div>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-300 mb-1">Description</label>
-					<textarea name="description" placeholder="Challenge description..." class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>%s</textarea>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Difficulty</label>
+					<select name="difficulty" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+						%s
+					</select>
 				</div>
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="block text-xs font-medium text-gray-300 mb-1">Category</label>
-						<select name="category" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
-							<option value="web" %s>Web</option>
-							<option value="crypto" %s>Crypto</option>
-							<option value="pwn" %s>Pwn</option>
-							<option value="forensics" %s>Forensics</option>
-							<option value="misc" %s>Misc</option>
-						</select>
-					</div>
-					<div>
-						<label class="block text-xs font-medium text-gray-300 mb-1">Difficulty</label>
-						<select name="difficulty" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
-							<option value="easy" %s>Easy</option>
-							<option value="medium" %s>Medium</option>
-							<option value="hard" %s>Hard</option>
-						</select>
-					</div>
-				</div>
-				<label class="flex items-center text-sm text-gray-300 cursor-pointer">
-					<input type="checkbox" name="visible" value="on" %s class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> Visible to users
-				</label>
-				<div class="flex gap-2">
-					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
-					<button type="button" hx-get="/admin/challenges/%s/view" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
-				</div>
-			</form>
-		</div>
+			</div>
+			<label class="flex items-center text-sm text-gray-300 cursor-pointer">
+				<input type="checkbox" name="visible" value="on" %s class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> Visible to users
+			</label>
+			<div class="flex gap-2">
+				<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
+				<button type="button" hx-get="/admin/challenges/%s/view" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
+			</div>
+		</form>
 	</div>`,
 		id, id, id,
 		challenge.Name,
 		challenge.Description,
-		map[string]string{"web": "selected", "crypto": "", "pwn": "", "forensics": "", "misc": ""}[challenge.Category],
-		map[string]string{"web": "", "crypto": "selected", "pwn": "", "forensics": "", "misc": ""}[challenge.Category],
-		map[string]string{"web": "", "crypto": "", "pwn": "selected", "forensics": "", "misc": ""}[challenge.Category],
-		map[string]string{"web": "", "crypto": "", "pwn": "", "forensics": "selected", "misc": ""}[challenge.Category],
-		map[string]string{"web": "", "crypto": "", "pwn": "", "forensics": "", "misc": "selected"}[challenge.Category],
-		map[string]string{"easy": "selected", "medium": "", "hard": ""}[challenge.Difficulty],
-		map[string]string{"easy": "", "medium": "selected", "hard": ""}[challenge.Difficulty],
-		map[string]string{"easy": "", "medium": "", "hard": "selected"}[challenge.Difficulty],
+		categoryCheckboxes,
+		difficultyOptions,
 		visibleChecked,
 		id, id)
 
@@ -671,11 +775,10 @@ func (s *Server) handleViewChallenge(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 
-	difficultyColor := map[string]string{
-		"easy":   "text-green-400",
-		"medium": "text-yellow-400",
-		"hard":   "text-red-400",
-	}[challenge.Difficulty]
+	difficultyColor := "text-gray-400"
+	if d, err := s.db.GetDifficultyByName(challenge.Difficulty); err == nil {
+		difficultyColor = d.TextColor
+	}
 
 	hiddenBadge := ""
 	if !challenge.Visible {
@@ -745,6 +848,8 @@ func (s *Server) handleOwnProfile(w http.ResponseWriter, r *http.Request) {
 	submissions, _ := s.db.GetUserRecentSubmissions(claims.UserID, 20)
 	solved, _ := s.db.GetUserSolvedChallenges(claims.UserID)
 
+	customCode, _ := s.db.GetCustomCode("profile")
+
 	data := map[string]interface{}{
 		"Title":             "My Profile",
 		"Page":              "profile",
@@ -753,6 +858,7 @@ func (s *Server) handleOwnProfile(w http.ResponseWriter, r *http.Request) {
 		"RecentSubmissions": submissions,
 		"SolvedChallenges":  solved,
 		"IsOwnProfile":      true,
+		"CustomCode":        customCode,
 	}
 	s.render(w, "base.html", data)
 }
@@ -770,6 +876,8 @@ func (s *Server) handleUserProfile(w http.ResponseWriter, r *http.Request) {
 	submissions, _ := s.db.GetUserRecentSubmissions(userID, 20)
 	solved, _ := s.db.GetUserSolvedChallenges(userID)
 
+	customCode, _ := s.db.GetCustomCode("profile")
+
 	data := map[string]interface{}{
 		"Title":             "User Profile",
 		"Page":              "profile",
@@ -778,8 +886,43 @@ func (s *Server) handleUserProfile(w http.ResponseWriter, r *http.Request) {
 		"RecentSubmissions": submissions,
 		"SolvedChallenges":  solved,
 		"IsOwnProfile":      false,
+		"CustomCode":        customCode,
 	}
 	s.render(w, "base.html", data)
+}
+
+// Helper handlers for dynamic dropdowns/checkboxes
+func (s *Server) handleCategoriesCheckboxes(w http.ResponseWriter, r *http.Request) {
+	categories, err := s.db.GetAllCategories()
+	if err != nil {
+		http.Error(w, "Failed to fetch categories", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	var html strings.Builder
+	for _, cat := range categories {
+		html.WriteString(fmt.Sprintf(`<label class="flex items-center text-sm text-gray-300 cursor-pointer">
+			<input type="checkbox" name="category" value="%s" class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> %s
+		</label>`, cat.Name, cat.Name))
+	}
+	w.Write([]byte(html.String()))
+}
+
+func (s *Server) handleDifficultiesDropdown(w http.ResponseWriter, r *http.Request) {
+	difficulties, err := s.db.GetAllDifficulties()
+	if err != nil {
+		http.Error(w, "Failed to fetch difficulties", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	var html strings.Builder
+	html.WriteString(`<option value="">Select difficulty</option>`)
+	for _, diff := range difficulties {
+		html.WriteString(fmt.Sprintf(`<option value="%s">%s</option>`, diff.Name, diff.Name))
+	}
+	w.Write([]byte(html.String()))
 }
 
 // handleEditQuestion returns an edit form for a question
@@ -814,46 +957,43 @@ func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	html := fmt.Sprintf(`<div id="question-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
-		<div class="bg-dark-bg border border-dark-border rounded-lg p-4 space-y-3 mb-4">
-			<h3 class="text-lg font-bold text-white">Edit Question</h3>
-			<form hx-put="/api/admin/questions/%s" hx-target="closest #question-%s" hx-swap="outerHTML" class="space-y-3">
+		<form hx-put="/api/admin/questions/%s" hx-target="closest #question-%s" hx-swap="outerHTML" class="space-y-3">
+			<div>
+				<label class="block text-xs font-medium text-gray-300 mb-1">Challenge</label>
+				<select name="challenge_id" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+					%s
+				</select>
+			</div>
+			<div>
+				<label class="block text-xs font-medium text-gray-300 mb-1">Question Name</label>
+				<input type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+			</div>
+			<div>
+				<label class="block text-xs font-medium text-gray-300 mb-1">Description</label>
+				<textarea name="description" placeholder="Question description and hints..." class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>%s</textarea>
+			</div>
+			<div>
+				<label class="block text-xs font-medium text-gray-300 mb-1">Flag</label>
+				<input type="text" name="flag" value="%s" placeholder="flag{...}" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+			</div>
+			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label class="block text-xs font-medium text-gray-300 mb-1">Challenge</label>
-					<select name="challenge_id" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
-						%s
-					</select>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Points</label>
+					<input type="number" name="points" value="%d" placeholder="100" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-300 mb-1">Question Name</label>
-					<input type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+					<label class="block text-xs font-medium text-gray-300 mb-1">Flag Mask</label>
+					<input type="text" name="flag_mask" value="%s" placeholder="flag{****}" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
 				</div>
-				<div>
-					<label class="block text-xs font-medium text-gray-300 mb-1">Description</label>
-					<textarea name="description" placeholder="Question description and hints..." class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>%s</textarea>
-				</div>
-				<div>
-					<label class="block text-xs font-medium text-gray-300 mb-1">Flag</label>
-					<input type="text" name="flag" value="%s" placeholder="flag{...}" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
-				</div>
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="block text-xs font-medium text-gray-300 mb-1">Points</label>
-						<input type="number" name="points" value="%d" placeholder="100" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
-					</div>
-					<div>
-						<label class="block text-xs font-medium text-gray-300 mb-1">Flag Mask</label>
-						<input type="text" name="flag_mask" value="%s" placeholder="flag{****}" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
-					</div>
-				</div>
-				<label class="flex items-center text-sm text-gray-300 cursor-pointer">
-					<input type="checkbox" name="case_sensitive" value="on" %s class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> Case sensitive flag
-				</label>
-				<div class="flex gap-2">
-					<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
-					<button type="button" hx-get="/admin/questions/%s/view" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
-				</div>
-			</form>
-		</div>
+			</div>
+			<label class="flex items-center text-sm text-gray-300 cursor-pointer">
+				<input type="checkbox" name="case_sensitive" value="on" %s class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> Case sensitive flag
+			</label>
+			<div class="flex gap-2">
+				<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
+				<button type="button" hx-get="/admin/questions/%s/view" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
+			</div>
+		</form>
 	</div>`,
 		id, id, id,
 		challengeOptions,

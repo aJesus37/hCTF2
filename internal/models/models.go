@@ -88,6 +88,24 @@ type ScoreboardEntry struct {
 	LastSolve  time.Time `json:"last_solve"`
 }
 
+// CategoryOption represents a configurable challenge category
+type CategoryOption struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	SortOrder int       `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// DifficultyOption represents a configurable difficulty level
+type DifficultyOption struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Color     string    `json:"color"`
+	TextColor string    `json:"text_color"`
+	SortOrder int       `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // QuestionWithChallenge is used in admin forms to display challenge name with question
 type QuestionWithChallenge struct {
 	ID            string    `json:"id"`
@@ -102,4 +120,17 @@ type QuestionWithChallenge struct {
 	FileURL       *string   `json:"file_url,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// SiteSetting represents a key-value configuration setting
+type SiteSetting struct {
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// CustomCode holds custom HTML/JS code to inject into pages
+type CustomCode struct {
+	HeadHTML    string `json:"head_html"`
+	BodyEndHTML string `json:"body_end_html"`
 }

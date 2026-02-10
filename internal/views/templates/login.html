@@ -33,6 +33,12 @@
             <div id="message" class="mt-4 min-h-6"></div>
         </form>
 
+        {{if .MOTD}}
+        <div class="mt-6 p-4 bg-blue-900/30 border border-blue-600 rounded-lg">
+            <p class="text-sm text-blue-200 text-center whitespace-pre-wrap">{{.MOTD}}</p>
+        </div>
+        {{end}}
+
         <div class="mt-6 space-y-2 text-center text-sm text-gray-400">
             <p>
                 Don't have an account?
