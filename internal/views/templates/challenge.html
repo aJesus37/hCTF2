@@ -51,10 +51,20 @@
 
         {{if $.User}}
             {{if index $.SolvedQuestions .ID}}
-            <!-- Solved Question -->
-            <div class="bg-green-900 border border-green-700 rounded p-4">
-                <p class="text-green-300 font-semibold">✓ Already solved</p>
-                <p class="text-green-400 text-sm mt-1">You've already submitted the correct flag for this question.</p>
+            <!-- Solved Question - Grayed Out Form -->
+            <div class="opacity-60">
+                <form class="flex gap-2">
+                    <input type="text"
+                           disabled
+                           value="{{.Flag}}"
+                           class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 text-gray-400 rounded cursor-not-allowed">
+                    <button type="button"
+                            disabled
+                            class="px-6 py-2 bg-gray-600 text-gray-400 rounded cursor-not-allowed">
+                        ✓ Solved
+                    </button>
+                </form>
+                <p class="text-green-400 text-sm mt-2">You've already submitted the correct flag for this question.</p>
             </div>
             {{else}}
             <!-- Unsolved Question - Submit Form -->

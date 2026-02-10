@@ -1,8 +1,2 @@
-- Edit button wont work for Hints
-- All hints appear as "Hint 1" in the challenges page
-- When hint is unlocked, a JSON with text "{"message":"Hint unlocked successfully"}" take its place instead of the hint itself
-- When submitting correctly for a question you took hints, it shows the question points instead of the actual value gained because of the hints used
-- When reloading the Questions page for a challenge, a challenge which I have already solved won't appear as solved. I want it so that the correct answer appears grayed-out in the submit form instead
-- The Teams scoreboard will appear duplicated when there are 2 people in a team and both have a solve which gave points
-- When creating hints, when one is created, ideally, the Question should remain selected and the Content be emptied (with form focus for this field). 
-- When showing the hings in the Challenges page, line breaks will turn into spaces. Should maintain the breaks instead.
+- The challenges filters for category and difficulty are not working in the challenges page
+- The submit for challenge answers has broken again, it will submit but give error 500: 2026/02/09 22:30:46 "POST http://localhost:8090/api/questions/d60e8143552492d44989e577b00d560b/submit HTTP/1.1" from [::1]:52608 - 500 28B in 653.579µs

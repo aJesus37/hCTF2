@@ -604,6 +604,16 @@ func (h *ChallengeHandler) CreateHint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if hint with this order already exists for this question
+	existingHints, _ := h.db.GetHintsByQuestionID(req.QuestionID)
+	for _, h := range existingHints {
+		if h.Order == req.Order {
+			errMsg := "A hint with this order number already exists for this question"
+			http.Error(w, errMsg, http.StatusConflict)
+			return
+		}
+	}
+
 	hint, err := h.db.CreateHint(req.QuestionID, req.Content, req.Cost, req.Order)
 	if err != nil {
 		if strings.Contains(contentType, "application/json") {
@@ -726,4 +736,20 @@ func (h *ChallengeHandler) DeleteHint(w http.ResponseWriter, r *http.Request) {
 	// For HTMX, return empty response (element will be removed by hx-swap)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(""))
+}
+
+// GetChallengesDropdown returns challenges as HTML options for dropdown
+func (h *ChallengeHandler) GetChallengesDropdown(w http.ResponseWriter, r *http.Request) {
+	challenges, err := h.db.GetChallenges(false) // false to include hidden challenges in admin
+	if err != nil {
+		http.Error(w, "Failed to fetch challenges", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, `<option value="">Select a challenge</option>`)
+
+	for _, c := range challenges {
+		fmt.Fprintf(w, `<option value="%s">%s</option>`, c.ID, c.Name)
+	}
 }

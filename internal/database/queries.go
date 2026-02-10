@@ -518,15 +518,16 @@ func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 		SELECT
 			t.id as team_id,
 			t.name as team_name,
-			COALESCE(SUM(q.points), 0) - COALESCE(SUM(h.cost), 0) as points,
+			COALESCE(SUM(DISTINCT CASE WHEN s.id IS NOT NULL THEN q.points ELSE 0 END), 0) -
+			COALESCE((SELECT SUM(h.cost) FROM hint_unlocks hu2
+					  JOIN hints h ON hu2.hint_id = h.id
+					  WHERE hu2.user_id IN (SELECT u2.id FROM users u2 WHERE u2.team_id = t.id)), 0) as points,
 			COUNT(DISTINCT s.question_id) as solve_count,
 			COALESCE(MAX(s.created_at), t.created_at) as last_solve
 		FROM teams t
 		LEFT JOIN users u ON u.team_id = t.id
 		LEFT JOIN submissions s ON u.id = s.user_id AND s.is_correct = 1
 		LEFT JOIN questions q ON s.question_id = q.id
-		LEFT JOIN hint_unlocks hu ON u.id = hu.user_id
-		LEFT JOIN hints h ON hu.hint_id = h.id
 		GROUP BY t.id, t.name
 		ORDER BY points DESC, last_solve ASC
 		LIMIT ?

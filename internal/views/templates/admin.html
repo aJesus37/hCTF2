@@ -68,6 +68,8 @@
                         notificationType = 'success';
                         showNotification = true;
                         setTimeout(() => showNotification = false, 3000);
+                        // Refresh the challenge dropdown
+                        htmx.ajax('GET', '/api/challenges-dropdown', {target: '#challenge-dropdown', swap: 'innerHTML'});
                     } else {
                         notification = $event.detail.xhr.responseText || 'Failed to create challenge';
                         notificationType = 'error';
@@ -239,6 +241,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-1">Challenge *</label>
                     <select
+                        id="challenge-dropdown"
                         name="challenge_id"
                         required
                         class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
@@ -466,8 +469,9 @@
         <!-- Hints List -->
         <div id="hints-list" class="space-y-4">
             {{range .Hints}}
-            <div id="hint-{{.ID}}" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
-                <div class="flex justify-between items-start mb-3">
+            <div id="hint-{{.ID}}" x-data="{ editing: false }" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+                <!-- View Mode -->
+                <div x-show="!editing" class="flex justify-between items-start mb-3">
                     <div class="flex-1">
                         <p class="text-gray-300 mb-2">{{.Content}}</p>
                         <p class="text-sm text-gray-400">
@@ -475,10 +479,76 @@
                         </p>
                     </div>
                 </div>
-                <div class="flex gap-2">
-                    <button class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition" disabled title="Edit functionality coming soon">Edit</button>
-                    <button @click="if(confirm('Delete?')) { htmx.trigger(this.nextElementSibling, 'click') }" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
-                    <button style="display:none" hx-delete="/api/admin/hints/{{.ID}}" hx-target="closest #hint-{{.ID}}" hx-swap="outerHTML swap:1s"></button>
+
+                <!-- Edit Mode -->
+                <form x-show="editing"
+                      hx-put="/api/admin/hints/{{.ID}}"
+                      hx-target="closest #hint-{{.ID}}"
+                      hx-swap="outerHTML"
+                      @htmx:after-request="editing = false"
+                      class="space-y-3 mb-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1">Content</label>
+                        <textarea
+                            name="content"
+                            required
+                            rows="2"
+                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">{{.Content}}</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Cost</label>
+                            <input
+                                type="number"
+                                name="cost"
+                                value="{{.Cost}}"
+                                min="0"
+                                required
+                                class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Order</label>
+                            <input
+                                type="number"
+                                name="order"
+                                value="{{.Order}}"
+                                min="1"
+                                required
+                                class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button
+                            type="submit"
+                            class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">
+                            Save
+                        </button>
+                        <button
+                            type="button"
+                            @click="editing = false"
+                            class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+
+                <!-- View Mode Buttons -->
+                <div x-show="!editing" class="flex gap-2">
+                    <button
+                        @click="editing = true"
+                        class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
+                        Edit
+                    </button>
+                    <button
+                        hx-delete="/api/admin/hints/{{.ID}}"
+                        hx-target="closest #hint-{{.ID}}"
+                        hx-swap="delete swap:0.3s"
+                        hx-confirm="Delete this hint? This cannot be undone."
+                        class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
+                        Delete
+                    </button>
                 </div>
             </div>
             {{end}}

@@ -62,9 +62,6 @@ func (h *HintHandler) GetHints(w http.ResponseWriter, r *http.Request) {
 	questionID := chi.URLParam(r, "questionId")
 	claims := auth.GetUserFromContext(r.Context())
 
-	// Store questionID in a format accessible to the unlock button
-	containerID := "hints-container-" + questionID
-
 	hints, err := h.db.GetHintsByQuestionID(questionID)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html")
@@ -105,12 +102,11 @@ func (h *HintHandler) GetHints(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintf(w, `<div class="p-3 bg-gray-700 border border-gray-600 rounded text-gray-200 text-sm flex justify-between items-center">
                     <span><strong>Hint %d</strong> (Cost: %d points)</span>
                     <button hx-post="/api/hints/%s/unlock"
-                        hx-target="#%s"
-                        hx-swap="innerHTML swap:0.5s"
+                        hx-swap="none"
                         class="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded transition">
                         Unlock
                     </button>
-                </div>`, hint.Order, hint.Cost, hint.ID, containerID)
+                </div>`, hint.Order, hint.Cost, hint.ID)
 			} else {
 				// Show locked hint without unlock button (not authenticated)
 				fmt.Fprintf(w, `<div class="p-3 bg-gray-700 border border-gray-600 rounded text-gray-200 text-sm">

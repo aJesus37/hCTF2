@@ -190,6 +190,7 @@ func main() {
 	// API routes - Challenges (public read)
 	r.Get("/api/challenges", s.challengeH.ListChallenges)
 	r.Get("/api/challenges/{id}", s.challengeH.GetChallenge)
+	r.Get("/api/challenges-dropdown", s.challengeH.GetChallengesDropdown)
 
 	// API routes - Submissions (protected)
 	r.Group(func(r chi.Router) {
