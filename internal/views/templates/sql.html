@@ -1,6 +1,6 @@
 {{define "sql-content"}}
 <div class="mb-8">
-    <h1 class="text-4xl font-bold text-purple-400 mb-4">SQL Playground</h1>
+    <h1 class="text-4xl font-bold text-blue-400 mb-4">SQL Playground</h1>
     <p class="text-gray-300">Query CTF data using SQL (powered by DuckDB WASM)</p>
 </div>
 
@@ -56,7 +56,7 @@
     <div class="lg:col-span-3 space-y-4">
         <div>
             <textarea id="query-editor"
-                      class="w-full h-48 px-4 py-3 bg-dark-bg border border-dark-border text-white font-mono text-sm rounded focus:outline-none focus:border-purple-500"
+                      class="w-full h-48 px-4 py-3 bg-dark-bg border border-dark-border text-white font-mono text-sm rounded focus:outline-none focus:border-blue-500"
                       placeholder="SELECT * FROM challenges LIMIT 10;">SELECT c.name, c.category, c.difficulty, COUNT(s.id) as solves
 FROM challenges c
 LEFT JOIN questions q ON c.id = q.challenge_id
@@ -68,7 +68,7 @@ ORDER BY solves DESC;</textarea>
 
         <div class="flex gap-2">
             <button onclick="window.executeQuery()"
-                    class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded">
+                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
                 Run Query
             </button>
             <button onclick="window.clearQuery()"

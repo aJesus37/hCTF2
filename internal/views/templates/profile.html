@@ -40,17 +40,17 @@
         <h2 class="text-2xl font-bold text-white mb-4">Solved Challenges ({{len .SolvedChallenges}})</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         {{range .SolvedChallenges}}
-            <div class="bg-dark-surface border border-dark-border rounded-lg p-4">
+            <a href="/challenges/{{.ID}}" class="block bg-dark-surface border border-dark-border rounded-lg p-4 hover:border-blue-500 transition">
                 <h3 class="text-lg font-bold text-white mb-2">{{.Name}}</h3>
                 <p class="text-sm text-gray-400 mb-3">
-                    Category: <span class="text-blue-400">{{.Category}}</span>
-                    • Difficulty: <span class="{{if eq .Difficulty "easy"}}text-green-400{{else if eq .Difficulty "medium"}}text-yellow-400{{else}}text-red-400{{end}}">{{.Difficulty}}</span>
+                    Category: {{range $i, $cat := splitCategories .Category}}{{if $i}}, {{end}}<span class="text-blue-400">{{$cat}}</span>{{end}}
+                    • Difficulty: <span class="{{difficultyColor .Difficulty}}">{{.Difficulty}}</span>
                 </p>
                 <div class="w-full bg-dark-bg rounded-full h-2 mb-1">
                     <div class="bg-green-500 h-2 rounded-full" style="width: {{div (mul .SolvedQuestions 100) .TotalQuestions}}%"></div>
                 </div>
                 <p class="text-xs text-gray-400">{{.SolvedQuestions}}/{{.TotalQuestions}} questions</p>
-            </div>
+            </a>
         {{end}}
         </div>
     </div>
@@ -70,7 +70,7 @@
                 <div>
                     <h3 class="font-bold text-white">{{.QuestionName}}</h3>
                     <p class="text-sm text-gray-400">
-                        {{.ChallengeName}} •
+                        <a href="/challenges/{{.ChallengeID}}" class="text-blue-400 hover:text-blue-300">{{.ChallengeName}}</a> •
                         {{.CreatedAt.Format "Jan 2, 15:04"}}
                     </p>
                 </div>

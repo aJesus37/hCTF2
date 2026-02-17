@@ -834,11 +834,15 @@
                       });
                   " class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">MOTD Text</label>
-                    <textarea x-model="motd" rows="3"
-                        placeholder="Demo credentials: admin@test.com / password123&#10;&#10;Or: System maintenance scheduled for 2 AM UTC"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500"></textarea>
-                    <p class="text-xs text-gray-500 mt-1">Supports multi-line text. Plain text only (no HTML).</p>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">MOTD Content</label>
+                    <textarea x-model="motd" rows="4"
+                        placeholder="Demo credentials: <strong>admin@test.com</strong> / <strong>password123</strong><br><br>System maintenance: <em>Tonight at 2 AM UTC</em>"
+                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 font-mono text-sm"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Supports HTML for styling. Use <code class="bg-dark-bg px-1">&lt;br&gt;</code> for line breaks,
+                        <code class="bg-dark-bg px-1">&lt;strong&gt;</code> for bold,
+                        <code class="bg-dark-bg px-1">&lt;em&gt;</code> for italic, etc.
+                    </p>
                 </div>
                 <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition">
                     Save MOTD

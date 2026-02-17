@@ -182,7 +182,9 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		}
 		req.Name = r.FormValue("name")
 		req.Description = r.FormValue("description")
-		req.Category = r.FormValue("category")
+		// Multi-select categories: join with comma
+		categories := r.Form["category"]
+		req.Category = strings.Join(categories, ",")
 		req.Difficulty = r.FormValue("difficulty")
 		req.Visible = r.FormValue("visible") == "on"
 	}
@@ -205,6 +207,11 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 	} else {
 		// Return HTML card for HTMX
 		w.Header().Set("Content-Type", "text/html")
+		diffColor := h.getDifficultyColor(challenge.Difficulty)
+		visibility := ""
+		if !challenge.Visible {
+			visibility = `<span class="ml-2 text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Hidden</span>`
+		}
 		html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
                 <div class="flex justify-between items-start mb-3">
                     <div>
@@ -218,10 +225,10 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
                 </div>
                 <p class="text-gray-300 mb-4">%s</p>
                 <div class="flex gap-2">
-                    <button class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
+                    <button hx-get="/admin/challenges/%s/edit" hx-target="#challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
                         Edit
                     </button>
-                    <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
+                    <button hx-delete="/api/admin/challenges/%s" hx-target="#challenge-%s" hx-swap="outerHTML swap:1s" hx-confirm="Delete this challenge? This action cannot be undone." class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
                         Delete
                     </button>
                 </div>
@@ -229,22 +236,24 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 			challenge.ID,
 			challenge.Name,
 			challenge.Category,
-			map[string]string{
-				"easy":   "text-green-400",
-				"medium": "text-yellow-400",
-				"hard":   "text-red-400",
-			}[challenge.Difficulty],
+			diffColor,
 			challenge.Difficulty,
-			func() string {
-				if !challenge.Visible {
-					return `<span class="ml-2 text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Hidden</span>`
-				}
-				return ""
-			}(),
+			visibility,
 			challenge.Description,
+			challenge.ID, challenge.ID,
+			challenge.ID, challenge.ID,
 		)
 		w.Write([]byte(html))
 	}
+}
+
+// getDifficultyColor returns the text color class for a difficulty name
+func (h *ChallengeHandler) getDifficultyColor(name string) string {
+	d, err := h.db.GetDifficultyByName(name)
+	if err != nil {
+		return "text-gray-400"
+	}
+	return d.TextColor
 }
 
 func (h *ChallengeHandler) UpdateChallenge(w http.ResponseWriter, r *http.Request) {
@@ -267,7 +276,9 @@ func (h *ChallengeHandler) UpdateChallenge(w http.ResponseWriter, r *http.Reques
 		}
 		req.Name = r.FormValue("name")
 		req.Description = r.FormValue("description")
-		req.Category = r.FormValue("category")
+		// Multi-select categories: join with comma
+		categories := r.Form["category"]
+		req.Category = strings.Join(categories, ",")
 		req.Difficulty = r.FormValue("difficulty")
 		req.Visible = r.FormValue("visible") == "on"
 	}
@@ -290,6 +301,7 @@ func (h *ChallengeHandler) UpdateChallenge(w http.ResponseWriter, r *http.Reques
 		// Return updated card for HTMX
 		w.Header().Set("Content-Type", "text/html")
 		challenge, _ := h.db.GetChallengeByID(id)
+		diffColor := h.getDifficultyColor(challenge.Difficulty)
 		visibility := ""
 		if !challenge.Visible {
 			visibility = `<span class="ml-2 text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Hidden</span>`
@@ -307,24 +319,19 @@ func (h *ChallengeHandler) UpdateChallenge(w http.ResponseWriter, r *http.Reques
                 </div>
                 <p class="text-gray-300 mb-4">%s</p>
                 <div class="flex gap-2">
-                    <button hx-get="/admin/challenges/%s/edit" hx-target="this" hx-swap="outerHTML" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">Edit</button>
-                    <button @click="if(confirm('Delete?')) { htmx.trigger(this.nextElementSibling, 'click') }" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
-                    <button style="display:none" hx-delete="/api/admin/challenges/%s" hx-target="this" hx-swap="outerHTML swap:1s"></button>
+                    <button hx-get="/admin/challenges/%s/edit" hx-target="#challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">Edit</button>
+                    <button hx-delete="/api/admin/challenges/%s" hx-target="#challenge-%s" hx-swap="outerHTML swap:1s" hx-confirm="Delete this challenge? This action cannot be undone." class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
                 </div>
             </div>`,
 			challenge.ID,
 			challenge.Name,
 			challenge.Category,
-			map[string]string{
-				"easy":   "text-green-400",
-				"medium": "text-yellow-400",
-				"hard":   "text-red-400",
-			}[challenge.Difficulty],
+			diffColor,
 			challenge.Difficulty,
 			visibility,
 			challenge.Description,
-			challenge.ID,
-			challenge.ID,
+			challenge.ID, challenge.ID,
+			challenge.ID, challenge.ID,
 		)
 		w.Write([]byte(html))
 	}
@@ -430,10 +437,10 @@ func (h *ChallengeHandler) CreateQuestion(w http.ResponseWriter, r *http.Request
                     %s
                 </p>
                 <div class="flex gap-2">
-                    <button class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
+                    <button hx-get="/admin/questions/%s/edit" hx-target="#question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
                         Edit
                     </button>
-                    <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
+                    <button hx-delete="/api/admin/questions/%s" hx-target="#question-%s" hx-swap="outerHTML swap:1s" hx-confirm="Delete this question? This action cannot be undone." class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
                         Delete
                     </button>
                 </div>
@@ -445,6 +452,8 @@ func (h *ChallengeHandler) CreateQuestion(w http.ResponseWriter, r *http.Request
 			question.Description,
 			question.Flag,
 			flagMaskStr,
+			question.ID, question.ID,
+			question.ID, question.ID,
 		)
 		w.Write([]byte(html))
 	}
@@ -520,9 +529,8 @@ func (h *ChallengeHandler) UpdateQuestion(w http.ResponseWriter, r *http.Request
                     %s
                 </p>
                 <div class="flex gap-2">
-                    <button hx-get="/admin/questions/%s/edit" hx-target="this" hx-swap="outerHTML" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">Edit</button>
-                    <button @click="if(confirm('Delete?')) { htmx.trigger(this.nextElementSibling, 'click') }" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
-                    <button style="display:none" hx-delete="/api/admin/questions/%s" hx-target="this" hx-swap="outerHTML swap:1s"></button>
+                    <button hx-get="/admin/questions/%s/edit" hx-target="#question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">Edit</button>
+                    <button hx-delete="/api/admin/questions/%s" hx-target="#question-%s" hx-swap="outerHTML swap:1s" hx-confirm="Delete this question? This action cannot be undone." class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
                 </div>
             </div>`,
 			question.ID,
@@ -532,8 +540,8 @@ func (h *ChallengeHandler) UpdateQuestion(w http.ResponseWriter, r *http.Request
 			question.Description,
 			question.Flag,
 			flagMaskStr,
-			question.ID,
-			question.ID,
+			question.ID, question.ID,
+			question.ID, question.ID,
 		)
 		w.Write([]byte(html))
 	}
@@ -639,15 +647,14 @@ func (h *ChallengeHandler) CreateHint(w http.ResponseWriter, r *http.Request) {
                 </div>
                 <div class="flex gap-2">
                     <button class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">Edit</button>
-                    <button @click="if(confirm('Delete?')) { htmx.trigger(this.nextElementSibling, 'click') }" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
-                    <button style="display:none" hx-delete="/api/admin/hints/%s" hx-target="this" hx-swap="outerHTML swap:1s"></button>
+                    <button hx-delete="/api/admin/hints/%s" hx-target="#hint-%s" hx-swap="outerHTML swap:1s" hx-confirm="Delete this hint? This action cannot be undone." class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
                 </div>
             </div>`,
 			hint.ID,
 			hint.Content,
 			hint.Order,
 			hint.Cost,
-			hint.ID,
+			hint.ID, hint.ID,
 		)
 		w.Write([]byte(html))
 	}
@@ -704,15 +711,14 @@ func (h *ChallengeHandler) UpdateHint(w http.ResponseWriter, r *http.Request) {
                 </div>
                 <div class="flex gap-2">
                     <button class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">Edit</button>
-                    <button @click="if(confirm('Delete?')) { htmx.trigger(this.nextElementSibling, 'click') }" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
-                    <button style="display:none" hx-delete="/api/admin/hints/%s" hx-target="this" hx-swap="outerHTML swap:1s"></button>
+                    <button hx-delete="/api/admin/hints/%s" hx-target="#hint-%s" hx-swap="outerHTML swap:1s" hx-confirm="Delete this hint? This action cannot be undone." class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
                 </div>
             </div>`,
 			hint.ID,
 			hint.Content,
 			hint.Order,
 			hint.Cost,
-			hint.ID,
+			hint.ID, hint.ID,
 		)
 		w.Write([]byte(html))
 	}

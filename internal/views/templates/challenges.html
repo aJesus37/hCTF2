@@ -10,20 +10,18 @@
             <label class="text-sm text-gray-400">Category:</label>
             <select x-model="category" class="ml-2 bg-dark-surface border border-dark-border text-white rounded px-3 py-1">
                 <option value="all">All</option>
-                <option value="web">Web</option>
-                <option value="crypto">Crypto</option>
-                <option value="pwn">Pwn</option>
-                <option value="forensics">Forensics</option>
-                <option value="misc">Misc</option>
+                {{range .Categories}}
+                <option value="{{.Name}}">{{.Name}}</option>
+                {{end}}
             </select>
         </div>
         <div>
             <label class="text-sm text-gray-400">Difficulty:</label>
             <select x-model="difficulty" class="ml-2 bg-dark-surface border border-dark-border text-white rounded px-3 py-1">
                 <option value="all">All</option>
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
+                {{range .Difficulties}}
+                <option value="{{.Name}}">{{.Name}}</option>
+                {{end}}
             </select>
         </div>
         <div>
@@ -41,17 +39,17 @@
     <div class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-blue-500 transition"
          data-search-name="{{.Name}}"
          data-search-desc="{{stripMarkdown .Description}}"
-         x-show="(category === 'all' || category === '{{.Category}}') && (difficulty === 'all' || difficulty === '{{.Difficulty}}') && (searchQuery === '' || $el.dataset.searchName.toLowerCase().includes(searchQuery.toLowerCase()) || $el.dataset.searchDesc.toLowerCase().includes(searchQuery.toLowerCase()))">
+         data-categories="{{.Category}}"
+         x-show="(category === 'all' || $el.dataset.categories.split(',').map(s=>s.trim()).includes(category)) && (difficulty === 'all' || difficulty === '{{.Difficulty}}') && (searchQuery === '' || $el.dataset.searchName.toLowerCase().includes(searchQuery.toLowerCase()) || $el.dataset.searchDesc.toLowerCase().includes(searchQuery.toLowerCase()))">
         <div class="flex justify-between items-start mb-4">
             <h3 class="text-xl font-bold text-white">{{.Name}}</h3>
-            <span class="px-2 py-1 text-xs rounded
-                {{if eq .Difficulty "easy"}}bg-green-600 text-green-100
-                {{else if eq .Difficulty "medium"}}bg-yellow-600 text-yellow-100
-                {{else}}bg-red-600 text-red-100{{end}}">
+            <span class="px-2 py-1 text-xs rounded {{difficultyBadge .Difficulty}}">
                 {{.Difficulty}}
             </span>
         </div>
-        <p class="text-sm text-gray-400 mb-2">Category: <span class="text-blue-400">{{.Category}}</span></p>
+        <p class="text-sm text-gray-400 mb-2">
+            {{range $i, $cat := splitCategories .Category}}{{if $i}}, {{end}}<span class="text-blue-400">{{$cat}}</span>{{end}}
+        </p>
         <div class="text-gray-300 mb-4 line-clamp-3 prose prose-invert prose-sm max-w-none">{{markdown .Description}}</div>
         <a href="/challenges/{{.ID}}" class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
             View Challenge

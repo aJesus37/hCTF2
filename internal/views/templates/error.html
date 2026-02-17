@@ -1,5 +1,5 @@
 {{define "error-content"}}
-<div class="min-h-screen flex items-center justify-center px-4">
+<div class="flex-grow flex items-center justify-center px-4">
     <div class="text-center max-w-md">
         <h1 class="text-6xl font-bold text-red-500 mb-4">{{.StatusCode}}</h1>
         <h2 class="text-3xl font-bold text-white mb-4">{{.Title}}</h2>
@@ -9,7 +9,7 @@
                 Home
             </a>
             {{if ne .StatusCode 403}}
-            <a href="/login" class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-medium transition">
+            <a href="/login" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition">
                 Login
             </a>
             {{end}}
