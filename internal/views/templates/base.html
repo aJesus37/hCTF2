@@ -114,7 +114,7 @@
         </div>
     </nav>
 
-    <main class="flex-grow flex flex-col {{if or (eq .Page "scoreboard") (eq .Page "login") (eq .Page "register") (eq .Page "admin") (eq .Page "challenges") (eq .Page "challenge") (eq .Page "sql") (eq .Page "teams") (eq .Page "profile")}}w-full{{else}}max-w-7xl mx-auto{{end}} px-4 sm:px-6 lg:px-12 xl:px-16 py-8">
+    <main class="flex-grow flex flex-col {{if or (eq .Page "scoreboard") (eq .Page "login") (eq .Page "register") (eq .Page "admin") (eq .Page "challenges") (eq .Page "challenge") (eq .Page "sql") (eq .Page "teams") (eq .Page "profile") (eq .Page "team-profile")}}w-full{{else}}max-w-7xl mx-auto{{end}} px-4 sm:px-6 lg:px-12 xl:px-16 py-8">
         {{if eq .Page "login"}}
             {{template "login-content" .}}
         {{else if eq .Page "register"}}
@@ -137,6 +137,8 @@
             {{template "admin-content" .}}
         {{else if eq .Page "profile"}}
             {{template "profile-content" .}}
+        {{else if eq .Page "team-profile"}}
+            {{template "team-profile-content" .}}
         {{else if eq .Page "error"}}
             {{template "error-content" .}}
         {{else}}

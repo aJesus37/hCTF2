@@ -42,18 +42,70 @@
     }
 </style>
 
-<div class="flex gap-2 mt-4">
-    <button onclick="window.executeQuery()"
-            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
-        Run Query
-    </button>
-    <button onclick="window.clearQuery()"
-            class="px-6 py-2 bg-gray-500 dark:bg-gray-600 hover:bg-gray-600 dark:hover:bg-gray-700 text-white rounded">
-        Clear
-    </button>
+<!-- Dataset Info Banner (for challenge SQL) -->
+<div id="dataset-info" class="hidden mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
+    <div class="flex items-center gap-2">
+        <span class="text-blue-600 dark:text-blue-400">ℹ️</span>
+        <p class="text-sm text-blue-700 dark:text-blue-300">
+            <strong>Challenge Data Available:</strong> This challenge provides data in a table named 
+            <code class="bg-blue-100 dark:bg-blue-800 px-1.5 py-0.5 rounded font-mono text-blue-800 dark:text-blue-200">dataset</code>.
+            Use <code class="font-mono text-xs">SELECT * FROM dataset</code> to explore.
+        </p>
+    </div>
 </div>
 
-<div id="query-results" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4 min-h-64 mt-4">
+<!-- Query Controls -->
+<div class="flex flex-wrap gap-2 mt-4 items-center">
+    <button onclick="window.executeQuery()"
+            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition">
+        Run Query
+        <span class="text-xs opacity-75 ml-1">(Ctrl+Enter)</span>
+    </button>
+    <button onclick="window.executeCurrentStatement()"
+            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition">
+        Run Current
+        <span class="text-xs opacity-75 ml-1">(Ctrl+Shift+Enter)</span>
+    </button>
+    <button onclick="window.formatSQL()"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition">
+        Format
+        <span class="text-xs opacity-75 ml-1">(Ctrl+Shift+F)</span>
+    </button>
+    <button onclick="window.clearQuery()"
+            class="px-4 py-2 bg-gray-500 dark:bg-gray-600 hover:bg-gray-600 dark:hover:bg-gray-700 text-white rounded transition">
+        Clear
+    </button>
+    
+    <!-- Row Limit Selector -->
+    <div class="ml-auto flex items-center gap-2">
+        <label class="text-sm text-gray-600 dark:text-gray-400">Max rows:</label>
+        <select id="row-limit" class="px-2 py-1 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded text-sm">
+            <option value="100">100</option>
+            <option value="1000" selected>1,000</option>
+            <option value="5000">5,000</option>
+            <option value="10000">10,000</option>
+            <option value="0">No limit</option>
+        </select>
+    </div>
+</div>
+
+<!-- Keyboard Shortcuts Help -->
+<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+    <span class="inline-flex items-center gap-1">
+        <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded">Ctrl</kbd>+<kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded">Enter</kbd> Run all
+    </span>
+    <span class="mx-2">•</span>
+    <span class="inline-flex items-center gap-1">
+        <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded">Ctrl</kbd>+<kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded">Shift</kbd>+<kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded">Enter</kbd> Run current statement
+    </span>
+    <span class="mx-2">•</span>
+    <span class="inline-flex items-center gap-1">
+        <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded">Ctrl</kbd>+<kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded">Shift</kbd>+<kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded">F</kbd> Format
+    </span>
+</div>
+
+<!-- Results Container with Max Height -->
+<div id="query-results" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4 mt-4" style="max-height: 500px; overflow-y: auto;">
     <p class="text-gray-500 dark:text-gray-400">Results will appear here...</p>
 </div>
 {{end}}
@@ -64,7 +116,8 @@
 <script type="importmap">
 {
     "imports": {
-        "apache-arrow": "https://cdn.jsdelivr.net/npm/apache-arrow@13.0.0/+esm"
+        "apache-arrow": "https://cdn.jsdelivr.net/npm/apache-arrow@13.0.0/+esm",
+        "sql-formatter": "https://cdn.jsdelivr.net/npm/sql-formatter@15.0.0/+esm"
     }
 }
 </script>
@@ -72,20 +125,57 @@
 <script type="module">
     import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-browser.mjs';
     import * as arrow from 'apache-arrow';
+    import {format} from 'sql-formatter';
     import {EditorView, basicSetup} from 'https://esm.sh/codemirror';
     import {sql} from 'https://esm.sh/@codemirror/lang-sql';
+    import {keymap} from 'https://esm.sh/@codemirror/view';
+
+    // Make format available globally for the formatSQL function
+    window.sqlFormatter = {format};
 
     let db, conn;
     let duckdbReady = false;
     let editor;
 
-    const startDoc = `SELECT c.name, c.category, c.difficulty, COUNT(s.id) as solves
+    // Check if we're in challenge mode (has dataset)
+    const metaEl = document.getElementById('sql-challenge-meta');
+    const customDatasetURL = metaEl ? metaEl.getAttribute('data-dataset-url') : null;
+    
+    // Default query for CTF data (accounts for hint penalties)
+    const defaultCTFQuery = `-- Challenge stats with actual points earned (after hint penalties)
+SELECT 
+    c.name AS challenge,
+    c.category,
+    c.difficulty,
+    COUNT(DISTINCT s.id) AS total_solves,
+    SUM(q.points) AS max_points_available,
+    SUM(COALESCE(q.points - hint_costs.total_cost, q.points)) AS actual_points_earned,
+    SUM(COALESCE(hint_costs.total_cost, 0)) AS total_hint_penalties
 FROM challenges c
-LEFT JOIN questions q ON c.id = q.challenge_id
+JOIN questions q ON c.id = q.challenge_id
 LEFT JOIN submissions s ON q.id = s.question_id AND s.is_correct = 1
+LEFT JOIN (
+    SELECT hu.user_id, h.question_id, SUM(h.cost) AS total_cost
+    FROM hint_unlocks hu
+    JOIN hints h ON hu.hint_id = h.id
+    GROUP BY hu.user_id, h.question_id
+) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
 WHERE c.visible = 1
 GROUP BY c.id, c.name, c.category, c.difficulty
-ORDER BY solves DESC;`;
+ORDER BY actual_points_earned DESC;`;
+
+    // Default query for challenge dataset
+    const defaultDatasetQuery = `SELECT * FROM dataset LIMIT 10;`;
+    
+    const startDoc = customDatasetURL ? defaultDatasetQuery : defaultCTFQuery;
+
+    // Show dataset info banner if in challenge mode
+    if (customDatasetURL) {
+        const infoBanner = document.getElementById('dataset-info');
+        if (infoBanner) {
+            infoBanner.classList.remove('hidden');
+        }
+    }
 
     const isDarkTheme = document.documentElement.classList.contains('dark');
 
@@ -115,18 +205,61 @@ ORDER BY solves DESC;`;
         '.cm-selectionBackground': { backgroundColor: '#bfdbfe' },
     });
 
+    // Custom keybindings
+    const customKeymap = keymap.of([
+        {
+            key: 'Ctrl-Enter',
+            run: () => {
+                window.executeQuery();
+                return true;
+            }
+        },
+        {
+            key: 'Ctrl-Shift-Enter',
+            run: () => {
+                window.executeCurrentStatement();
+                return true;
+            }
+        }
+    ]);
+
+    // Global keyboard shortcuts (handled at DOM level to override CodeMirror defaults)
+    document.addEventListener('keydown', (e) => {
+        // Format: Ctrl+Shift+F
+        if (e.ctrlKey && e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.formatSQL();
+            return;
+        }
+        // Run Current: Ctrl+Shift+Enter
+        if (e.ctrlKey && e.shiftKey && !e.altKey && e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            window.executeCurrentStatement();
+            return;
+        }
+        // Run Query: Ctrl+Enter
+        if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            window.executeQuery();
+            return;
+        }
+    }, true); // Use capture phase to intercept before CodeMirror
+
     async function initEditor() {
         if (isDarkTheme) {
             const {oneDark} = await import('https://esm.sh/@codemirror/theme-one-dark');
             editor = new EditorView({
                 doc: startDoc,
-                extensions: [basicSetup, sql(), oneDark, darkTheme, editorTheme, EditorView.lineWrapping],
+                extensions: [basicSetup, sql(), oneDark, darkTheme, editorTheme, EditorView.lineWrapping, customKeymap],
                 parent: document.getElementById('editor-container'),
             });
         } else {
             editor = new EditorView({
                 doc: startDoc,
-                extensions: [basicSetup, sql(), lightTheme, editorTheme, EditorView.lineWrapping],
+                extensions: [basicSetup, sql(), lightTheme, editorTheme, EditorView.lineWrapping, customKeymap],
                 parent: document.getElementById('editor-container'),
             });
         }
@@ -147,12 +280,24 @@ ORDER BY solves DESC;`;
     });
     themeObserver.observe(document.documentElement, { attributes: true });
 
+    // Example queries for CTF mode
     const exampleQueries = [
-        `-- Top 10 users by points
-SELECT u.name, SUM(q.points) as total_points, COUNT(*) as solves
+        `-- Top 10 users by points (accounts for hint penalties)
+SELECT 
+    u.name, 
+    SUM(q.points) as max_points,
+    SUM(q.points) - COALESCE(SUM(hint_costs.total_cost), 0) as total_points, 
+    COUNT(*) as solves,
+    COALESCE(SUM(hint_costs.total_cost), 0) as hint_penalties
 FROM users u
 JOIN submissions s ON u.id = s.user_id
 JOIN questions q ON s.question_id = q.id
+LEFT JOIN (
+    SELECT hu.user_id, h.question_id, SUM(h.cost) as total_cost
+    FROM hint_unlocks hu
+    JOIN hints h ON hu.hint_id = h.id
+    GROUP BY hu.user_id, h.question_id
+) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
 WHERE s.is_correct = 1
 GROUP BY u.id, u.name
 ORDER BY total_points DESC
@@ -178,12 +323,23 @@ FROM (
 )
 GROUP BY category;`,
 
-        `-- Team leaderboard
-SELECT t.name as team, COUNT(DISTINCT s.question_id) as solves, SUM(q.points) as total_points
+        `-- Team leaderboard (accounts for hint penalties)
+SELECT 
+    t.name as team, 
+    COUNT(DISTINCT s.question_id) as solves, 
+    SUM(q.points) as max_points,
+    SUM(q.points) - COALESCE(SUM(hint_costs.total_cost), 0) as total_points,
+    COALESCE(SUM(hint_costs.total_cost), 0) as hint_penalties
 FROM teams t
 JOIN users u ON u.team_id = t.id
 JOIN submissions s ON s.user_id = u.id AND s.is_correct = 1
 JOIN questions q ON q.id = s.question_id
+LEFT JOIN (
+    SELECT hu.user_id, h.question_id, SUM(h.cost) as total_cost
+    FROM hint_unlocks hu
+    JOIN hints h ON hu.hint_id = h.id
+    GROUP BY hu.user_id, h.question_id
+) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
 GROUP BY t.id, t.name
 ORDER BY total_points DESC;`,
     ];
@@ -207,11 +363,69 @@ ORDER BY total_points DESC;`,
         window.editor.focus();
     };
 
+    // Format SQL using sql-formatter
+    window.formatSQL = function() {
+        if (!window.editor) return;
+        const currentQuery = window.editor.state.doc.toString();
+        if (!currentQuery.trim()) return;
+        
+        try {
+            const formatted = window.sqlFormatter.format(currentQuery, {
+                language: 'postgresql',
+                keywordCase: 'upper',
+                indentStyle: 'standard',
+                linesBetweenQueries: 2
+            });
+            window.editor.dispatch({
+                changes: { from: 0, to: window.editor.state.doc.length, insert: formatted }
+            });
+            window.editor.focus();
+        } catch (error) {
+            console.error('Format error:', error);
+            // Silently fail if formatting fails (invalid SQL)
+        }
+    };
+
+    // Get current SQL statement (separated by semicolons)
+    function getCurrentStatement() {
+        if (!window.editor) return '';
+        const fullQuery = window.editor.state.doc.toString();
+        const cursorPos = window.editor.state.selection.main.head;
+        
+        // Find statement boundaries by semicolons
+        const statements = fullQuery.split(';');
+        let currentPos = 0;
+        
+        for (let stmt of statements) {
+            const stmtEnd = currentPos + stmt.length;
+            if (cursorPos >= currentPos && cursorPos <= stmtEnd + 1) {
+                return stmt.trim();
+            }
+            currentPos = stmtEnd + 1; // +1 for the semicolon
+        }
+        
+        return fullQuery.trim();
+    }
+
+    // Execute only the current statement
+    window.executeCurrentStatement = async function() {
+        if (!window.editor) return;
+        const statement = getCurrentStatement();
+        if (!statement) return;
+        
+        await executeSQL(statement, true);
+    };
+
     window.executeQuery = async function() {
         if (!window.editor) return;
         const query = window.editor.state.doc.toString().trim();
         if (!query) return;
+        
+        await executeSQL(query, false);
+    };
 
+    // Core SQL execution function
+    async function executeSQL(query, isSingleStatement) {
         const resultsDiv = document.getElementById('query-results');
 
         if (!duckdbReady || !db || !conn) {
@@ -222,7 +436,18 @@ ORDER BY total_points DESC;`,
         resultsDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400">Executing query...</p>';
 
         try {
-            const result = await conn.query(query);
+            // Get row limit
+            const rowLimitSelect = document.getElementById('row-limit');
+            const rowLimit = rowLimitSelect ? parseInt(rowLimitSelect.value) : 1000;
+
+            // Add LIMIT if specified and query doesn't already have one
+            let finalQuery = query;
+            if (rowLimit > 0 && !/\bLIMIT\s+\d+\b/i.test(query) && /^\s*SELECT\b/i.test(query)) {
+                // Remove trailing semicolon if present before adding LIMIT
+                finalQuery = query.replace(/;+\s*$/, '') + ` LIMIT ${rowLimit}`;
+            }
+
+            const result = await conn.query(finalQuery);
             const rows = result.toArray();
 
             if (rows.length === 0) {
@@ -238,7 +463,11 @@ ORDER BY total_points DESC;`,
             });
             html += '</tr></thead><tbody class="divide-y divide-gray-200 dark:divide-dark-border">';
 
-            rows.forEach(row => {
+            // Limit displayed rows in UI even if query returned more
+            const displayLimit = 1000;
+            const displayRows = rows.slice(0, displayLimit);
+            
+            displayRows.forEach(row => {
                 html += '<tr class="hover:bg-gray-100 dark:hover:bg-dark-bg">';
                 columns.forEach(col => {
                     const value = row[col] === null ? '<span class="text-gray-400">NULL</span>' : row[col];
@@ -248,12 +477,22 @@ ORDER BY total_points DESC;`,
             });
 
             html += '</tbody></table></div>';
-            html += `<p class="mt-4 text-sm text-gray-500 dark:text-gray-400">${rows.length} row(s) returned</p>`;
+            
+            // Show row count info
+            let countInfo = `${rows.length} row(s) returned`;
+            if (rowLimit > 0 && rows.length >= rowLimit) {
+                countInfo += ` (limited to ${rowLimit})`;
+            }
+            if (rows.length > displayLimit) {
+                countInfo += ` - showing first ${displayLimit} rows`;
+            }
+            html += `<p class="mt-4 text-sm text-gray-500 dark:text-gray-400">${countInfo}</p>`;
+            
             resultsDiv.innerHTML = html;
         } catch (error) {
             resultsDiv.innerHTML = `<p class="text-red-600 dark:text-red-400">Error: ${error.message}</p>`;
         }
-    };
+    }
 
     async function initDB() {
         const resultsDiv = document.getElementById('query-results');
@@ -266,10 +505,6 @@ ORDER BY total_points DESC;`,
             db = new duckdb.AsyncDuckDB(logger, worker);
             await db.instantiate(DUCKDB_CONFIG.mainModule, DUCKDB_CONFIG.pthreadWorker);
             conn = await db.connect();
-
-            // Check if a per-challenge dataset URL is provided
-            const metaEl = document.getElementById('sql-challenge-meta');
-            const customDatasetURL = metaEl ? metaEl.getAttribute('data-dataset-url') : null;
 
             if (customDatasetURL) {
                 // Load the challenge-specific dataset from the provided URL
@@ -320,6 +555,24 @@ ORDER BY total_points DESC;`,
                         owner_id: t.owner_id, created_at: t.created_at || '',
                     }));
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'teams' });
+                }
+
+                // Load hints table (content is sensitive and not exported)
+                if (snapshot.hints && snapshot.hints.length > 0) {
+                    const records = snapshot.hints.map(h => ({
+                        id: h.id, question_id: h.question_id,
+                        cost: h.cost, created_at: h.created_at || '',
+                    }));
+                    await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'hints' });
+                }
+
+                // Load hint_unlocks table
+                if (snapshot.hint_unlocks && snapshot.hint_unlocks.length > 0) {
+                    const records = snapshot.hint_unlocks.map(hu => ({
+                        id: hu.id, hint_id: hu.hint_id, user_id: hu.user_id,
+                        team_id: hu.team_id || null, created_at: hu.created_at || '',
+                    }));
+                    await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'hint_unlocks' });
                 }
 
                 duckdbReady = true;
@@ -416,6 +669,31 @@ ORDER BY total_points DESC;`,
                         <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">name</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
                         <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">description</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
                         <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">owner_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">created_at</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div>
+                <h4 class="font-bold text-blue-400 mb-1 uppercase tracking-wide">hints <span class="text-gray-500 dark:text-gray-600 normal-case font-normal">(content excluded)</span></h4>
+                <table class="w-full text-gray-600 dark:text-gray-400">
+                    <tbody>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">question_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">cost</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">created_at</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div>
+                <h4 class="font-bold text-blue-400 mb-1 uppercase tracking-wide">hint_unlocks</h4>
+                <table class="w-full text-gray-600 dark:text-gray-400">
+                    <tbody>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">hint_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">user_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">team_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
                         <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">created_at</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
                     </tbody>
                 </table>

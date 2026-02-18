@@ -55,16 +55,23 @@ func (h *ScoreboardHandler) GetScoreboard(w http.ResponseWriter, r *http.Request
 			if e.TeamName != nil {
 				teamName = *e.TeamName
 			}
+			
+			var teamCell string
+			if e.TeamID != nil && *e.TeamID != "" {
+				teamCell = fmt.Sprintf(`<a href="/teams/%s/profile" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium underline decoration-blue-400/50 hover:decoration-blue-600 underline-offset-2">%s</a>`, *e.TeamID, teamName)
+			} else {
+				teamCell = fmt.Sprintf(`<span class="text-gray-500 dark:text-gray-400">%s</span>`, teamName)
+			}
 
 			fmt.Fprintf(w, `<tr class="hover:bg-gray-100 dark:hover:bg-dark-bg transition">
                 <td class="px-6 py-4 whitespace-nowrap"><span class="text-sm font-bold %s">#%d</span></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">%s</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">%s</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm"><a href="/users/%s" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium underline decoration-blue-400/50 hover:decoration-blue-600 underline-offset-2">%s</a></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">%s</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600 dark:text-green-400">%d</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">%d</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">%s</td>
             </tr>`,
-				rankColor, e.Rank, e.UserName, teamName, e.Points, e.SolveCount,
+				rankColor, e.Rank, e.UserID, e.UserName, teamCell, e.Points, e.SolveCount,
 				e.LastSolve.Format("Jan 02, 15:04"))
 		}
 
@@ -112,6 +119,7 @@ func (h *ScoreboardHandler) GetTeamScoreboard(w http.ResponseWriter, r *http.Req
 			}
 
 			var teamName string
+			var teamID string
 			if e.TeamName != nil {
 				teamName = *e.TeamName
 			} else if e.TeamID != nil {
@@ -119,15 +127,18 @@ func (h *ScoreboardHandler) GetTeamScoreboard(w http.ResponseWriter, r *http.Req
 			} else {
 				teamName = "-"
 			}
+			if e.TeamID != nil {
+				teamID = *e.TeamID
+			}
 
 			fmt.Fprintf(w, `<tr class="hover:bg-gray-100 dark:hover:bg-dark-bg transition">
                 <td class="px-6 py-4 whitespace-nowrap"><span class="text-sm font-bold %s">#%d</span></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">%s</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm"><a href="/teams/%s/profile" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium underline decoration-blue-400/50 hover:decoration-blue-600 underline-offset-2">%s</a></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600 dark:text-green-400">%d</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">%d</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">%s</td>
             </tr>`,
-				rankColor, e.Rank, teamName, e.Points, e.SolveCount,
+				rankColor, e.Rank, teamID, teamName, e.Points, e.SolveCount,
 				e.LastSolve.Format("Jan 02, 15:04"))
 		}
 

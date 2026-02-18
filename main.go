@@ -21,6 +21,7 @@ import (
 	"github.com/yourusername/hctf2/internal/database"
 	"github.com/yourusername/hctf2/internal/handlers"
 	"github.com/yourusername/hctf2/internal/models"
+	"github.com/yourusername/hctf2/internal/telemetry"
 	"github.com/yourusername/hctf2/internal/utils"
 )
 
@@ -29,6 +30,9 @@ var templatesFS embed.FS
 
 //go:embed internal/views/static
 var embedFS embed.FS
+
+//go:embed docs/openapi.yaml
+var openapiSpec embed.FS
 
 // staticFS is a SubFS starting at internal/views/static
 var staticFS fs.FS
@@ -84,6 +88,19 @@ func main() {
 		motd        = flag.String("motd", "", "Message of the Day displayed below login form")
 	)
 	flag.Parse()
+
+	// Initialize telemetry
+	cleanupTelemetry, err := telemetry.Init(telemetry.Config{
+		ServiceName:          "hctf2",
+		ServiceVersion:       "1.0.0",
+		Environment:          os.Getenv("ENVIRONMENT"),
+		EnableStdoutExporter: os.Getenv("OTEL_EXPORTER_STDOUT") == "true",
+	})
+	if err != nil {
+		log.Printf("Warning: Failed to initialize telemetry: %v", err)
+	} else {
+		defer cleanupTelemetry()
+	}
 
 	// Initialize database
 	db, err := database.New(*dbPath)
@@ -179,6 +196,7 @@ func main() {
 		})
 	})
 
+	r.Use(telemetry.Middleware)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(auth.AuthMiddleware)
@@ -208,6 +226,7 @@ func main() {
 	// Profile routes (public view, own profile requires auth)
 	r.Get("/profile", s.handleOwnProfile)
 	r.Get("/users/{id}", s.handleUserProfile)
+	r.Get("/teams/{id}/profile", s.handleTeamProfile)
 
 	// Admin UI routes
 	r.Group(func(r chi.Router) {
@@ -297,6 +316,9 @@ func main() {
 
 	// API routes - SQL
 	r.Get("/api/sql/snapshot", s.sqlH.GetSnapshot)
+
+	// OpenAPI Spec
+	r.Get("/api/openapi.yaml", s.handleOpenAPISpec)
 
 	// API routes - Scoreboard
 	r.Get("/api/scoreboard", s.scoreboardH.GetScoreboard)
@@ -569,6 +591,19 @@ func (s *Server) handleTeams(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.render(w, "base.html", data)
+}
+
+func (s *Server) handleOpenAPISpec(w http.ResponseWriter, r *http.Request) {
+	// Serve the OpenAPI specification YAML file
+	w.Header().Set("Content-Type", "text/yaml")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	data, err := openapiSpec.ReadFile("docs/openapi.yaml")
+	if err != nil {
+		http.Error(w, "OpenAPI spec not found", http.StatusNotFound)
+		return
+	}
+	w.Write(data)
 }
 
 func (s *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
@@ -933,6 +968,82 @@ func (s *Server) handleUserProfile(w http.ResponseWriter, r *http.Request) {
 		"SolvedChallenges":  solved,
 		"IsOwnProfile":      false,
 		"CustomCode":        customCode,
+	}
+	s.render(w, "base.html", data)
+}
+
+func (s *Server) handleTeamProfile(w http.ResponseWriter, r *http.Request) {
+	teamID := chi.URLParam(r, "id")
+	claims := auth.GetUserFromContext(r.Context())
+
+	// Get team details
+	team, err := s.db.GetTeamByID(teamID)
+	if err != nil {
+		s.renderError(w, 404, "Team Not Found", "The team you're looking for doesn't exist.")
+		return
+	}
+
+	// Get team members
+	members, err := s.db.GetTeamMembers(teamID)
+	if err != nil {
+		http.Error(w, "Failed to fetch team members", http.StatusInternalServerError)
+		return
+	}
+
+	// Get team owner details
+	owner, err := s.db.GetUserByID(team.OwnerID)
+	if err != nil {
+		http.Error(w, "Failed to fetch team owner", http.StatusInternalServerError)
+		return
+	}
+
+	// Get team stats from scoreboard
+	var teamStats struct {
+		TotalPoints int
+		SolvedCount int
+		Rank        int
+	}
+	
+	// Get rank from team scoreboard
+	scoreboard, err := s.db.GetTeamScoreboard(1000)
+	if err == nil {
+		for _, entry := range scoreboard {
+			if entry.TeamID != nil && *entry.TeamID == teamID {
+				teamStats.TotalPoints = entry.Points
+				teamStats.SolvedCount = entry.SolveCount
+				teamStats.Rank = entry.Rank
+				break
+			}
+		}
+	}
+
+	// Get all team solved challenges (general activity)
+	solvedChallenges, _ := s.db.GetTeamSolvedChallenges(teamID)
+
+	// Get scoring team challenges (only first solves count toward team score)
+	scoringChallenges, _ := s.db.GetTeamScoringChallenges(teamID)
+
+	// Get all team recent submissions
+	recentSubmissions, _ := s.db.GetTeamRecentSubmissions(teamID, 20)
+
+	// Get scoring submissions only (first solves per question)
+	scoringSubmissions, _ := s.db.GetTeamScoringSubmissions(teamID, 20)
+
+	customCode, _ := s.db.GetCustomCode("team")
+
+	data := map[string]interface{}{
+		"Title":               team.Name + " - Team Profile",
+		"Page":                "team-profile",
+		"User":                claims,
+		"Team":                team,
+		"Members":             members,
+		"Owner":               owner,
+		"Stats":               teamStats,
+		"SolvedChallenges":    solvedChallenges,
+		"ScoringChallenges":   scoringChallenges,
+		"RecentSubmissions":   recentSubmissions,
+		"ScoringSubmissions":  scoringSubmissions,
+		"CustomCode":          customCode,
 	}
 	s.render(w, "base.html", data)
 }

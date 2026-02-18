@@ -1,0 +1,902 @@
+openapi: 3.0.3
+info:
+  title: HCTF2 CTF Platform API
+  description: |
+    API for the HCTF2 Capture The Flag platform. This API provides endpoints for managing challenges, 
+    user authentication, team management, scoreboards, and SQL playground functionality.
+    
+    **Important**: Any changes to the API should be reflected in this OpenAPI specification.
+    This file is located at `/home/jesus/Projects/hCTF2/docs/openapi.yaml`.
+  version: 1.0.0
+  contact:
+    name: HCTF2 Team
+servers:
+  - url: http://localhost:8090
+    description: Local development server
+  - url: /api
+    description: Relative API path
+
+paths:
+  # Auth endpoints
+  /auth/register:
+    post:
+      summary: Register a new user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                name:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Invalid request
+        '409':
+          description: Email already exists
+
+  /auth/login:
+    post:
+      summary: Login a user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      summary: Logout current user
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+        '401':
+          description: Unauthorized
+
+  /auth/forgot-password:
+    post:
+      summary: Request password reset
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Password reset email sent
+
+  /auth/reset-password:
+    post:
+      summary: Reset password with token
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Password reset successful
+        '400':
+          description: Invalid token
+
+  # Challenges
+  /challenges:
+    get:
+      summary: List all challenges
+      tags: [Challenges]
+      responses:
+        '200':
+          description: List of challenges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Challenge'
+
+  /challenges/{id}:
+    get:
+      summary: Get challenge details
+      tags: [Challenges]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Challenge details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Challenge'
+        '404':
+          description: Challenge not found
+
+  /questions/{id}/submit:
+    post:
+      summary: Submit flag for a question
+      tags: [Challenges]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [flag]
+              properties:
+                flag:
+                  type: string
+      responses:
+        '200':
+          description: Submission result
+        '401':
+          description: Unauthorized
+
+  /questions/{questionId}/hints:
+    get:
+      summary: Get hints for a question
+      tags: [Hints]
+      parameters:
+        - name: questionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of hints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Hint'
+
+  /hints/{id}/unlock:
+    post:
+      summary: Unlock a hint
+      tags: [Hints]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Hint unlocked
+        '401':
+          description: Unauthorized
+
+  # Teams
+  /teams:
+    get:
+      summary: List all teams
+      tags: [Teams]
+      responses:
+        '200':
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Team'
+    post:
+      summary: Create a new team
+      tags: [Teams]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Team created
+        '401':
+          description: Unauthorized
+        '409':
+          description: Team name already exists
+
+  /teams/{id}:
+    get:
+      summary: Get team details
+      tags: [Teams]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Team details with members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamDetail'
+
+  /teams/join/{invite_id}:
+    post:
+      summary: Join a team using invite code
+      tags: [Teams]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: invite_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Joined team successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Invalid invite code
+
+  /teams/leave:
+    post:
+      summary: Leave current team
+      tags: [Teams]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Left team successfully
+        '401':
+          description: Unauthorized
+
+  /teams/transfer-ownership:
+    post:
+      summary: Transfer team ownership
+      tags: [Teams]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_owner_id]
+              properties:
+                new_owner_id:
+                  type: string
+      responses:
+        '200':
+          description: Ownership transferred
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not team owner
+
+  /teams/disband:
+    post:
+      summary: Disband (delete) a team
+      tags: [Teams]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Team disbanded
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not team owner
+
+  /teams/regenerate-invite:
+    post:
+      summary: Regenerate team invite code
+      tags: [Teams]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: New invite code generated
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not team owner
+
+  /teams/invite-permission:
+    post:
+      summary: Update who can share invites
+      tags: [Teams]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permission]
+              properties:
+                permission:
+                  type: string
+                  enum: [owner_only, all_members]
+      responses:
+        '200':
+          description: Permission updated
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not team owner
+
+  /teams/scoreboard:
+    get:
+      summary: Get team scoreboard
+      tags: [Scoreboard]
+      responses:
+        '200':
+          description: Team rankings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScoreboardEntry'
+
+  # Scoreboard
+  /scoreboard:
+    get:
+      summary: Get individual scoreboard
+      tags: [Scoreboard]
+      responses:
+        '200':
+          description: Individual rankings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScoreboardEntry'
+
+  # SQL Playground
+  /sql/snapshot:
+    get:
+      summary: Get database snapshot for SQL playground
+      tags: [SQL Playground]
+      responses:
+        '200':
+          description: Database snapshot data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  challenges:
+                    type: array
+                  questions:
+                    type: array
+                  submissions:
+                    type: array
+                  users:
+                    type: array
+                  teams:
+                    type: array
+
+  # Admin endpoints
+  /admin/challenges:
+    post:
+      summary: Create a new challenge (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChallengeInput'
+      responses:
+        '201':
+          description: Challenge created
+        '403':
+          description: Forbidden - admin only
+
+  /admin/challenges/{id}:
+    put:
+      summary: Update a challenge (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChallengeInput'
+      responses:
+        '200':
+          description: Challenge updated
+        '403':
+          description: Forbidden - admin only
+    delete:
+      summary: Delete a challenge (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Challenge deleted
+        '403':
+          description: Forbidden - admin only
+
+  /admin/questions:
+    post:
+      summary: Create a new question (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionInput'
+      responses:
+        '201':
+          description: Question created
+        '403':
+          description: Forbidden - admin only
+
+  /admin/questions/{id}:
+    put:
+      summary: Update a question (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionInput'
+      responses:
+        '200':
+          description: Question updated
+        '403':
+          description: Forbidden - admin only
+    delete:
+      summary: Delete a question (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Question deleted
+        '403':
+          description: Forbidden - admin only
+
+  /admin/hints:
+    post:
+      summary: Create a new hint (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HintInput'
+      responses:
+        '201':
+          description: Hint created
+        '403':
+          description: Forbidden - admin only
+
+  /admin/hints/{id}:
+    put:
+      summary: Update a hint (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HintInput'
+      responses:
+        '200':
+          description: Hint updated
+        '403':
+          description: Forbidden - admin only
+    delete:
+      summary: Delete a hint (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Hint deleted
+        '403':
+          description: Forbidden - admin only
+
+  /admin/users:
+    get:
+      summary: List all users (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users
+        '403':
+          description: Forbidden - admin only
+
+  /admin/users/{id}/admin:
+    put:
+      summary: Update user admin status (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_admin:
+                  type: boolean
+      responses:
+        '200':
+          description: User updated
+        '403':
+          description: Forbidden - admin only
+
+  /admin/users/{id}:
+    delete:
+      summary: Delete a user (Admin only)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User deleted
+        '403':
+          description: Forbidden - admin only
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Challenge:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        difficulty:
+          type: string
+        visible:
+          type: boolean
+        sql_enabled:
+          type: boolean
+        sql_dataset_url:
+          type: string
+          nullable: true
+        sql_schema_hint:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ChallengeInput:
+      type: object
+      required: [name, description, category, difficulty]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        difficulty:
+          type: string
+        visible:
+          type: boolean
+          default: false
+        sql_enabled:
+          type: boolean
+          default: false
+        sql_dataset_url:
+          type: string
+        sql_schema_hint:
+          type: string
+
+    Question:
+      type: object
+      properties:
+        id:
+          type: string
+        challenge_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        flag:
+          type: string
+        flag_mask:
+          type: string
+        case_sensitive:
+          type: boolean
+        points:
+          type: integer
+        file_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    QuestionInput:
+      type: object
+      required: [challenge_id, name, description, flag, points]
+      properties:
+        challenge_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        flag:
+          type: string
+        flag_mask:
+          type: string
+        case_sensitive:
+          type: boolean
+          default: true
+        points:
+          type: integer
+        file_url:
+          type: string
+
+    Hint:
+      type: object
+      properties:
+        id:
+          type: string
+        question_id:
+          type: string
+        content:
+          type: string
+        cost:
+          type: integer
+        order:
+          type: integer
+        unlocked:
+          type: boolean
+
+    HintInput:
+      type: object
+      required: [question_id, content, cost, order]
+      properties:
+        question_id:
+          type: string
+        content:
+          type: string
+        cost:
+          type: integer
+          minimum: 0
+        order:
+          type: integer
+          minimum: 0
+
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        owner_id:
+          type: string
+        invite_id:
+          type: string
+        invite_permission:
+          type: string
+          enum: [owner_only, all_members]
+        created_at:
+          type: string
+          format: date-time
+
+    TeamDetail:
+      type: object
+      properties:
+        team:
+          $ref: '#/components/schemas/Team'
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              email:
+                type: string
+
+    ScoreboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        user_id:
+          type: string
+        user_name:
+          type: string
+        team_id:
+          type: string
+          nullable: true
+        team_name:
+          type: string
+          nullable: true
+        points:
+          type: integer
+        solve_count:
+          type: integer
+        last_solve:
+          type: string
+          format: date-time
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        team_id:
+          type: string
+          nullable: true
+        is_admin:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string

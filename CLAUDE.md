@@ -343,7 +343,25 @@ func TestHashPassword(t *testing.T) {
 2. Register route in `main.go`
 3. Add authentication middleware if needed
 4. Document in `API.md`
-5. Update relevant templates if UI changes
+5. **CRITICAL**: Update the OpenAPI specification in `docs/openapi.yaml` - this is the authoritative API documentation
+6. Update relevant templates if UI changes
+
+### OpenAPI Specification
+
+**Location**: `docs/openapi.yaml`
+
+**CRITICAL**: This project maintains an OpenAPI 3.0 specification that must be kept in sync with all API changes.
+
+- **Access**: The spec is served at `/api/openapi.yaml`
+- **Updates**: Any changes to API endpoints, request/response schemas, or authentication must be reflected in the OpenAPI spec
+- **Coverage**: The spec documents all endpoints including auth, challenges, teams, admin, and SQL playground
+
+**When modifying the API:**
+1. Add/update the endpoint in `docs/openapi.yaml`
+2. Update request/response schemas in the `components/schemas` section
+3. Tag endpoints appropriately (e.g., `[Challenges]`, `[Admin]`)
+4. Include security requirements for protected endpoints
+5. Test the spec loads correctly at `/api/openapi.yaml`
 
 ### Changing Database Schema
 

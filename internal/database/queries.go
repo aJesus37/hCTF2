@@ -435,6 +435,66 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 	}
 	snapshot["teams"] = teams
 
+	// Hints (schema only - content is sensitive and requires unlock)
+	var hints []map[string]interface{}
+	rows5, err := db.Query(`
+		SELECT h.id, h.question_id, h.cost, h.created_at
+		FROM hints h
+		JOIN questions q ON h.question_id = q.id
+		WHERE q.challenge_id IN (SELECT id FROM challenges WHERE visible = 1)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows5.Close()
+
+	for rows5.Next() {
+		var id, questionID string
+		var cost int
+		var createdAt string
+		if err := rows5.Scan(&id, &questionID, &cost, &createdAt); err != nil {
+			return nil, err
+		}
+		hints = append(hints, map[string]interface{}{
+			"id":          id,
+			"question_id": questionID,
+			"cost":        cost,
+			"created_at":  createdAt,
+		})
+	}
+	snapshot["hints"] = hints
+
+	// Hint unlocks (for SQL playground analysis of penalties)
+	var hintUnlocks []map[string]interface{}
+	rows6, err := db.Query(`
+		SELECT hu.id, hu.hint_id, hu.user_id, hu.team_id, hu.created_at
+		FROM hint_unlocks hu
+		JOIN hints h ON hu.hint_id = h.id
+		JOIN questions q ON h.question_id = q.id
+		WHERE q.challenge_id IN (SELECT id FROM challenges WHERE visible = 1)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows6.Close()
+
+	for rows6.Next() {
+		var id, hintID, userID string
+		var teamID sql.NullString
+		var createdAt string
+		if err := rows6.Scan(&id, &hintID, &userID, &teamID, &createdAt); err != nil {
+			return nil, err
+		}
+		hintUnlocks = append(hintUnlocks, map[string]interface{}{
+			"id":         id,
+			"hint_id":    hintID,
+			"user_id":    userID,
+			"team_id":    teamID.String,
+			"created_at": createdAt,
+		})
+	}
+	snapshot["hint_unlocks"] = hintUnlocks
+
 	return snapshot, nil
 }
 
@@ -584,6 +644,7 @@ func (db *DB) GetTeamMembers(teamID string) ([]models.User, error) {
 // GetTeamScoreboard returns team rankings with aggregated points.
 // Only submissions made while the user was in the team (s.team_id = t.id) count.
 // Each unique question is counted once per team regardless of how many members solved it.
+// Handles legacy submissions where team_id is NULL by checking user's current team.
 func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 	query := `
 		SELECT
@@ -595,26 +656,38 @@ func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 		FROM teams t
 		LEFT JOIN (
 			SELECT
-				s.team_id,
+				effective_team_id as team_id,
 				SUM(q.points) as points,
 				COUNT(*) as solve_count,
 				MAX(s.created_at) as last_solve
 			FROM (
-				SELECT team_id, question_id, MIN(created_at) as created_at
-				FROM submissions
-				WHERE is_correct = 1 AND team_id IS NOT NULL
-				GROUP BY team_id, question_id
+				SELECT 
+					CASE 
+						WHEN s.team_id IS NOT NULL THEN s.team_id
+						ELSE u.team_id
+					END as effective_team_id,
+					s.question_id, 
+					MIN(s.created_at) as created_at
+				FROM submissions s
+				JOIN users u ON s.user_id = u.id
+				WHERE s.is_correct = 1
+				GROUP BY effective_team_id, s.question_id
 			) s
 			JOIN questions q ON q.id = s.question_id
-			GROUP BY s.team_id
+			GROUP BY effective_team_id
 		) team_pts ON team_pts.team_id = t.id
 		LEFT JOIN (
-			SELECT hu.team_id, SUM(h.cost) as total_cost
+			SELECT 
+				CASE 
+					WHEN hu.team_id IS NOT NULL THEN hu.team_id
+					ELSE u.team_id
+				END as effective_team_id, 
+				SUM(h.cost) as total_cost
 			FROM hint_unlocks hu
 			JOIN hints h ON hu.hint_id = h.id
-			WHERE hu.team_id IS NOT NULL
-			GROUP BY hu.team_id
-		) hint_costs ON hint_costs.team_id = t.id
+			JOIN users u ON hu.user_id = u.id
+			GROUP BY effective_team_id
+		) hint_costs ON hint_costs.effective_team_id = t.id
 		ORDER BY points DESC, last_solve ASC
 		LIMIT ?
 	`
@@ -1021,6 +1094,32 @@ type ChallengeCompletion struct {
 	IsComplete      bool
 }
 
+// TeamSubmission represents a submission by a team member
+type TeamSubmission struct {
+	ID            string
+	QuestionID    string
+	QuestionName  string
+	Points        int
+	ChallengeID   string
+	ChallengeName string
+	IsCorrect     bool
+	CreatedAt     time.Time
+	UserID        string
+	UserName      string
+	HintPenalty   int
+}
+
+// TeamChallengeSummary represents a challenge solved by team with points earned
+type TeamChallengeSummary struct {
+	ID               string
+	Name             string
+	Category         string
+	Difficulty       string
+	SolvedQuestions  int
+	TotalQuestions   int
+	PointsEarned     int
+}
+
 // GetChallengeCompletionForUser returns completion status for all challenges for a user
 func (db *DB) GetChallengeCompletionForUser(userID string) (map[string]*ChallengeCompletion, error) {
 	query := `
@@ -1278,3 +1377,209 @@ func (db *DB) GetCustomCode(page string) (*models.CustomCode, error) {
 		BodyEndHTML: bodyEndHTML,
 	}, nil
 }
+
+// GetTeamSolvedChallenges returns challenges that have been solved by team members (all activity)
+func (db *DB) GetTeamSolvedChallenges(teamID string) ([]ChallengeSummary, error) {
+	query := `
+		SELECT 
+			c.id,
+			c.name,
+			c.category,
+			c.difficulty,
+			COUNT(DISTINCT q.id) as total_questions,
+			COUNT(DISTINCT s.question_id) as solved_questions
+		FROM challenges c
+		JOIN questions q ON c.id = q.challenge_id
+		JOIN submissions s ON q.id = s.question_id AND s.is_correct = 1
+		JOIN users u ON s.user_id = u.id
+		WHERE u.team_id = ? AND c.visible = 1
+		GROUP BY c.id, c.name, c.category, c.difficulty
+		HAVING solved_questions > 0
+		ORDER BY c.name ASC
+	`
+
+	rows, err := db.Query(query, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var challenges []ChallengeSummary
+	for rows.Next() {
+		var c ChallengeSummary
+		if err := rows.Scan(&c.ID, &c.Name, &c.Category, &c.Difficulty, &c.TotalQuestions, &c.SolvedQuestions); err != nil {
+			return nil, err
+		}
+		challenges = append(challenges, c)
+	}
+	return challenges, nil
+}
+
+// GetTeamScoringChallenges returns challenges with points earned by the team (only counting first solves)
+func (db *DB) GetTeamScoringChallenges(teamID string) ([]TeamChallengeSummary, error) {
+	query := `
+		SELECT 
+			c.id,
+			c.name,
+			c.category,
+			c.difficulty,
+			COUNT(DISTINCT q.id) as total_questions,
+			COUNT(DISTINCT team_solves.question_id) as solved_questions,
+			COALESCE(SUM(team_solves.points_earned), 0) as points_earned
+		FROM challenges c
+		JOIN questions q ON c.id = q.challenge_id
+		LEFT JOIN (
+			-- Only get the first solve for each question by this team
+			-- Uses either stored team_id or current user's team for legacy submissions
+			SELECT 
+				s.question_id,
+				q.challenge_id,
+				q.points - COALESCE(hint_costs.total_cost, 0) as points_earned
+			FROM submissions s
+			JOIN questions q ON s.question_id = q.id
+			JOIN users u ON s.user_id = u.id
+			LEFT JOIN (
+				SELECT hu.user_id, h.question_id, SUM(h.cost) as total_cost
+				FROM hint_unlocks hu
+				JOIN hints h ON hu.hint_id = h.id
+				GROUP BY hu.user_id, h.question_id
+			) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
+			WHERE s.is_correct = 1
+			AND (s.team_id = ? OR (s.team_id IS NULL AND u.team_id = ?))
+			AND s.id = (
+				-- First submission for this question by this team
+				SELECT MIN(s2.id)
+				FROM submissions s2
+				JOIN users u2 ON s2.user_id = u2.id
+				WHERE s2.question_id = s.question_id 
+				AND s2.is_correct = 1
+				AND (s2.team_id = ? OR (s2.team_id IS NULL AND u2.team_id = ?))
+			)
+		) team_solves ON team_solves.challenge_id = c.id AND team_solves.question_id = q.id
+		WHERE c.visible = 1
+		GROUP BY c.id, c.name, c.category, c.difficulty
+		HAVING solved_questions > 0
+		ORDER BY c.name ASC
+	`
+
+	rows, err := db.Query(query, teamID, teamID, teamID, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var challenges []TeamChallengeSummary
+	for rows.Next() {
+		var c TeamChallengeSummary
+		if err := rows.Scan(&c.ID, &c.Name, &c.Category, &c.Difficulty, &c.TotalQuestions, &c.SolvedQuestions, &c.PointsEarned); err != nil {
+			return nil, err
+		}
+		challenges = append(challenges, c)
+	}
+	return challenges, nil
+}
+
+// GetTeamRecentSubmissions returns recent submissions by team members (all activity)
+func (db *DB) GetTeamRecentSubmissions(teamID string, limit int) ([]TeamSubmission, error) {
+	query := `
+		SELECT 
+			s.id,
+			s.question_id,
+			q.name as question_name,
+			q.points - COALESCE(hint_costs.total_cost, 0) as points,
+			c.id as challenge_id,
+			c.name as challenge_name,
+			s.is_correct,
+			s.created_at,
+			u.id as user_id,
+			u.name as user_name,
+			COALESCE(hint_costs.total_cost, 0) as hint_penalty
+		FROM submissions s
+		JOIN questions q ON s.question_id = q.id
+		JOIN challenges c ON q.challenge_id = c.id
+		JOIN users u ON s.user_id = u.id
+		LEFT JOIN (
+			SELECT hu.user_id, h.question_id, SUM(h.cost) as total_cost
+			FROM hint_unlocks hu
+			JOIN hints h ON hu.hint_id = h.id
+			GROUP BY hu.user_id, h.question_id
+		) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
+		WHERE u.team_id = ?
+		ORDER BY s.created_at DESC
+		LIMIT ?
+	`
+
+	rows, err := db.Query(query, teamID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var submissions []TeamSubmission
+	for rows.Next() {
+		var s TeamSubmission
+		if err := rows.Scan(&s.ID, &s.QuestionID, &s.QuestionName, &s.Points, &s.ChallengeID, &s.ChallengeName, &s.IsCorrect, &s.CreatedAt, &s.UserID, &s.UserName, &s.HintPenalty); err != nil {
+			return nil, err
+		}
+		submissions = append(submissions, s)
+	}
+	return submissions, nil
+}
+
+// GetTeamScoringSubmissions returns submissions that count toward team score (first solve per question only)
+func (db *DB) GetTeamScoringSubmissions(teamID string, limit int) ([]TeamSubmission, error) {
+	query := `
+		SELECT 
+			s.id,
+			s.question_id,
+			q.name as question_name,
+			q.points - COALESCE(hint_costs.total_cost, 0) as points,
+			c.id as challenge_id,
+			c.name as challenge_name,
+			s.is_correct,
+			s.created_at,
+			u.id as user_id,
+			u.name as user_name,
+			COALESCE(hint_costs.total_cost, 0) as hint_penalty
+		FROM submissions s
+		JOIN questions q ON s.question_id = q.id
+		JOIN challenges c ON q.challenge_id = c.id
+		JOIN users u ON s.user_id = u.id
+		LEFT JOIN (
+			SELECT hu.user_id, h.question_id, SUM(h.cost) as total_cost
+			FROM hint_unlocks hu
+			JOIN hints h ON hu.hint_id = h.id
+			GROUP BY hu.user_id, h.question_id
+		) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
+		WHERE s.is_correct = 1
+		AND (s.team_id = ? OR (s.team_id IS NULL AND u.team_id = ?))
+		AND s.id = (
+			-- First submission for this question by this team
+			SELECT MIN(s2.id)
+			FROM submissions s2
+			JOIN users u2 ON s2.user_id = u2.id
+			WHERE s2.question_id = s.question_id 
+			AND s2.is_correct = 1
+			AND (s2.team_id = ? OR (s2.team_id IS NULL AND u2.team_id = ?))
+		)
+		ORDER BY s.created_at DESC
+		LIMIT ?
+	`
+
+	rows, err := db.Query(query, teamID, teamID, teamID, teamID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var submissions []TeamSubmission
+	for rows.Next() {
+		var s TeamSubmission
+		if err := rows.Scan(&s.ID, &s.QuestionID, &s.QuestionName, &s.Points, &s.ChallengeID, &s.ChallengeName, &s.IsCorrect, &s.CreatedAt, &s.UserID, &s.UserName, &s.HintPenalty); err != nil {
+			return nil, err
+		}
+		submissions = append(submissions, s)
+	}
+	return submissions, nil
+}
+
