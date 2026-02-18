@@ -445,6 +445,13 @@ func (s *Server) handleChallenges(w http.ResponseWriter, r *http.Request) {
 		"Difficulties": difficulties,
 		"CustomCode":   customCode,
 	}
+
+	// Get completion data for logged-in users
+	if claims != nil {
+		completions, _ := s.db.GetChallengeCompletionForUser(claims.UserID)
+		data["Completions"] = completions
+	}
+
 	s.render(w, "base.html", data)
 }
 

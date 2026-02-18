@@ -1013,6 +1013,46 @@ type ChallengeSummary struct {
 	TotalQuestions   int
 }
 
+// ChallengeCompletion tracks completion status
+type ChallengeCompletion struct {
+	ChallengeID     string
+	TotalQuestions  int
+	SolvedQuestions int
+	IsComplete      bool
+}
+
+// GetChallengeCompletionForUser returns completion status for all challenges for a user
+func (db *DB) GetChallengeCompletionForUser(userID string) (map[string]*ChallengeCompletion, error) {
+	query := `
+		SELECT 
+			c.id as challenge_id,
+			COUNT(DISTINCT q.id) as total_questions,
+			COUNT(DISTINCT CASE WHEN s.is_correct = 1 THEN s.question_id END) as solved_questions
+		FROM challenges c
+		LEFT JOIN questions q ON c.id = q.challenge_id
+		LEFT JOIN submissions s ON q.id = s.question_id AND s.user_id = ? AND s.is_correct = 1
+		WHERE c.visible = 1
+		GROUP BY c.id
+	`
+
+	rows, err := db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	completions := make(map[string]*ChallengeCompletion)
+	for rows.Next() {
+		var c ChallengeCompletion
+		if err := rows.Scan(&c.ChallengeID, &c.TotalQuestions, &c.SolvedQuestions); err != nil {
+			return nil, err
+		}
+		c.IsComplete = c.SolvedQuestions > 0 && c.SolvedQuestions == c.TotalQuestions
+		completions[c.ChallengeID] = &c
+	}
+	return completions, nil
+}
+
 func (db *DB) GetUserSolvedChallenges(userID string) ([]ChallengeSummary, error) {
 	query := `
 		SELECT DISTINCT
