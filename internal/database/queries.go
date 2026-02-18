@@ -1410,6 +1410,7 @@ func (db *DB) GetTeamSolvedChallenges(teamID string) ([]ChallengeSummary, error)
 }
 
 // GetTeamScoringChallenges returns challenges with points earned by the team (only counting first solves)
+// Only counts submissions made while the user was in the team (s.team_id is set)
 func (db *DB) GetTeamScoringChallenges(teamID string) ([]TeamChallengeSummary, error) {
 	query := `
 		SELECT 
@@ -1424,7 +1425,7 @@ func (db *DB) GetTeamScoringChallenges(teamID string) ([]TeamChallengeSummary, e
 		JOIN questions q ON c.id = q.challenge_id
 		LEFT JOIN (
 			-- Only get the first solve for each question by this team
-			-- Uses either stored team_id or current user's team for legacy submissions
+			-- Only counts submissions made while user was in the team
 			SELECT 
 				s.question_id,
 				q.challenge_id,
@@ -1439,15 +1440,14 @@ func (db *DB) GetTeamScoringChallenges(teamID string) ([]TeamChallengeSummary, e
 				GROUP BY hu.user_id, h.question_id
 			) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
 			WHERE s.is_correct = 1
-			AND (s.team_id = ? OR (s.team_id IS NULL AND u.team_id = ?))
+			AND s.team_id = ?
 			AND s.id = (
 				-- First submission for this question by this team
 				SELECT MIN(s2.id)
 				FROM submissions s2
-				JOIN users u2 ON s2.user_id = u2.id
 				WHERE s2.question_id = s.question_id 
 				AND s2.is_correct = 1
-				AND (s2.team_id = ? OR (s2.team_id IS NULL AND u2.team_id = ?))
+				AND s2.team_id = ?
 			)
 		) team_solves ON team_solves.challenge_id = c.id AND team_solves.question_id = q.id
 		WHERE c.visible = 1
@@ -1456,7 +1456,7 @@ func (db *DB) GetTeamScoringChallenges(teamID string) ([]TeamChallengeSummary, e
 		ORDER BY c.name ASC
 	`
 
-	rows, err := db.Query(query, teamID, teamID, teamID, teamID)
+	rows, err := db.Query(query, teamID, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -1521,6 +1521,7 @@ func (db *DB) GetTeamRecentSubmissions(teamID string, limit int) ([]TeamSubmissi
 }
 
 // GetTeamScoringSubmissions returns submissions that count toward team score (first solve per question only)
+// Only counts submissions made while the user was in the team (s.team_id is set)
 func (db *DB) GetTeamScoringSubmissions(teamID string, limit int) ([]TeamSubmission, error) {
 	query := `
 		SELECT 
@@ -1546,21 +1547,20 @@ func (db *DB) GetTeamScoringSubmissions(teamID string, limit int) ([]TeamSubmiss
 			GROUP BY hu.user_id, h.question_id
 		) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
 		WHERE s.is_correct = 1
-		AND (s.team_id = ? OR (s.team_id IS NULL AND u.team_id = ?))
+		AND s.team_id = ?
 		AND s.id = (
 			-- First submission for this question by this team
 			SELECT MIN(s2.id)
 			FROM submissions s2
-			JOIN users u2 ON s2.user_id = u2.id
 			WHERE s2.question_id = s.question_id 
 			AND s2.is_correct = 1
-			AND (s2.team_id = ? OR (s2.team_id IS NULL AND u2.team_id = ?))
+			AND s2.team_id = ?
 		)
 		ORDER BY s.created_at DESC
 		LIMIT ?
 	`
 
-	rows, err := db.Query(query, teamID, teamID, teamID, teamID, limit)
+	rows, err := db.Query(query, teamID, teamID, limit)
 	if err != nil {
 		return nil, err
 	}
