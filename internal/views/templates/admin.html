@@ -1,7 +1,7 @@
 {{define "admin-content"}}
 <div class="mb-8">
     <h1 class="text-4xl font-bold text-purple-400 mb-4">Admin Dashboard</h1>
-    <p class="text-gray-300">Manage challenges and questions for the CTF</p>
+    <p class="text-gray-600 dark:text-gray-300">Manage challenges and questions for the CTF</p>
 </div>
 
 <div x-data="{
@@ -21,35 +21,35 @@
         <p x-text="notification"></p>
     </div>
     <!-- Tab Navigation -->
-    <div class="border-b border-dark-border">
+    <div class="border-b border-gray-200 dark:border-dark-border">
         <div class="flex space-x-8">
             <button
                 @click="tab = 'challenges'"
-                :class="tab === 'challenges' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-gray-400 hover:text-gray-300'"
+                :class="tab === 'challenges' ? 'border-b-2 border-purple-500 text-purple-500 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
                 class="pb-3 font-medium transition">
                 Challenges
             </button>
             <button
                 @click="tab = 'questions'"
-                :class="tab === 'questions' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-gray-400 hover:text-gray-300'"
+                :class="tab === 'questions' ? 'border-b-2 border-purple-500 text-purple-500 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
                 class="pb-3 font-medium transition">
                 Questions
             </button>
             <button
                 @click="tab = 'hints'"
-                :class="tab === 'hints' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-gray-400 hover:text-gray-300'"
+                :class="tab === 'hints' ? 'border-b-2 border-purple-500 text-purple-500 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
                 class="pb-3 font-medium transition">
                 Hints
             </button>
             <button
                 @click="tab = 'settings'"
-                :class="tab === 'settings' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-gray-400 hover:text-gray-300'"
+                :class="tab === 'settings' ? 'border-b-2 border-purple-500 text-purple-500 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
                 class="pb-3 font-medium transition">
                 Settings
             </button>
             <button
                 @click="tab = 'users'"
-                :class="tab === 'users' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-gray-400 hover:text-gray-300'"
+                :class="tab === 'users' ? 'border-b-2 border-purple-500 text-purple-500 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
                 class="pb-3 font-medium transition">
                 Users
             </button>
@@ -66,8 +66,8 @@
         </button>
 
         <!-- Create Challenge Form -->
-        <div x-show="showCreateForm" class="bg-dark-surface border border-dark-border rounded-lg p-6 space-y-4">
-            <h3 class="text-xl font-bold text-white mb-4">Create New Challenge</h3>
+        <div x-show="showCreateForm" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 space-y-4">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Challenge</h3>
             <form
                 hx-post="/api/admin/challenges"
                 hx-target="#challenges-list"
@@ -92,44 +92,44 @@
                 class="space-y-4">
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Challenge Name *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Challenge Name *</label>
                     <input
                         type="text"
                         name="name"
                         required
                         placeholder="e.g., Web Security 101"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Description *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description *</label>
                     <textarea
                         name="description"
                         required
                         placeholder="Challenge description..."
                         rows="3"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500"></textarea>
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500"></textarea>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Categories *</label>
-                        <div id="challenge-categories-container" class="space-y-1 bg-dark-bg border border-dark-border rounded p-3">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categories *</label>
+                        <div id="challenge-categories-container" class="space-y-1 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded p-3">
                             {{range .Categories}}
-                            <label class="flex items-center text-sm text-gray-300 cursor-pointer">
-                                <input type="checkbox" name="category" value="{{.Name}}" class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> {{.Name}}
+                            <label class="flex items-center text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                <input type="checkbox" name="category" value="{{.Name}}" class="w-4 h-4 rounded border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg cursor-pointer mr-2"> {{.Name}}
                             </label>
                             {{end}}
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Difficulty *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Difficulty *</label>
                         <select
                             id="challenge-difficulty-select"
                             name="difficulty"
                             required
-                            class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                            class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                             <option value="">Select difficulty</option>
                             {{range .Difficulties}}
                             <option value="{{.Name}}">{{.Name}}</option>
@@ -145,13 +145,13 @@
                         name="visible"
                         value="on"
                         checked
-                        class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer">
-                    <label for="visible-create" class="ml-2 text-sm text-gray-300 cursor-pointer">Visible to users</label>
+                        class="w-4 h-4 rounded border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg cursor-pointer">
+                    <label for="visible-create" class="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">Visible to users</label>
                 </div>
 
                 <!-- SQL Playground Section -->
-                <div class="border-t border-dark-border pt-4 mt-4" x-data="{ sqlEnabled: false }">
-                    <h4 class="text-sm font-medium text-purple-400 mb-3">SQL Playground</h4>
+                <div class="border-t border-gray-200 dark:border-dark-border pt-4 mt-4" x-data="{ sqlEnabled: false }">
+                    <h4 class="text-sm font-medium text-purple-500 dark:text-purple-400 mb-3">SQL Playground</h4>
                     
                     <div class="flex items-center mb-3">
                         <input
@@ -160,30 +160,30 @@
                             name="sql_enabled"
                             value="on"
                             x-model="sqlEnabled"
-                            class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer">
-                        <label for="sql-enabled-create" class="ml-2 text-sm text-gray-300 cursor-pointer">Enable SQL Playground for this challenge</label>
+                            class="w-4 h-4 rounded border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg cursor-pointer">
+                        <label for="sql-enabled-create" class="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">Enable SQL Playground for this challenge</label>
                     </div>
 
                     <div x-show="sqlEnabled" x-transition class="space-y-3 pl-6">
                         <div>
-                            <label class="block text-xs font-medium text-gray-300 mb-1">Dataset URL (optional)</label>
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Dataset URL (optional)</label>
                             <input
                                 type="url"
                                 name="sql_dataset_url"
                                 placeholder="https://example.com/dataset.csv"
-                                class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
+                                class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded text-sm focus:outline-none focus:border-purple-500">
                             <p class="text-xs text-gray-500 mt-1">URL to a CSV/Parquet file for the SQL playground dataset</p>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-medium text-gray-300 mb-1">Schema Hint</label>
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Schema Hint</label>
                             <textarea
                                 name="sql_schema_hint"
                                 placeholder="-- Tables available:
 -- users (id, username, email, password_hash)
 -- posts (id, user_id, title, content, created_at)"
                                 rows="4"
-                                class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500 font-mono"></textarea>
+                                class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded text-sm focus:outline-none focus:border-purple-500 font-mono"></textarea>
                             <p class="text-xs text-gray-500 mt-1">Shown to users to help them understand the available tables/columns</p>
                         </div>
                     </div>
@@ -198,7 +198,7 @@
                     <button
                         type="button"
                         @click="showCreateForm = false"
-                        class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded font-medium transition">
+                        class="px-4 py-2 bg-gray-400 dark:bg-gray-600 hover:bg-gray-500 dark:hover:bg-gray-700 text-white rounded font-medium transition">
                         Cancel
                     </button>
                 </div>
@@ -208,18 +208,18 @@
         <!-- Challenges List -->
         <div id="challenges-list" class="space-y-4">
             {{range .Challenges}}
-            <div id="challenge-{{.ID}}" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+            <div id="challenge-{{.ID}}" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
                 <div class="flex justify-between items-start mb-3">
                     <div>
-                        <h3 class="text-xl font-bold text-white">{{.Name}}</h3>
-                        <p class="text-sm text-gray-400">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{.Name}}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
                             Category: {{range $i, $cat := splitCategories .Category}}{{if $i}}, {{end}}<span class="text-blue-400">{{$cat}}</span>{{end}} •
                             Difficulty: <span class="font-medium {{difficultyColor .Difficulty}}">{{.Difficulty}}</span>
-                            {{if not .Visible}}<span class="ml-2 text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Hidden</span>{{end}}
+                            {{if not .Visible}}<span class="ml-2 text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">Hidden</span>{{end}}
                         </p>
                     </div>
                 </div>
-                <p class="text-gray-300 mb-4">{{.Description}}</p>
+                <p class="text-gray-700 dark:text-gray-300 mb-4">{{.Description}}</p>
                 <div class="flex gap-2">
                     <button
                         hx-get="/admin/challenges/{{.ID}}/edit"
@@ -240,7 +240,7 @@
             </div>
             {{end}}
             {{if not .Challenges}}
-            <div class="text-center py-8 text-gray-400">
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
                 <p>No challenges yet. Create one to get started!</p>
             </div>
             {{end}}
@@ -257,8 +257,8 @@
         </button>
 
         <!-- Create Question Form -->
-        <div x-show="showCreateForm" class="bg-dark-surface border border-dark-border rounded-lg p-6 space-y-4">
-            <h3 class="text-xl font-bold text-white mb-4">Create New Question</h3>
+        <div x-show="showCreateForm" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 space-y-4">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Question</h3>
             <form
                 hx-post="/api/admin/questions"
                 hx-target="#questions-list"
@@ -283,12 +283,12 @@
                 class="space-y-4">
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Challenge *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Challenge *</label>
                     <select
                         id="challenge-dropdown"
                         name="challenge_id"
                         required
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                         <option value="">Select challenge</option>
                         {{range .Challenges}}
                         <option value="{{.ID}}">{{.Name}}</option>
@@ -297,55 +297,55 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Question Name *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Question Name *</label>
                     <input
                         type="text"
                         name="name"
                         required
                         placeholder="e.g., Find the SQL Injection"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Description *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description *</label>
                     <textarea
                         name="description"
                         required
                         placeholder="Question description and hints..."
                         rows="3"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500"></textarea>
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500"></textarea>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Flag *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Flag *</label>
                         <input
                             type="text"
                             name="flag"
                             required
                             placeholder="flag{...}"
-                            class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                            class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Points *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Points *</label>
                         <input
                             type="number"
                             name="points"
                             required
                             value="100"
                             min="1"
-                            class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                            class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Flag Mask (leave empty to auto-generate)</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Flag Mask (leave empty to auto-generate)</label>
                     <input
                         type="text"
                         name="flag_mask"
                         placeholder="flag{****}"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                 </div>
 
                 <div class="flex items-center">
@@ -354,8 +354,8 @@
                         id="case-sensitive-create"
                         name="case_sensitive"
                         value="on"
-                        class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer">
-                    <label for="case-sensitive-create" class="ml-2 text-sm text-gray-300 cursor-pointer">Case sensitive flag</label>
+                        class="w-4 h-4 rounded border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg cursor-pointer">
+                    <label for="case-sensitive-create" class="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">Case sensitive flag</label>
                 </div>
 
                 <div class="flex gap-3 pt-2">
@@ -367,7 +367,7 @@
                     <button
                         type="button"
                         @click="showCreateForm = false"
-                        class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded font-medium transition">
+                        class="px-4 py-2 bg-gray-400 dark:bg-gray-600 hover:bg-gray-500 dark:hover:bg-gray-700 text-white rounded font-medium transition">
                         Cancel
                     </button>
                 </div>
@@ -377,18 +377,18 @@
         <!-- Questions List -->
         <div id="questions-list" class="space-y-4">
             {{range .Questions}}
-            <div id="question-{{.ID}}" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+            <div id="question-{{.ID}}" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
                 <div class="mb-3">
-                    <h3 class="text-xl font-bold text-white">{{.Name}}</h3>
-                    <p class="text-sm text-gray-400">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{.Name}}</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
                         Challenge ID: <span class="text-blue-400">{{.ChallengeID}}</span> •
-                        Points: <span class="text-green-400 font-medium">{{.Points}}</span>
+                        Points: <span class="text-green-600 dark:text-green-400 font-medium">{{.Points}}</span>
                     </p>
                 </div>
-                <p class="text-gray-300 mb-2 text-sm">{{.Description}}</p>
-                <p class="text-gray-400 text-xs mb-4">
-                    Flag: <code class="bg-dark-bg px-2 py-1 rounded text-purple-400">{{.Flag}}</code>
-                    {{if .FlagMask}}<span class="ml-2">Mask: <code class="bg-dark-bg px-2 py-1 rounded text-yellow-400">{{.FlagMask}}</code></span>{{end}}
+                <p class="text-gray-700 dark:text-gray-300 mb-2 text-sm">{{.Description}}</p>
+                <p class="text-gray-500 dark:text-gray-400 text-xs mb-4">
+                    Flag: <code class="bg-gray-100 dark:bg-dark-bg px-2 py-1 rounded text-purple-600 dark:text-purple-400">{{.Flag}}</code>
+                    {{if .FlagMask}}<span class="ml-2">Mask: <code class="bg-gray-100 dark:bg-dark-bg px-2 py-1 rounded text-yellow-600 dark:text-yellow-400">{{.FlagMask}}</code></span>{{end}}
                 </p>
                 <div class="flex gap-2">
                     <button
@@ -410,7 +410,7 @@
             </div>
             {{end}}
             {{if not .Questions}}
-            <div class="text-center py-8 text-gray-400">
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
                 <p>No questions yet. Create one to get started!</p>
             </div>
             {{end}}
@@ -427,8 +427,8 @@
         </button>
 
         <!-- Create Hint Form -->
-        <div x-data="{ nextOrder: 1, selectedQuestionId: '' }" x-show="showCreateForm" class="bg-dark-surface border border-dark-border rounded-lg p-6 space-y-4">
-            <h3 class="text-xl font-bold text-white mb-4">Create New Hint</h3>
+        <div x-data="{ nextOrder: 1, selectedQuestionId: '' }" x-show="showCreateForm" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 space-y-4">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Hint</h3>
             <form
                 hx-post="/api/admin/hints"
                 hx-target="#hints-list"
@@ -472,7 +472,7 @@
                 class="space-y-4">
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Question *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Question *</label>
                     <select
                         id="hint-question-select"
                         name="question_id"
@@ -493,7 +493,7 @@
                                     .catch(e => console.error('Error fetching order:', e));
                             }
                         "
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                         <option value="">Select a question...</option>
                         {{range .Questions}}
                         <option value="{{.ID}}">{{.ChallengeName}} → {{.Name}} ({{.Points}} points)</option>
@@ -503,35 +503,35 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Hint Content *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hint Content *</label>
                     <textarea
                         name="content"
                         required
                         rows="4"
                         placeholder="e.g., Try looking at the source code..."
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500"></textarea>
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500"></textarea>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Cost (points) *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost (points) *</label>
                         <input
                             type="number"
                             name="cost"
                             value="20"
                             min="0"
                             required
-                            class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                            class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Order # (auto-set) *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Order # (auto-set) *</label>
                         <input
                             type="number"
                             name="order"
                             :value="nextOrder"
                             min="1"
                             required
-                            class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500">
+                            class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500">
                     </div>
                 </div>
 
@@ -546,12 +546,12 @@
         <!-- Hints List -->
         <div id="hints-list" class="space-y-4">
             {{range .Hints}}
-            <div id="hint-{{.ID}}" x-data="{ editing: false }" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+            <div id="hint-{{.ID}}" x-data="{ editing: false }" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
                 <!-- View Mode -->
                 <div x-show="!editing" class="flex justify-between items-start mb-3">
                     <div class="flex-1">
-                        <p class="text-gray-300 mb-2">{{.Content}}</p>
-                        <p class="text-sm text-gray-400">
+                        <p class="text-gray-700 dark:text-gray-300 mb-2">{{.Content}}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
                             Order: {{.Order}} • Cost: {{.Cost}} points
                         </p>
                     </div>
@@ -565,34 +565,34 @@
                       @htmx:after-request="editing = false"
                       class="space-y-3 mb-3">
                     <div>
-                        <label class="block text-xs font-medium text-gray-300 mb-1">Content</label>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Content</label>
                         <textarea
                             name="content"
                             required
                             rows="2"
-                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">{{.Content}}</textarea>
+                            class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded text-sm">{{.Content}}</textarea>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-medium text-gray-300 mb-1">Cost</label>
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Cost</label>
                             <input
                                 type="number"
                                 name="cost"
                                 value="{{.Cost}}"
                                 min="0"
                                 required
-                                class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">
+                                class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-300 mb-1">Order</label>
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Order</label>
                             <input
                                 type="number"
                                 name="order"
                                 value="{{.Order}}"
                                 min="1"
                                 required
-                                class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm">
+                                class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded text-sm">
                         </div>
                     </div>
 
@@ -605,7 +605,7 @@
                         <button
                             type="button"
                             @click="editing = false"
-                            class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">
+                            class="px-3 py-1 bg-gray-400 dark:bg-gray-600 hover:bg-gray-500 dark:hover:bg-gray-700 text-white rounded text-sm font-medium transition">
                             Cancel
                         </button>
                     </div>
@@ -630,7 +630,7 @@
             </div>
             {{end}}
             {{if not .Hints}}
-            <div class="text-center py-8 text-gray-400">
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
                 <p>No hints yet. Create one to help users!</p>
             </div>
             {{end}}
@@ -641,12 +641,12 @@
     <div x-show="tab === 'settings'" class="space-y-8">
         <!-- Categories Section -->
         <div>
-            <h2 class="text-2xl font-bold text-white mb-4">Categories</h2>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Categories</h2>
             <div id="categories-list" class="space-y-2 mb-4">
                 {{range .Categories}}
-                <div id="cat-{{.ID}}" x-data="{ editing: false }" class="bg-dark-bg border border-dark-border rounded px-4 py-2">
+                <div id="cat-{{.ID}}" x-data="{ editing: false }" class="bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded px-4 py-2">
                     <div x-show="!editing" class="flex items-center justify-between">
-                        <span class="text-white">{{.Name}} <span class="text-xs text-gray-400">(order: {{.SortOrder}})</span></span>
+                        <span class="text-gray-900 dark:text-white">{{.Name}} <span class="text-xs text-gray-500 dark:text-gray-400">(order: {{.SortOrder}})</span></span>
                         <div class="flex gap-2">
                             <button @click="editing = true" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">Edit</button>
                             <button hx-delete="/api/admin/categories/{{.ID}}" hx-target="#cat-{{.ID}}" hx-swap="outerHTML" hx-confirm="Delete category '{{.Name}}'?"
@@ -656,17 +656,17 @@
                     <form x-show="editing" hx-put="/api/admin/categories/{{.ID}}" hx-target="#cat-{{.ID}}" hx-swap="outerHTML"
                         class="flex gap-3 items-end">
                         <div>
-                            <label class="block text-xs text-gray-300 mb-1">Name</label>
+                            <label class="block text-xs text-gray-700 dark:text-gray-300 mb-1">Name</label>
                             <input type="text" name="name" value="{{.Name}}" required
-                                class="px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                                class="px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-300 mb-1">Sort Order</label>
+                            <label class="block text-xs text-gray-700 dark:text-gray-300 mb-1">Sort Order</label>
                             <input type="number" name="sort_order" value="{{.SortOrder}}" min="0"
-                                class="w-20 px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                                class="w-20 px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                         </div>
                         <button type="submit" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium">Save</button>
-                        <button type="button" @click="editing = false" class="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium">Cancel</button>
+                        <button type="button" @click="editing = false" class="px-3 py-2 bg-gray-400 dark:bg-gray-600 hover:bg-gray-500 dark:hover:bg-gray-700 text-white rounded text-xs font-medium">Cancel</button>
                     </form>
                 </div>
                 {{end}}
@@ -678,14 +678,14 @@
                   }"
                   class="flex gap-3 items-end">
                 <div>
-                    <label class="block text-xs font-medium text-gray-300 mb-1">Name</label>
+                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
                     <input type="text" name="name" required placeholder="e.g., reversing"
-                        class="px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                        class="px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-300 mb-1">Sort Order</label>
+                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sort Order</label>
                     <input type="number" name="sort_order" value="0" min="0"
-                        class="w-20 px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                        class="w-20 px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                 </div>
                 <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Add</button>
             </form>
@@ -693,14 +693,14 @@
 
         <!-- Difficulties Section -->
         <div>
-            <h2 class="text-2xl font-bold text-white mb-4">Difficulties</h2>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Difficulties</h2>
             <div id="difficulties-list" class="space-y-2 mb-4">
                 {{range .Difficulties}}
-                <div id="diff-{{.ID}}" x-data="{ editing: false }" class="bg-dark-bg border border-dark-border rounded px-4 py-2">
+                <div id="diff-{{.ID}}" x-data="{ editing: false }" class="bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded px-4 py-2">
                     <div x-show="!editing" class="flex items-center justify-between">
                         <div>
                             <span class="{{.TextColor}} font-medium">{{.Name}}</span>
-                            <span class="text-xs text-gray-400 ml-2">(order: {{.SortOrder}})</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">(order: {{.SortOrder}})</span>
                             <span class="ml-2 px-2 py-0.5 text-xs rounded {{.Color}}">preview</span>
                         </div>
                         <div class="flex gap-2">
@@ -713,31 +713,31 @@
                         class="space-y-3">
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-300 mb-1">Name</label>
+                                <label class="block text-xs text-gray-700 dark:text-gray-300 mb-1">Name</label>
                                 <input type="text" name="name" value="{{.Name}}" required
-                                    class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                                    class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-300 mb-1">Sort Order</label>
+                                <label class="block text-xs text-gray-700 dark:text-gray-300 mb-1">Sort Order</label>
                                 <input type="number" name="sort_order" value="{{.SortOrder}}" min="0"
-                                    class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                                    class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-300 mb-1">Badge Color (Tailwind classes)</label>
+                                <label class="block text-xs text-gray-700 dark:text-gray-300 mb-1">Badge Color (Tailwind classes)</label>
                                 <input type="text" name="color" value="{{.Color}}"
-                                    class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                                    class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-300 mb-1">Text Color (Tailwind class)</label>
+                                <label class="block text-xs text-gray-700 dark:text-gray-300 mb-1">Text Color (Tailwind class)</label>
                                 <input type="text" name="text_color" value="{{.TextColor}}"
-                                    class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                                    class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                             </div>
                         </div>
                         <div class="flex gap-2">
                             <button type="submit" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium">Save</button>
-                            <button type="button" @click="editing = false" class="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium">Cancel</button>
+                            <button type="button" @click="editing = false" class="px-3 py-2 bg-gray-400 dark:bg-gray-600 hover:bg-gray-500 dark:hover:bg-gray-700 text-white rounded text-xs font-medium">Cancel</button>
                         </div>
                     </form>
                 </div>
@@ -751,26 +751,26 @@
                   class="space-y-3">
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-medium text-gray-300 mb-1">Name</label>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
                         <input type="text" name="name" required placeholder="e.g., insane"
-                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                            class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-300 mb-1">Sort Order</label>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sort Order</label>
                         <input type="number" name="sort_order" value="0" min="0"
-                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                            class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-medium text-gray-300 mb-1">Badge Color (Tailwind classes)</label>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Badge Color (Tailwind classes)</label>
                         <input type="text" name="color" placeholder="bg-purple-600 text-purple-100" value="bg-gray-600 text-gray-100"
-                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                            class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-300 mb-1">Text Color (Tailwind class)</label>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Text Color (Tailwind class)</label>
                         <input type="text" name="text_color" placeholder="text-purple-400" value="text-gray-400"
-                            class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+                            class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
                     </div>
                 </div>
                 <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Add Difficulty</button>
@@ -792,9 +792,9 @@
                     pages = pagesStr ? JSON.parse(pagesStr) : ['all'];
                 });
         ">
-            <h2 class="text-2xl font-bold text-white mb-4">Custom Code Injection</h2>
-            <div class="bg-yellow-900/20 border border-yellow-600 rounded p-4 mb-4">
-                <p class="text-yellow-400 text-sm">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Custom Code Injection</h2>
+            <div class="bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600 rounded p-4 mb-4">
+                <p class="text-yellow-800 dark:text-yellow-400 text-sm">
                     ⚠️ <strong>Warning:</strong> Custom code is injected directly into pages. Only use trusted code to avoid XSS vulnerabilities.
                 </p>
             </div>
@@ -816,38 +816,38 @@
                 });
             " class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Inject in &lt;head&gt; (e.g., analytics scripts)
                     </label>
                     <textarea x-model="headHTML" rows="6"
                         placeholder="<script async src='https://analytics.example.com/script.js' data-website-id='...'></script>"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 font-mono text-sm"></textarea>
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 font-mono text-sm"></textarea>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Inject before &lt;/body&gt; (e.g., tracking pixels)
                     </label>
                     <textarea x-model="bodyEndHTML" rows="6"
                         placeholder="<img src='https://tracking.example.com/pixel.gif' width='1' height='1' />"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 font-mono text-sm"></textarea>
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 font-mono text-sm"></textarea>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Inject on pages:
                     </label>
                     <div class="space-y-2">
-                        <label class="flex items-center text-sm text-gray-300">
+                        <label class="flex items-center text-sm text-gray-700 dark:text-gray-300">
                             <input type="checkbox" x-model="pages" value="all" class="w-4 h-4 rounded mr-2"> All pages
                         </label>
-                        <label class="flex items-center text-sm text-gray-300">
+                        <label class="flex items-center text-sm text-gray-700 dark:text-gray-300">
                             <input type="checkbox" x-model="pages" value="login" class="w-4 h-4 rounded mr-2"> Login page only
                         </label>
-                        <label class="flex items-center text-sm text-gray-300">
+                        <label class="flex items-center text-sm text-gray-700 dark:text-gray-300">
                             <input type="checkbox" x-model="pages" value="challenges" class="w-4 h-4 rounded mr-2"> Challenges page only
                         </label>
-                        <label class="flex items-center text-sm text-gray-300">
+                        <label class="flex items-center text-sm text-gray-700 dark:text-gray-300">
                             <input type="checkbox" x-model="pages" value="admin" class="w-4 h-4 rounded mr-2"> Admin dashboard only
                         </label>
                     </div>
@@ -861,9 +861,9 @@
 
         <!-- MOTD Section -->
         <div>
-            <h2 class="text-2xl font-bold text-white mb-4">Message of the Day</h2>
-            <p class="text-gray-400 text-sm mb-4">
-                Displayed below login form. Command-line flag <code class="bg-dark-bg px-2 py-1 rounded text-xs">--motd "text"</code> takes priority over database setting.
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Message of the Day</h2>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                Displayed below login form. Command-line flag <code class="bg-gray-100 dark:bg-dark-bg px-2 py-1 rounded text-xs">--motd "text"</code> takes priority over database setting.
             </p>
             <form x-data="{ motd: '' }"
                   x-init="fetch('/api/admin/custom-code').then(r => r.json()).then(d => motd = d.motd || '')"
@@ -880,14 +880,14 @@
                       });
                   " class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">MOTD Content</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">MOTD Content</label>
                     <textarea x-model="motd" rows="4"
                         placeholder="Demo credentials: <strong>admin@test.com</strong> / <strong>password123</strong><br><br>System maintenance: <em>Tonight at 2 AM UTC</em>"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 font-mono text-sm"></textarea>
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 font-mono text-sm"></textarea>
                     <p class="text-xs text-gray-500 mt-1">
-                        Supports HTML for styling. Use <code class="bg-dark-bg px-1">&lt;br&gt;</code> for line breaks,
-                        <code class="bg-dark-bg px-1">&lt;strong&gt;</code> for bold,
-                        <code class="bg-dark-bg px-1">&lt;em&gt;</code> for italic, etc.
+                        Supports HTML for styling. Use <code class="bg-gray-100 dark:bg-dark-bg px-1">&lt;br&gt;</code> for line breaks,
+                        <code class="bg-gray-100 dark:bg-dark-bg px-1">&lt;strong&gt;</code> for bold,
+                        <code class="bg-gray-100 dark:bg-dark-bg px-1">&lt;em&gt;</code> for italic, etc.
                     </p>
                 </div>
                 <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition">
@@ -900,15 +900,15 @@
     <!-- Users Tab -->
     <div x-show="tab === 'users'" class="space-y-6">
         <div class="flex justify-between items-center">
-            <h2 class="text-2xl font-bold text-white">User Management</h2>
-            <span class="text-sm text-gray-400">Total: {{len .Users}} users</span>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">User Management</h2>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Total: {{len .Users}} users</span>
         </div>
-        <p class="text-gray-400 text-sm">
+        <p class="text-gray-500 dark:text-gray-400 text-sm">
             Manage user accounts. Promote or demote admins, delete users. You cannot modify your own account.
         </p>
         <div id="users-list" class="space-y-3" hx-get="/api/admin/users" hx-trigger="load" hx-swap="innerHTML">
             <!-- Users loaded via HTMX -->
-            <div class="text-center py-8 text-gray-400">
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
                 <p>Loading users...</p>
             </div>
         </div>

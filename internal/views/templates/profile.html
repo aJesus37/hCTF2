@@ -1,13 +1,13 @@
 {{define "profile-content"}}
 <div class="mb-8">
-    <a href="/challenges" class="text-blue-400 hover:text-blue-300 mb-4 inline-block">&larr; Back</a>
+    <a href="/challenges" class="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-4 inline-block">&larr; Back</a>
     <div class="flex gap-6 items-start mb-8">
         <!-- User Info -->
         <div>
-            <h1 class="text-4xl font-bold text-white mb-2">{{.Stats.Name}}</h1>
-            <p class="text-gray-400 mb-2">Joined {{.Stats.CreatedAt.Format "Jan 2, 2006"}}</p>
+            <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">{{.Stats.Name}}</h1>
+            <p class="text-gray-500 dark:text-gray-400 mb-2">Joined {{.Stats.CreatedAt.Format "Jan 2, 2006"}}</p>
             {{if .Stats.TeamName}}
-            <p class="text-gray-400">
+            <p class="text-gray-500 dark:text-gray-400">
                 Team: <span class="text-blue-400">{{.Stats.TeamName}}</span>
             </p>
             {{end}}
@@ -16,70 +16,70 @@
 
     <!-- Stats Grid -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-dark-surface border border-dark-border rounded-lg p-4">
-            <p class="text-gray-400 text-sm">Total Points</p>
-            <p class="text-3xl font-bold text-green-400">{{.Stats.TotalPoints}}</p>
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4">
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Total Points</p>
+            <p class="text-3xl font-bold text-green-600 dark:text-green-400">{{.Stats.TotalPoints}}</p>
         </div>
-        <div class="bg-dark-surface border border-dark-border rounded-lg p-4">
-            <p class="text-gray-400 text-sm">Challenges Solved</p>
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4">
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Challenges Solved</p>
             <p class="text-3xl font-bold text-blue-400">{{.Stats.SolvedCount}}</p>
         </div>
-        <div class="bg-dark-surface border border-dark-border rounded-lg p-4">
-            <p class="text-gray-400 text-sm">Submissions</p>
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4">
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Submissions</p>
             <p class="text-3xl font-bold text-purple-400">{{.Stats.TotalSubmissions}}</p>
         </div>
-        <div class="bg-dark-surface border border-dark-border rounded-lg p-4">
-            <p class="text-gray-400 text-sm">Hints Unlocked</p>
-            <p class="text-3xl font-bold text-yellow-400">{{.Stats.HintsUnlocked}}</p>
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4">
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Hints Unlocked</p>
+            <p class="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{{.Stats.HintsUnlocked}}</p>
         </div>
     </div>
 
     <!-- Solved Challenges -->
     {{if .SolvedChallenges}}
     <div class="mb-8">
-        <h2 class="text-2xl font-bold text-white mb-4">Solved Challenges ({{len .SolvedChallenges}})</h2>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Solved Challenges ({{len .SolvedChallenges}})</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         {{range .SolvedChallenges}}
-            <a href="/challenges/{{.ID}}" class="block bg-dark-surface border border-dark-border rounded-lg p-4 hover:border-blue-500 transition">
-                <h3 class="text-lg font-bold text-white mb-2">{{.Name}}</h3>
-                <p class="text-sm text-gray-400 mb-3">
+            <a href="/challenges/{{.ID}}" class="block bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4 hover:border-blue-500 transition">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">{{.Name}}</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
                     Category: {{range $i, $cat := splitCategories .Category}}{{if $i}}, {{end}}<span class="text-blue-400">{{$cat}}</span>{{end}}
                     • Difficulty: <span class="{{difficultyColor .Difficulty}}">{{.Difficulty}}</span>
                 </p>
-                <div class="w-full bg-dark-bg rounded-full h-2 mb-1">
+                <div class="w-full bg-gray-200 dark:bg-dark-bg rounded-full h-2 mb-1">
                     <div class="bg-green-500 h-2 rounded-full" style="width: {{div (mul .SolvedQuestions 100) .TotalQuestions}}%"></div>
                 </div>
-                <p class="text-xs text-gray-400">{{.SolvedQuestions}}/{{.TotalQuestions}} questions</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{.SolvedQuestions}}/{{.TotalQuestions}} questions</p>
             </a>
         {{end}}
         </div>
     </div>
     {{else}}
-    <div class="bg-dark-surface border border-dark-border rounded-lg p-6 text-center mb-8">
-        <p class="text-gray-400">No challenges solved yet</p>
+    <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 text-center mb-8">
+        <p class="text-gray-500 dark:text-gray-400">No challenges solved yet</p>
     </div>
     {{end}}
 
     <!-- Recent Activity -->
     {{if .RecentSubmissions}}
     <div class="mb-8">
-        <h2 class="text-2xl font-bold text-white mb-4">Recent Activity</h2>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
         <div class="space-y-2">
         {{range .RecentSubmissions}}
-            <div class="bg-dark-surface border-l-4 {{if .IsCorrect}}border-green-500{{else}}border-red-500{{end}} rounded-lg p-4 flex justify-between items-center">
+            <div class="bg-white dark:bg-dark-surface border-l-4 {{if .IsCorrect}}border-green-500{{else}}border-red-500{{end}} rounded-lg p-4 flex justify-between items-center border-y border-r border-gray-200 dark:border-dark-border">
                 <div>
-                    <h3 class="font-bold text-white">{{.QuestionName}}</h3>
-                    <p class="text-sm text-gray-400">
-                        <a href="/challenges/{{.ChallengeID}}" class="text-blue-400 hover:text-blue-300">{{.ChallengeName}}</a> •
+                    <h3 class="font-bold text-gray-900 dark:text-white">{{.QuestionName}}</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        <a href="/challenges/{{.ChallengeID}}" class="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">{{.ChallengeName}}</a> •
                         {{.CreatedAt.Format "Jan 2, 15:04"}}
                     </p>
                 </div>
                 <div class="text-right">
-                    <p class="font-bold {{if .IsCorrect}}text-green-400{{else}}text-red-400{{end}}">
+                    <p class="font-bold {{if .IsCorrect}}text-green-600 dark:text-green-400{{else}}text-red-600 dark:text-red-400{{end}}">
                         {{if .IsCorrect}}✓ Correct{{else}}✗ Incorrect{{end}}
                     </p>
                     {{if .IsCorrect}}
-                    <p class="text-sm text-green-400">+{{.Points}} pts</p>
+                    <p class="text-sm text-green-600 dark:text-green-400">+{{.Points}} pts</p>
                     {{end}}
                 </div>
             </div>

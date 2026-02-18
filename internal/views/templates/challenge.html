@@ -1,48 +1,48 @@
 {{define "challenge-content"}}
 <div class="mb-8">
-    <a href="/challenges" class="text-blue-400 hover:text-blue-300 mb-4 inline-block">&larr; Back to Challenges</a>
-    <h1 class="text-4xl font-bold text-white mb-2">{{.Challenge.Name}}</h1>
+    <a href="/challenges" class="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-4 inline-block">&larr; Back to Challenges</a>
+    <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">{{.Challenge.Name}}</h1>
     <div class="flex gap-4 items-center mb-4">
         <span class="px-3 py-1 rounded text-sm {{difficultyBadge .Challenge.Difficulty}}">
             {{.Challenge.Difficulty}}
         </span>
-        <span class="text-gray-400">Category: {{range $i, $cat := splitCategories .Challenge.Category}}{{if $i}}, {{end}}<span class="text-blue-400">{{$cat}}</span>{{end}}</span>
+        <span class="text-gray-500 dark:text-gray-400">Category: {{range $i, $cat := splitCategories .Challenge.Category}}{{if $i}}, {{end}}<span class="text-blue-400">{{$cat}}</span>{{end}}</span>
     </div>
-    <div class="text-gray-300 prose prose-invert max-w-none">{{markdown .Challenge.Description}}</div>
+    <div class="text-gray-600 dark:text-gray-300 prose dark:prose-invert max-w-none">{{markdown .Challenge.Description}}</div>
 </div>
 
 <div class="space-y-6">
     {{range .Questions}}
-    <div class="bg-dark-surface border border-dark-border rounded-lg p-6">
-        <h2 class="text-2xl font-bold text-white mb-4">{{.Name}}</h2>
-        <div class="text-gray-300 mb-4 prose prose-invert prose-sm max-w-none">{{markdown .Description}}</div>
+    <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">{{.Name}}</h2>
+        <div class="text-gray-600 dark:text-gray-300 mb-4 prose dark:prose-invert prose-sm max-w-none">{{markdown .Description}}</div>
 
         {{if .FileURL}}
         <div class="mb-4">
-            <a href="{{.FileURL}}" class="text-blue-400 hover:text-blue-300">
+            <a href="{{.FileURL}}" class="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
                 📎 Download File
             </a>
         </div>
         {{end}}
 
         <div class="mb-4">
-            <span class="text-sm text-gray-400">Flag format:</span>
-            <code class="ml-2 px-2 py-1 bg-dark-bg rounded text-green-400">{{.FlagMask}}</code>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Flag format:</span>
+            <code class="ml-2 px-2 py-1 bg-gray-100 dark:bg-dark-bg rounded text-green-600 dark:text-green-400">{{.FlagMask}}</code>
         </div>
 
         <div class="mb-4">
-            <span class="text-sm text-yellow-400">Points: {{.Points}}</span>
+            <span class="text-sm text-yellow-600 dark:text-yellow-400">Points: {{.Points}}</span>
         </div>
 
         <!-- Hints Section -->
-        <div class="mb-6 p-4 bg-dark-bg rounded border border-dark-border">
-            <h3 class="text-lg font-semibold text-white mb-3">Hints</h3>
+        <div class="mb-6 p-4 bg-gray-100 dark:bg-dark-bg rounded border border-gray-200 dark:border-dark-border">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Hints</h3>
             <div id="hints-container-{{.ID}}"
                  hx-get="/api/questions/{{.ID}}/hints"
                  hx-trigger="load, refreshHints from:body"
                  hx-swap="innerHTML"
                  class="space-y-2">
-                <p class="text-gray-400 text-sm">Loading hints...</p>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">Loading hints...</p>
             </div>
         </div>
 
@@ -54,14 +54,14 @@
                     <input type="text"
                            disabled
                            value="{{.Flag}}"
-                           class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 text-gray-400 rounded cursor-not-allowed">
+                           class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded cursor-not-allowed">
                     <button type="button"
                             disabled
-                            class="px-6 py-2 bg-gray-600 text-gray-400 rounded cursor-not-allowed">
+                            class="px-6 py-2 bg-gray-400 dark:bg-gray-600 text-white dark:text-gray-400 rounded cursor-not-allowed">
                         ✓ Solved
                     </button>
                 </form>
-                <p class="text-green-400 text-sm mt-2">You've already submitted the correct flag for this question.</p>
+                <p class="text-green-600 dark:text-green-400 text-sm mt-2">You've already submitted the correct flag for this question.</p>
             </div>
             {{else}}
             <!-- Unsolved Question - Submit Form -->
@@ -72,7 +72,7 @@
                 <input type="text"
                        name="flag"
                        placeholder="Enter flag..."
-                       class="flex-1 px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-blue-500"
+                       class="flex-1 px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-blue-500"
                        required>
                 <button type="submit"
                         class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
@@ -82,7 +82,7 @@
             <div id="result-{{.ID}}" class="mt-4"></div>
             {{end}}
         {{else}}
-        <p class="text-yellow-400">Please <a href="/login" class="text-blue-400 hover:text-blue-300">login</a> to submit flags</p>
+        <p class="text-yellow-600 dark:text-yellow-400">Please <a href="/login" class="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">login</a> to submit flags</p>
         {{end}}
     </div>
     {{end}}

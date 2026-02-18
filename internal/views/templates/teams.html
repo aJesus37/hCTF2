@@ -5,12 +5,12 @@
      class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center"
      @keydown.escape.window="$store.modal.cancel()"
      style="display:none;">
-    <div class="bg-dark-surface border border-dark-border rounded-lg p-6 max-w-sm w-full mx-4 shadow-2xl">
-        <p x-text="$store.modal.message" class="text-gray-200 text-sm leading-relaxed mb-6"></p>
+    <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 max-w-sm w-full mx-4 shadow-2xl">
+        <p x-text="$store.modal.message" class="text-gray-800 dark:text-gray-200 text-sm leading-relaxed mb-6"></p>
         <div class="flex justify-end gap-3">
             <button x-show="$store.modal.isConfirm"
                     @click="$store.modal.cancel()"
-                    class="px-4 py-2 text-sm bg-dark-bg border border-dark-border text-gray-300 hover:text-white rounded transition">
+                    class="px-4 py-2 text-sm bg-gray-100 dark:bg-dark-bg border border-gray-200 dark:border-dark-border text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded transition">
                 Cancel
             </button>
             <button @click="$store.modal.ok()"
@@ -23,23 +23,23 @@
 
 <div>
     <h1 class="text-4xl font-bold text-blue-400 mb-2">Teams</h1>
-    <p class="text-gray-300 mb-8">Collaborate with teammates and compete together</p>
+    <p class="text-gray-600 dark:text-gray-300 mb-8">Collaborate with teammates and compete together</p>
 
     {{if .User.TeamID}}
     <!-- User's Current Team -->
-    <div class="bg-dark-surface border border-dark-border rounded-lg p-6 mb-8">
-        <h2 class="text-2xl font-bold text-white mb-4">Your Team: {{.Team.Name}}</h2>
+    <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 mb-8">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Your Team: {{.Team.Name}}</h2>
         {{if .Team.Description}}
-        <p class="text-gray-300 mb-4">{{.Team.Description}}</p>
+        <p class="text-gray-600 dark:text-gray-300 mb-4">{{.Team.Description}}</p>
         {{end}}
 
         <!-- Invite Code with show/hide toggle -->
-        <div class="mb-6 p-4 bg-dark-bg rounded" x-data="{ showCode: false }">
+        <div class="mb-6 p-4 bg-gray-100 dark:bg-dark-bg rounded" x-data="{ showCode: false }">
             <div class="flex items-center justify-between mb-2">
-                <h3 class="text-lg font-semibold text-white">Invite Code</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Invite Code</h3>
                 {{if .CanSeeInviteCode}}
                 <button @click="showCode = !showCode"
-                        class="text-xs px-3 py-1 bg-dark-surface border border-dark-border text-gray-400 hover:text-white hover:border-gray-400 rounded transition"
+                        class="text-xs px-3 py-1 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-400 rounded transition"
                         x-text="showCode ? 'Hide' : 'Show'">
                     Show
                 </button>
@@ -47,22 +47,22 @@
             </div>
             {{if .CanSeeInviteCode}}
                 <div x-show="showCode" style="display: none;">
-                    <code class="text-green-400 font-mono text-lg break-all">{{.Team.InviteID}}</code>
-                    <p class="text-xs text-gray-400 mt-2">Share this code to invite others</p>
+                    <code class="text-green-600 dark:text-green-400 font-mono text-lg break-all">{{.Team.InviteID}}</code>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Share this code to invite others</p>
                 </div>
-                <p x-show="!showCode" class="text-gray-500 text-sm">Click "Show" to reveal the invite code</p>
+                <p x-show="!showCode" class="text-gray-400 text-sm">Click "Show" to reveal the invite code</p>
             {{else}}
-                <p class="text-gray-400 text-sm">Only the team owner can view the invite code.</p>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">Only the team owner can view the invite code.</p>
             {{end}}
         </div>
 
         {{if eq .User.ID .Team.OwnerID}}
-        <div class="mb-6 p-4 bg-dark-bg rounded">
-            <h3 class="text-lg font-semibold text-white mb-3">Invite Settings:</h3>
+        <div class="mb-6 p-4 bg-gray-100 dark:bg-dark-bg rounded">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Invite Settings:</h3>
             <div class="space-y-3">
                 <div>
-                    <label class="block text-gray-300 text-sm font-semibold mb-2">Who can share invites:</label>
-                    <select id="invite-permission" class="bg-dark-surface border border-dark-border text-white px-3 py-2 rounded">
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">Who can share invites:</label>
+                    <select id="invite-permission" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border text-gray-900 dark:text-white px-3 py-2 rounded">
                         <option value="owner_only" {{if eq .Team.InvitePermission "owner_only"}}selected{{end}}>Owner Only</option>
                         <option value="all_members" {{if eq .Team.InvitePermission "all_members"}}selected{{end}}>All Members</option>
                     </select>
@@ -80,12 +80,12 @@
         {{end}}
 
         {{if eq .User.ID .Team.OwnerID}}
-        <div class="mb-6 p-4 bg-dark-bg rounded">
-            <h3 class="text-lg font-semibold text-white mb-3">Transfer Ownership:</h3>
+        <div class="mb-6 p-4 bg-gray-100 dark:bg-dark-bg rounded">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Transfer Ownership:</h3>
             <div class="space-y-3">
                 <div>
-                    <label class="block text-gray-300 text-sm font-semibold mb-2">Select new owner:</label>
-                    <select id="new-owner-select" class="bg-dark-surface border border-dark-border text-white px-3 py-2 rounded w-full">
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">Select new owner:</label>
+                    <select id="new-owner-select" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border text-gray-900 dark:text-white px-3 py-2 rounded w-full">
                         <option value="">Choose a team member...</option>
                         {{range .Members}}
                             {{if ne .ID $.Team.OwnerID}}
@@ -101,15 +101,15 @@
         </div>
         {{end}}
 
-        <h3 class="text-lg font-semibold text-white mb-3">Members ({{len .Members}}):</h3>
-        <ul class="space-y-2 mb-6 p-4 bg-dark-bg rounded">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Members ({{len .Members}}):</h3>
+        <ul class="space-y-2 mb-6 p-4 bg-gray-100 dark:bg-dark-bg rounded">
             {{range .Members}}
-            <li class="text-gray-300 flex justify-between items-center">
-                <a href="/users/{{.ID}}" class="text-gray-300 hover:text-blue-400 font-medium">
+            <li class="text-gray-700 dark:text-gray-300 flex justify-between items-center">
+                <a href="/users/{{.ID}}" class="text-gray-700 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400 font-medium">
                     {{.Name}}
                 </a>
                 {{if eq .ID $.Team.OwnerID}}
-                <span class="text-yellow-400 text-xs font-semibold">Owner</span>
+                <span class="text-yellow-600 dark:text-yellow-400 text-xs font-semibold">Owner</span>
                 {{end}}
             </li>
             {{end}}
@@ -132,15 +132,15 @@
     <!-- No Team - Show Join/Create Options -->
     <div class="grid md:grid-cols-2 gap-8 mb-8">
         <!-- Join Team -->
-        <div class="bg-dark-surface border border-dark-border rounded-lg p-6">
-            <h2 class="text-2xl font-bold text-white mb-4">Join a Team</h2>
-            <p class="text-gray-300 mb-4">Enter an invite code to join a team:</p>
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Join a Team</h2>
+            <p class="text-gray-600 dark:text-gray-300 mb-4">Enter an invite code to join a team:</p>
             <form onsubmit="event.preventDefault(); joinTeam()" class="space-y-4">
                 <input
                     id="invite-code-input"
                     type="text"
                     placeholder="Paste invite code here"
-                    class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-blue-500"
+                    class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-blue-500"
                     required
                 />
                 <button
@@ -153,26 +153,26 @@
         </div>
 
         <!-- Create Team -->
-        <div class="bg-dark-surface border border-dark-border rounded-lg p-6">
-            <h2 class="text-2xl font-bold text-white mb-4">Create a Team</h2>
+        <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Create a Team</h2>
             <form onsubmit="event.preventDefault(); createTeam()" class="space-y-4">
                 <div>
-                    <label class="block text-gray-300 mb-2 font-semibold">Team Name</label>
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2 font-semibold">Team Name</label>
                     <input
                         id="team-name"
                         type="text"
                         placeholder="My Awesome Team"
                         required
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-blue-500"
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-blue-500"
                     />
                 </div>
                 <div>
-                    <label class="block text-gray-300 mb-2 font-semibold">Description (optional)</label>
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2 font-semibold">Description (optional)</label>
                     <textarea
                         id="team-description"
                         placeholder="Tell others about your team..."
                         rows="3"
-                        class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-blue-500"
+                        class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-blue-500"
                     ></textarea>
                 </div>
                 <button
@@ -186,23 +186,23 @@
     </div>
 
     <!-- All Teams List -->
-    <div class="bg-dark-surface border border-dark-border rounded-lg p-6">
-        <h2 class="text-2xl font-bold text-white mb-4">Available Teams</h2>
+    <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Available Teams</h2>
         <div class="space-y-2">
             {{if .AllTeams}}
                 {{range .AllTeams}}
-                <div class="flex justify-between items-start p-4 bg-dark-bg rounded border-l-4 border-transparent hover:border-blue-500 transition">
+                <div class="flex justify-between items-start p-4 bg-gray-100 dark:bg-dark-bg rounded border-l-4 border-transparent hover:border-blue-500 transition">
                     <div>
-                        <span class="text-white font-semibold text-lg">{{.Name}}</span>
+                        <span class="text-gray-900 dark:text-white font-semibold text-lg">{{.Name}}</span>
                         {{if .Description}}
-                        <p class="text-sm text-gray-400 mt-1">{{.Description}}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{.Description}}</p>
                         {{end}}
                     </div>
-                    <span class="text-gray-400 text-xs bg-dark-surface px-2 py-1 rounded">Team</span>
+                    <span class="text-gray-500 dark:text-gray-400 text-xs bg-white dark:bg-dark-surface px-2 py-1 rounded border border-gray-200 dark:border-dark-border">Team</span>
                 </div>
                 {{end}}
             {{else}}
-                <p class="text-gray-400 p-4">No other teams yet. Be the first to create one!</p>
+                <p class="text-gray-500 dark:text-gray-400 p-4">No other teams yet. Be the first to create one!</p>
             {{end}}
         </div>
     </div>
@@ -323,11 +323,11 @@ function joinTeam() {
         .then(r => {
             if (r.ok) location.reload();
             else r.text().then(msg => {
-                document.getElementById('join-message').innerHTML = `<div class="text-red-400">Error: ${msg}</div>`;
+                document.getElementById('join-message').innerHTML = `<div class="text-red-600 dark:text-red-400">Error: ${msg}</div>`;
             });
         })
         .catch(() => {
-            document.getElementById('join-message').innerHTML = `<div class="text-red-400">Network error</div>`;
+            document.getElementById('join-message').innerHTML = `<div class="text-red-600 dark:text-red-400">Network error</div>`;
         });
 }
 
@@ -335,7 +335,7 @@ function createTeam() {
     const name = document.getElementById('team-name').value.trim();
     const description = document.getElementById('team-description').value.trim();
     if (!name) {
-        document.getElementById('create-message').innerHTML = `<div class="text-red-400">Team name required</div>`;
+        document.getElementById('create-message').innerHTML = `<div class="text-red-600 dark:text-red-400">Team name required</div>`;
         return;
     }
     fetch('/api/teams', {
@@ -346,11 +346,11 @@ function createTeam() {
     .then(r => {
         if (r.ok) location.reload();
         else r.text().then(msg => {
-            document.getElementById('create-message').innerHTML = `<div class="text-red-400">Error: ${msg}</div>`;
+            document.getElementById('create-message').innerHTML = `<div class="text-red-600 dark:text-red-400">Error: ${msg}</div>`;
         });
     })
     .catch(() => {
-        document.getElementById('create-message').innerHTML = `<div class="text-red-400">Network error</div>`;
+        document.getElementById('create-message').innerHTML = `<div class="text-red-600 dark:text-red-400">Network error</div>`;
     });
 }
 </script>
