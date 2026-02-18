@@ -644,7 +644,7 @@ func (db *DB) GetTeamMembers(teamID string) ([]models.User, error) {
 // GetTeamScoreboard returns team rankings with aggregated points.
 // Only submissions made while the user was in the team (s.team_id = t.id) count.
 // Each unique question is counted once per team regardless of how many members solved it.
-// Handles legacy submissions where team_id is NULL by checking user's current team.
+// Submissions/hints with NULL team_id were made before joining a team and don't count.
 func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 	query := `
 		SELECT
@@ -656,38 +656,32 @@ func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 		FROM teams t
 		LEFT JOIN (
 			SELECT
-				effective_team_id as team_id,
+				s.team_id,
 				SUM(q.points) as points,
 				COUNT(*) as solve_count,
 				MAX(s.created_at) as last_solve
 			FROM (
 				SELECT 
-					CASE 
-						WHEN s.team_id IS NOT NULL THEN s.team_id
-						ELSE u.team_id
-					END as effective_team_id,
+					s.team_id,
 					s.question_id, 
 					MIN(s.created_at) as created_at
 				FROM submissions s
-				JOIN users u ON s.user_id = u.id
 				WHERE s.is_correct = 1
-				GROUP BY effective_team_id, s.question_id
+					AND s.team_id IS NOT NULL
+				GROUP BY s.team_id, s.question_id
 			) s
 			JOIN questions q ON q.id = s.question_id
-			GROUP BY effective_team_id
+			GROUP BY s.team_id
 		) team_pts ON team_pts.team_id = t.id
 		LEFT JOIN (
 			SELECT 
-				CASE 
-					WHEN hu.team_id IS NOT NULL THEN hu.team_id
-					ELSE u.team_id
-				END as effective_team_id, 
+				hu.team_id,
 				SUM(h.cost) as total_cost
 			FROM hint_unlocks hu
 			JOIN hints h ON hu.hint_id = h.id
-			JOIN users u ON hu.user_id = u.id
-			GROUP BY effective_team_id
-		) hint_costs ON hint_costs.effective_team_id = t.id
+			WHERE hu.team_id IS NOT NULL
+			GROUP BY hu.team_id
+		) hint_costs ON hint_costs.team_id = t.id
 		ORDER BY points DESC, last_solve ASC
 		LIMIT ?
 	`
