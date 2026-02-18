@@ -288,6 +288,9 @@ func main() {
 		r.Delete("/api/admin/difficulties/{id}", s.settingsH.DeleteDifficulty)
 		r.Get("/api/admin/custom-code", s.settingsH.GetCustomCode)
 		r.Put("/api/admin/custom-code", s.settingsH.UpdateCustomCode)
+		r.Get("/api/admin/users", s.settingsH.ListUsers)
+		r.Put("/api/admin/users/{id}/admin", s.settingsH.UpdateUserAdmin)
+		r.Delete("/api/admin/users/{id}", s.settingsH.DeleteUser)
 		r.Get("/api/categories-checkboxes", s.handleCategoriesCheckboxes)
 		r.Get("/api/difficulties-dropdown", s.handleDifficultiesDropdown)
 	})
@@ -656,9 +659,10 @@ func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fetch categories and difficulties
+	// Fetch categories, difficulties, and users
 	categories, _ := s.db.GetAllCategories()
 	difficulties, _ := s.db.GetAllDifficulties()
+	users, _ := s.db.GetAllUsers()
 
 	customCode, _ := s.db.GetCustomCode("admin")
 
@@ -671,6 +675,7 @@ func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		"Hints":        hints,
 		"Categories":   categories,
 		"Difficulties": difficulties,
+		"Users":        users,
 		"CustomCode":   customCode,
 	}
 	s.render(w, "base.html", data)

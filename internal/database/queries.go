@@ -452,6 +452,40 @@ func (db *DB) GetUserCount() (int, error) {
 	return count, err
 }
 
+// GetAllUsers returns all users with basic info (no password hash)
+func (db *DB) GetAllUsers() ([]models.User, error) {
+	query := `SELECT id, email, name, avatar_url, team_id, is_admin, created_at, updated_at FROM users ORDER BY created_at DESC`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.AvatarURL, &u.TeamID, &u.IsAdmin, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+// SetUserAdminStatus updates a user's admin status
+func (db *DB) SetUserAdminStatus(userID string, isAdmin bool) error {
+	query := `UPDATE users SET is_admin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	_, err := db.Exec(query, isAdmin, userID)
+	return err
+}
+
+// DeleteUser deletes a user (CASCADE will handle related data)
+func (db *DB) DeleteUser(userID string) error {
+	_, err := db.Exec("DELETE FROM users WHERE id = ?", userID)
+	return err
+}
+
 // GetCorrectSubmissionCount returns the total number of correct submissions
 func (db *DB) GetCorrectSubmissionCount() (int, error) {
 	var count int

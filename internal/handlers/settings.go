@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/yourusername/hctf2/internal/auth"
 	"github.com/yourusername/hctf2/internal/database"
 	"github.com/yourusername/hctf2/internal/models"
 )
@@ -312,4 +313,140 @@ func (h *SettingsHandler) UpdateCustomCode(w http.ResponseWriter, r *http.Reques
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Settings updated successfully"))
+}
+
+// ListUsers returns all users (admin only)
+func (h *SettingsHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.db.GetAllUsers()
+	if err != nil {
+		http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	for _, u := range users {
+		adminBadge := `<span class="px-2 py-1 text-xs rounded bg-purple-600 text-white">Admin</span>`
+		userBadge := `<span class="px-2 py-1 text-xs rounded bg-gray-600 text-gray-300">User</span>`
+		badge := userBadge
+		btnClass := "bg-purple-600 hover:bg-purple-700"
+		btnText := "Promote"
+		if u.IsAdmin {
+			badge = adminBadge
+			btnClass = "bg-yellow-600 hover:bg-yellow-700"
+			btnText = "Demote"
+		}
+
+		fmt.Fprintf(w, `<div id="user-%s" class="bg-dark-surface border border-dark-border rounded-lg p-4">
+			<div class="flex justify-between items-center">
+				<div>
+					<h4 class="font-bold text-white">%s</h4>
+					<p class="text-sm text-gray-400">%s</p>
+					<p class="text-xs text-gray-500 mt-1">Joined: %s</p>
+				</div>
+				<div class="flex items-center gap-3">
+					%s
+					<button hx-put="/api/admin/users/%s/admin" hx-target="#user-%s" hx-swap="outerHTML"
+						class="px-3 py-1 %s text-white rounded text-sm font-medium transition">
+						%s
+					</button>
+					<button hx-delete="/api/admin/users/%s" hx-target="#user-%s" hx-swap="outerHTML swap:0.5s"
+						hx-confirm="Delete user '%s'? This action cannot be undone."
+						class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
+						Delete
+					</button>
+				</div>
+			</div>
+		</div>`,
+			u.ID, html.EscapeString(u.Name), html.EscapeString(u.Email),
+			u.CreatedAt.Format("2006-01-02"), badge, u.ID, u.ID,
+			btnClass, btnText, u.ID, u.ID, html.EscapeString(u.Name))
+	}
+
+	if len(users) == 0 {
+		w.Write([]byte(`<div class="text-center py-8 text-gray-400"><p>No users found.</p></div>`))
+	}
+}
+
+// UpdateUserAdmin toggles admin status
+func (h *SettingsHandler) UpdateUserAdmin(w http.ResponseWriter, r *http.Request) {
+	userID := chi.URLParam(r, "id")
+	claims := auth.GetUserFromContext(r.Context())
+
+	// Prevent self-modification
+	if claims != nil && claims.UserID == userID {
+		http.Error(w, "Cannot modify your own admin status", http.StatusForbidden)
+		return
+	}
+
+	// Get current user to toggle status
+	user, err := h.db.GetUserByID(userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Toggle admin status
+	newStatus := !user.IsAdmin
+	if err := h.db.SetUserAdminStatus(userID, newStatus); err != nil {
+		http.Error(w, "Failed to update admin status", http.StatusInternalServerError)
+		return
+	}
+
+	// Return updated user HTML
+	w.Header().Set("Content-Type", "text/html")
+	adminBadge := `<span class="px-2 py-1 text-xs rounded bg-purple-600 text-white">Admin</span>`
+	userBadge := `<span class="px-2 py-1 text-xs rounded bg-gray-600 text-gray-300">User</span>`
+	badge := userBadge
+	btnClass := "bg-purple-600 hover:bg-purple-700"
+	btnText := "Promote"
+	if newStatus {
+		badge = adminBadge
+		btnClass = "bg-yellow-600 hover:bg-yellow-700"
+		btnText = "Demote"
+	}
+
+	fmt.Fprintf(w, `<div id="user-%s" class="bg-dark-surface border border-dark-border rounded-lg p-4">
+		<div class="flex justify-between items-center">
+			<div>
+				<h4 class="font-bold text-white">%s</h4>
+				<p class="text-sm text-gray-400">%s</p>
+				<p class="text-xs text-gray-500 mt-1">Joined: %s</p>
+			</div>
+			<div class="flex items-center gap-3">
+				%s
+				<button hx-put="/api/admin/users/%s/admin" hx-target="#user-%s" hx-swap="outerHTML"
+					class="px-3 py-1 %s text-white rounded text-sm font-medium transition">
+					%s
+				</button>
+				<button hx-delete="/api/admin/users/%s" hx-target="#user-%s" hx-swap="outerHTML swap:0.5s"
+					hx-confirm="Delete user '%s'? This action cannot be undone."
+					class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">
+					Delete
+				</button>
+			</div>
+		</div>
+	</div>`,
+		user.ID, html.EscapeString(user.Name), html.EscapeString(user.Email),
+		user.CreatedAt.Format("2006-01-02"), badge, user.ID, user.ID,
+		btnClass, btnText, user.ID, user.ID, html.EscapeString(user.Name))
+}
+
+// DeleteUser deletes a user
+func (h *SettingsHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	userID := chi.URLParam(r, "id")
+	claims := auth.GetUserFromContext(r.Context())
+
+	// Prevent self-deletion
+	if claims != nil && claims.UserID == userID {
+		http.Error(w, "Cannot delete yourself", http.StatusForbidden)
+		return
+	}
+
+	if err := h.db.DeleteUser(userID); err != nil {
+		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(""))
 }
