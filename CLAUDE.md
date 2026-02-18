@@ -235,7 +235,7 @@ Follow Semantic Versioning: `MAJOR.MINOR.PATCH`
 - **MINOR**: New features (backwards compatible)
 - **PATCH**: Bug fixes (backwards compatible)
 
-Current version: **v0.2.1** (bug fixes for Teams, SQL Playground, and Challenge layout)
+Current version: **v0.5.0** (User Management, Challenge Completion Indicators, SQL Playground per challenge, Profile Links, and Theme Toggle)
 
 ### When to Bump
 
@@ -373,6 +373,11 @@ The following features have been implemented:
 6. ✅ **User Profiles** - `/profile` (own) and `/users/{id}` (public) with stats and activity
 7. ✅ **Password Reset** - Secure token-based reset flow
 8. ✅ **Site Settings** - Custom categories, difficulties, and HTML/JS code injection
+9. ✅ **User Management Admin Panel** - Promote/demote users, delete users
+10. ✅ **Challenge Completion Indicators** - Progress bars, completion styling
+11. ✅ **SQL Playground for Challenges** - Enable SQL mode per challenge
+12. ✅ **Enhanced Profile Links** - Clickable user names throughout
+13. ✅ **Dark/Light Theme Toggle** - Theme switching with persistence
 
 ### Planned Features
 
@@ -402,8 +407,9 @@ Handlers are organized by domain in `internal/handlers/`:
 | HintHandler | `hints.go` | Hint viewing and unlocking |
 | ScoreboardHandler | `scoreboard.go` | Scoreboard data and rankings |
 | ProfileHandler | `profile.go` | User profile pages and stats |
-| SettingsHandler | `settings.go` | Admin site settings, categories, difficulties |
+| SettingsHandler | `settings.go` | Admin site settings, categories, difficulties, user management |
 | SQLHandler | `sql.go` | SQL Playground snapshot API |
+| UserHandler | `settings.go` | User management (admin panel for users) |
 
 Page handlers (in `main.go`) route to templates; API handlers return JSON or HTMX fragments.
 

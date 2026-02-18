@@ -386,6 +386,13 @@ Cookie: auth_token=eyJhbGciOiJIUzI1NiIs...
 Question deleted
 ```
 
+### User Management (Admin Only)
+
+- `GET /api/admin/users` - List all users
+- `PUT /api/admin/users/{id}/admin` - Toggle admin status
+  - Body: `is_admin=true` or `is_admin=false`
+- `DELETE /api/admin/users/{id}` - Delete user
+
 ## Error Responses
 
 ### 400 Bad Request
