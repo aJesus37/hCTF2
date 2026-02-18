@@ -38,3 +38,8 @@ Thumbs.db
 # Config
 config.yaml
 config.yml
+
+# Validation screenshots from Kimi
+docs/validation/*.png
+
+.task
