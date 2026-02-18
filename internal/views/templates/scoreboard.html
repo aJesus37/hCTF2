@@ -48,7 +48,11 @@
                         #{{.Rank}}
                     </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-white">{{.UserName}}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-white">
+                    <a href="/users/{{.UserID}}" class="text-white hover:text-blue-400 font-medium">
+                        {{.UserName}}
+                    </a>
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                     {{if .TeamName}}{{.TeamName}}{{else}}-{{end}}
                 </td>
