@@ -184,14 +184,58 @@ docker logs -f hctf2
 - **"ERROR: invalid token"** - JWT validation failure
 - **"404 Not Found"** - Request to non-existent endpoint
 
-### Metrics (Future)
+### Metrics & Telemetry
 
-Currently, hCTF2 doesn't expose Prometheus metrics, but the following could be monitored:
-- HTTP request count
-- Average request duration
-- Database query performance
-- JWT validation failures
-- Active user sessions
+hCTF2 uses **OpenTelemetry** for instrumentation. The telemetry package (`internal/telemetry/`) initializes a tracer and meter on startup.
+
+#### Instrumented Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `http_requests_total` | Counter | Total HTTP requests, labelled by method, path, status |
+| `http_request_duration_seconds` | Histogram | Request duration in seconds, labelled by method and path |
+| `active_users` | UpDownCounter | Active user count |
+| `database_queries_total` | Counter | Total database queries |
+
+These metrics are recorded automatically via the `telemetry.Middleware` applied to every route.
+
+#### Enabling Trace Output
+
+Set the environment variable to print traces to stdout (useful for debugging):
+
+```bash
+OTEL_EXPORTER_STDOUT=true ./hctf2
+```
+
+#### Exporting to an OTEL Collector
+
+To ship traces and metrics to a backend (Jaeger, Grafana Tempo, Datadog, etc.):
+
+1. Run an OpenTelemetry Collector alongside hCTF2
+2. Configure the collector endpoint via environment variable:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317 ./hctf2
+```
+
+Note: OTLP export requires adding the OTLP exporter package to the binary. Currently only stdout export is wired up.
+
+#### Prometheus / Grafana
+
+The current implementation does not expose a `/metrics` Prometheus scrape endpoint. To add one:
+
+1. Add `go.opentelemetry.io/otel/exporters/prometheus` to `go.mod`
+2. Register the Prometheus exporter in `internal/telemetry/telemetry.go`
+3. Expose `/metrics` route in `main.go`
+
+Until then, monitor via log aggregation (see **Server Logs** section above).
+
+#### Recommended Alerts
+
+- **HTTP 5xx rate** > 1% of requests over 5 minutes
+- **Request duration p99** > 2 seconds
+- **Process restart** (uptime monitoring via systemd or container health check)
+- **Disk space** < 1GB remaining (SQLite database growth)
 
 ## Maintenance
 
