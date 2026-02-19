@@ -342,9 +342,8 @@ func TestHashPassword(t *testing.T) {
 1. Create handler function in `internal/handlers/`
 2. Register route in `main.go`
 3. Add authentication middleware if needed
-4. Document in `API.md`
-5. **CRITICAL**: Add swag annotations to the handler, then run `task generate-openapi` to update `docs/openapi.yaml`
-6. Update relevant templates if UI changes
+4. **CRITICAL**: Add swag annotations to the handler, then run `task generate-openapi` to update `docs/openapi.yaml`
+5. Update relevant templates if UI changes
 
 ### OpenAPI Specification
 
@@ -460,7 +459,7 @@ Before implementing something, consider:
 1. **Does this break single binary deployment?** (CGO, external files)
 2. **Does this follow the established patterns?** (handlers, queries, templates)
 3. **Is this properly secured?** (SQL injection, XSS, auth)
-4. **Is this documented?** (API.md, README.md, etc.)
+4. **Is this documented?** (CLAUDE.md, README.md, etc.)
 5. **Does this use Task, not Make?** (build commands)
 
 ## Handler Organization
@@ -485,7 +484,6 @@ Page handlers (in `main.go`) route to templates; API handlers return JSON or HTM
 
 - **Project Docs**: README.md, INSTALL.md, QUICKSTART.md
 - **Architecture**: ARCHITECTURE.md
-- **API**: API.md
 - **Features**: FEATURES_IMPLEMENTATION.md
 - **SQL Playground**: SQL_PLAYGROUND.md
 - **Testing**: TESTING.md
