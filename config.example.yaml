@@ -3,10 +3,10 @@
 # This file documents all available configuration options.
 # Copy this file to config.yaml and adjust as needed.
 #
-# Configuration precedence (highest to lowest):
-#   1. CLI flags (--port, --db, etc.)
-#   2. Environment variables (ENVIRONMENT, OTEL_EXPORTER_STDOUT)
-#   3. Built-in defaults (shown in comments below)
+# Configuration sources:
+#   - CLI flags: --port, --db, --admin-email, --admin-password, --motd
+#   - Environment variables: ENVIRONMENT, OTEL_EXPORTER_STDOUT
+#   - Built-in defaults: all other values are hardcoded
 #
 # Note: most options are only available as CLI flags. There is no config-file
 # loader at runtime — this file serves as documentation and a reference
@@ -16,11 +16,6 @@ server:
   # Port the HTTP server listens on.
   # CLI: --port | Default: 8090
   port: 8090
-
-  # Interface the server binds to.
-  # This is not yet configurable via flag; the server always binds to 0.0.0.0.
-  # Default: 0.0.0.0
-  host: 0.0.0.0
 
 database:
   # Path to the SQLite database file.
