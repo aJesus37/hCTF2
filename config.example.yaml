@@ -1,14 +1,78 @@
+# hCTF2 Configuration File
+#
+# This file documents all available configuration options.
+# Copy this file to config.yaml and adjust as needed.
+#
+# Configuration precedence (highest to lowest):
+#   1. CLI flags (--port, --db, etc.)
+#   2. Environment variables (ENVIRONMENT, OTEL_EXPORTER_STDOUT)
+#   3. Built-in defaults (shown in comments below)
+#
+# Note: most options are only available as CLI flags. There is no config-file
+# loader at runtime — this file serves as documentation and a reference
+# template for deployment scripts and container entrypoints.
+
 server:
+  # Port the HTTP server listens on.
+  # CLI: --port | Default: 8090
   port: 8090
+
+  # Interface the server binds to.
+  # This is not yet configurable via flag; the server always binds to 0.0.0.0.
+  # Default: 0.0.0.0
   host: 0.0.0.0
 
 database:
+  # Path to the SQLite database file.
+  # The directory must exist. Relative paths are resolved from the working directory.
+  # CLI: --db | Default: ./hctf2.db
   path: ./hctf2.db
 
 auth:
+  # JWT signing secret.
+  # Not currently configurable via flag or env var — the application generates
+  # a fixed internal secret at compile time. To use a custom secret, modify
+  # internal/auth/ and rebuild.
+  # Default: (internal constant — change before production use)
   jwt_secret: "change-this-to-a-random-secret-in-production"
-  session_duration: 168h # 7 days
+
+  # How long JWT sessions remain valid.
+  # Not currently runtime-configurable; hardcoded in internal/auth/.
+  # Default: 168h (7 days)
+  session_duration: 168h
 
 admin:
+  # Email address for the initial admin account.
+  # Only used on first startup when no admin exists yet.
+  # CLI: --admin-email | Default: (none — admin not created if omitted)
   email: admin@example.com
-  password: changeme
+
+  # Password for the initial admin account.
+  # Only used on first startup. Change via the UI after first login.
+  # CLI: --admin-password | Default: (none — admin not created if omitted)
+  password: "changeme"
+
+# Message of the Day — displayed below the login form.
+# Supports plain text. Leave empty to hide.
+# CLI: --motd | Default: (none)
+motd: ""
+
+telemetry:
+  # Service name used in OpenTelemetry traces.
+  # Hardcoded to "hctf2" in main.go; not runtime-configurable.
+  # Default: hctf2
+  service_name: hctf2
+
+  # Service version reported in telemetry.
+  # Hardcoded in main.go; not runtime-configurable.
+  # Default: 1.0.0
+  service_version: "1.0.0"
+
+  # Deployment environment tag (e.g. production, staging, development).
+  # Env: ENVIRONMENT | Default: (none)
+  environment: production
+
+  # Set to true to print OpenTelemetry traces to stdout.
+  # Useful for debugging. Not recommended in production.
+  # Env: OTEL_EXPORTER_STDOUT | Default: false
+  enable_stdout_exporter: false
