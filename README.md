@@ -1,247 +1,190 @@
 # hCTF2
 
-A modern, beautiful CTF (Capture The Flag) platform built with Go, featuring a unique SQL query interface for exploring challenge data.
+![hCTF2 logo](internal/views/static/logo.svg)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](./LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://go.dev)
+
+A self-hosted CTF (Capture The Flag) platform. Single binary, no dependencies, runs anywhere Go does.
+
+---
 
 ## Features
 
-- **Beautiful Dark UI** - Modern interface built with Tailwind CSS
-- **Answer Masks** - Shows flag format without revealing the answer (e.g., `FLAG{********************}`)
-- **SQL Query Interface** - Explore CTF data using SQL queries (powered by DuckDB WASM)
-- **Individual & Team Scoring** - Compete solo or as a team
-- **Admin Panel** - Easy challenge and question management
-- **Single Binary** - No external dependencies, easy deployment
-- **Pure Go** - No CGO required, uses modernc.org/sqlite
+- **Single binary** — embeds all assets, templates, and migrations; copy one file and run
+- **Auto-migrations** — schema upgrades apply automatically on startup, no data loss
+- **Challenge management** — categories, difficulties, flag masking, point hints
+- **Team play** — create teams, invite-link based joining, team scoreboard
+- **SQL Playground** — per-challenge DuckDB WASM sandbox for SQL-style CTF challenges
+- **Dark/light theme** — persistent toggle, no flash of unstyled content
+- **Admin panel** — full CRUD for challenges, questions, hints, categories, users
+- **OpenAPI docs** — browsable Swagger UI at `/api/openapi`
 
-## Tech Stack
-
-**Backend:**
-- Go 1.24+ with Chi router
-- SQLite (via modernc.org/sqlite)
-- JWT authentication
-- Embedded templates and migrations
-
-**Frontend:**
-- HTMX 2.x for interactivity
-- Tailwind CSS via CDN
-- Alpine.js for client-side reactivity
-- DuckDB WASM for SQL queries
+---
 
 ## Quick Start
 
-### Prerequisites
-
-**Option 1: Native (Go)**
-- Go 1.24 or higher
-- Task (https://taskfile.dev) - Install: `go install github.com/go-task/task/v3/cmd/task@latest`
-
-**Option 2: Docker (Recommended for quick setup)**
-- Docker 20.10+
-- Docker Compose v2+
-
-### Installation
-
-**Option 1: Docker (Quick Start)**
-
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/hctf2.git
-cd hctf2
-
-# Start with docker compose
-docker compose -f docker-compose.dev.yml up -d
-
-# Access: http://localhost:8090
-# Admin: admin@hctf.local / changeme
-```
-
-**Option 2: Native Go**
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/hctf2.git
-cd hctf2
-
-# Install dependencies
-task deps
-
-# Run the server (creates admin user)
-task run
-```
-
-The server will start on http://localhost:8090
-
-**Default admin credentials:**
-- Email: admin@hctf.local
-- Password: changeme
-
-### Building
-
-```bash
-# Build single binary
-task build
-
-# Run the binary
-./hctf2 --port 8090 --admin-email admin@example.com --admin-password yourpassword
-```
-
-### Configuration
-
-For detailed configuration options, see [CONFIGURATION.md](CONFIGURATION.md).
-
-**Quick options:**
-```bash
-./hctf2 [options]
-
-Options:
-  --port int                Server port (default 8090)
-  --host string            Server host (default 0.0.0.0)
-  --database-path string   Database path (default data/hctf2.db)
-  --jwt-secret string      JWT signing secret
-  --admin-email string     Admin email for first-time setup
-  --admin-password string  Admin password for first-time setup
-```
-
-## Usage
-
-### Creating Challenges
-
-1. Login as admin
-2. Navigate to `/admin`
-3. Create a challenge with category, difficulty, and description
-4. Add questions with flags and point values
-5. Flag masks are auto-generated (e.g., `FLAG{secret}` → `FLAG{******}`)
-
-### SQL Playground
-
-The SQL Playground allows users to query CTF data using standard SQL:
-
-```sql
--- Top 10 users by points
-SELECT u.name, SUM(q.points) as total_points
-FROM users u
-JOIN submissions s ON u.id = s.user_id
-JOIN questions q ON s.question_id = q.id
-WHERE s.is_correct = 1
-GROUP BY u.id, u.name
-ORDER BY total_points DESC
-LIMIT 10;
-```
-
-All queries run client-side in the browser using DuckDB WASM, ensuring:
-- Zero server load
-- No SQL injection risk
-- Full SQL feature set (CTEs, window functions, etc.)
-
-## Database Schema
-
-### Core Tables
-
-- **users** - User accounts and authentication
-- **teams** - Team collaboration
-- **challenges** - Challenge containers
-- **questions** - Individual flags within challenges
-- **submissions** - Answer attempts
-- **hints** - Optional hints for questions
-- **hint_unlocks** - Track hint usage
-
-## Documentation
-
-- [QUICKSTART.md](QUICKSTART.md) - Get up and running in 5 minutes
-- [CONFIGURATION.md](CONFIGURATION.md) - Configuration options and examples
-- [OPERATIONS.md](OPERATIONS.md) - Production deployment and maintenance
-- [KNOWN_ISSUES.md](KNOWN_ISSUES.md) - Known bugs and workarounds
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture and design
-- [API.md](API.md) - API endpoint reference
-- [DOCKER.md](DOCKER.md) - Docker deployment guide
-- [CLAUDE.md](CLAUDE.md) - Instructions for AI assistants
-
-## Development
-
-```bash
-# Run in development mode
-task run
-
-# Run tests
-task test
-
-# Format code
-task fmt
-```
-
-## Deployment
-
-For production deployment steps, see [OPERATIONS.md](OPERATIONS.md).
-
-### Docker (Recommended)
-
-See [DOCKER.md](DOCKER.md) for comprehensive Docker deployment guide.
-
-```bash
-# Development
-docker compose -f docker-compose.dev.yml up -d
-
-# Production
 docker compose up -d
 ```
 
-### Native Deployment
+Open http://localhost:8090 — default credentials: `admin@hctf.local` / `changeme`
+
+<details>
+<summary>docker-compose.yml example</summary>
+
+```yaml
+services:
+  hctf2:
+    image: ghcr.io/yourusername/hctf2:latest
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./data:/data
+    environment:
+      DATABASE_PATH: /data/hctf2.db
+      ADMIN_EMAIL: admin@hctf.local
+      ADMIN_PASSWORD: changeme
+    restart: unless-stopped
+```
+</details>
+
+---
+
+## Installation
+
+### Option 1: Binary (fastest)
+
+Download the latest binary from [Releases](https://github.com/yourusername/hctf2/releases):
 
 ```bash
-# Build
+curl -L https://github.com/yourusername/hctf2/releases/latest/download/hctf2-linux-amd64 -o hctf2
+chmod +x hctf2
+./hctf2 --admin-email admin@example.com --admin-password yourpassword
+```
+
+### Option 2: Build from source
+
+Requires Go 1.24+ and [Task](https://taskfile.dev):
+
+```bash
+git clone https://github.com/yourusername/hctf2.git
+cd hctf2
+task deps
 task build
-
-# Run
-./hctf2 --port 8080 --admin-email admin@example.com --admin-password password
+./hctf2 --admin-email admin@example.com --admin-password yourpassword
 ```
 
-See [OPERATIONS.md](OPERATIONS.md) for systemd service setup and full deployment guide.
+---
 
-## Project Structure
+## Configuration
+
+All options are set via CLI flags. See [`config.example.yaml`](config.example.yaml) for a fully annotated reference.
+
+| Option | Flag | Default |
+|--------|------|---------|
+| Port | `--port` | `8090` |
+| Database | `--db` | `./hctf2.db` |
+| Admin email | `--admin-email` | — |
+| Admin password | `--admin-password` | — |
+| Message of the Day | `--motd` | — |
+
+---
+
+## Self-Hosting
+
+### Volumes
+
+The only persistent data is the SQLite database file:
+
+```bash
+docker run -v ./data:/data -e DATABASE_PATH=/data/hctf2.db ghcr.io/yourusername/hctf2
+```
+
+### Reverse Proxy (Caddy)
 
 ```
-hctf2/
-├── cmd/server/          # Entry point
-├── internal/
-│   ├── auth/           # Authentication & middleware
-│   ├── database/       # Database layer
-│   ├── handlers/       # HTTP handlers
-│   ├── models/         # Data models
-│   └── views/          # Templates & static files
-├── migrations/         # SQL migrations
-├── Taskfile.yml
-└── README.md
+ctf.example.com {
+    reverse_proxy localhost:8090
+}
 ```
 
-## Roadmap
+<details>
+<summary>Nginx config</summary>
 
-### Phase 1 (MVP) ✅
-- User authentication
-- Challenge browsing
-- Flag submission with masks
-- Scoreboard
-- Admin panel
-- SQL query interface
+```nginx
+server {
+    server_name ctf.example.com;
+    location / {
+        proxy_pass http://127.0.0.1:8090;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+</details>
 
-### Phase 2
-- Hints system
-- Team management
-- File uploads
-- Markdown support
+### Backup
 
-### Phase 3
-- Dynamic scoring
-- Regex flag validation
-- Challenge dependencies
-- Import/export challenges
+```bash
+cp hctf2.db hctf2.db.backup-$(date +%Y%m%d)
+```
 
-## License
+### Upgrading
 
-MIT License - see LICENSE file for details
+Replace the binary and restart — migrations run automatically:
+
+```bash
+systemctl stop hctf2
+cp hctf2-new hctf2
+systemctl start hctf2
+```
+
+No manual migration steps needed.
+
+---
+
+## Security
+
+- Passwords hashed with bcrypt (cost 12)
+- JWT tokens stored in HttpOnly cookies
+- All SQL queries use parameterized statements
+- No telemetry or analytics by default
+- Admin routes protected by role middleware
+
+---
+
+## Documentation
+
+| Doc | Contents |
+|-----|----------|
+| [CONFIGURATION.md](CONFIGURATION.md) | All config options in detail |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | How the codebase is structured |
+| [OPERATIONS.md](OPERATIONS.md) | Deployment, monitoring, backup, troubleshooting |
+| [SQL_PLAYGROUND.md](SQL_PLAYGROUND.md) | DuckDB WASM SQL challenge mode |
+| [TESTING.md](TESTING.md) | Running and writing tests |
+| [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | Known bugs and workarounds |
+
+---
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+Issues and PRs welcome. To run locally:
 
-## Credits
+```bash
+task deps
+task run   # starts on :8090 with a default admin
+task test  # run tests
+```
 
-Built with love for the CTF community.
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## How this was built
+
+The architecture, database schema, and core backend were designed and implemented before any AI assistance. We use AI tools for specific, scoped tasks — drafting boilerplate, suggesting refactors, writing docs — and every change is reviewed and usually rewritten by a human maintainer. This is not autonomous "generate and ship" code.
