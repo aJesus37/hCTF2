@@ -43,7 +43,7 @@
         color: #e2e8f0 !important;
     }
     
-    /* Operation blocks */
+    /* Operation blocks - default styling */
     .dark .swagger-ui .opblock {
         background: #1e293b;
         border-color: #334155;
@@ -64,6 +64,62 @@
     }
     .dark .swagger-ui .opblock-tag:hover {
         background: rgba(255,255,255,0.05);
+    }
+    
+    /* Operation blocks - HTTP method colors for dark theme */
+    .dark .swagger-ui .opblock.opblock-post {
+        background: rgba(34, 197, 94, 0.1);
+        border-color: rgba(34, 197, 94, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-post .opblock-summary {
+        border-color: rgba(34, 197, 94, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-post .opblock-summary-method {
+        background: #22c55e;
+    }
+    
+    .dark .swagger-ui .opblock.opblock-delete {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-delete .opblock-summary {
+        border-color: rgba(239, 68, 68, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-delete .opblock-summary-method {
+        background: #ef4444;
+    }
+    
+    .dark .swagger-ui .opblock.opblock-put {
+        background: rgba(249, 115, 22, 0.1);
+        border-color: rgba(249, 115, 22, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-put .opblock-summary {
+        border-color: rgba(249, 115, 22, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-put .opblock-summary-method {
+        background: #f97316;
+    }
+    
+    .dark .swagger-ui .opblock.opblock-get {
+        background: rgba(59, 130, 246, 0.1);
+        border-color: rgba(59, 130, 246, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-get .opblock-summary {
+        border-color: rgba(59, 130, 246, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-get .opblock-summary-method {
+        background: #3b82f6;
+    }
+    
+    .dark .swagger-ui .opblock.opblock-patch {
+        background: rgba(168, 85, 247, 0.1);
+        border-color: rgba(168, 85, 247, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-patch .opblock-summary {
+        border-color: rgba(168, 85, 247, 0.4);
+    }
+    .dark .swagger-ui .opblock.opblock-patch .opblock-summary-method {
+        background: #a855f7;
     }
     
     /* Section headers */
@@ -237,6 +293,48 @@
     }
     .dark .swagger-ui .errors .message th {
         color: #ef4444;
+    }
+    
+    /* Authorization Modal - Dark Theme */
+    .dark .swagger-ui .dialog-ux {
+        background: rgba(0, 0, 0, 0.7);
+    }
+    .dark .swagger-ui .modal-ux {
+        background: #1e293b;
+        border-color: #334155;
+    }
+    .dark .swagger-ui .modal-ux-header {
+        background: #0f172a;
+        border-color: #334155;
+    }
+    .dark .swagger-ui .modal-ux-header h3,
+    .dark .swagger-ui .modal-ux-header h4 {
+        color: #e2e8f0;
+    }
+    .dark .swagger-ui .modal-ux-content {
+        background: #1e293b;
+    }
+    .dark .swagger-ui .modal-ux-content h4,
+    .dark .swagger-ui .modal-ux-content h5,
+    .dark .swagger-ui .modal-ux-content h6 {
+        color: #e2e8f0;
+    }
+    .dark .swagger-ui .modal-ux-content p {
+        color: #cbd5e1;
+    }
+    .dark .swagger-ui .modal-ux-content label {
+        color: #e2e8f0;
+    }
+    .dark .swagger-ui .modal-ux-content input[type="text"] {
+        background: #0f172a;
+        border-color: #334155;
+        color: #e2e8f0;
+    }
+    .dark .swagger-ui .modal-ux-content .close-modal {
+        color: #94a3b8;
+    }
+    .dark .swagger-ui .modal-ux-content .close-modal:hover {
+        color: #e2e8f0;
     }
 </style>
 <script>
