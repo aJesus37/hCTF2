@@ -8,7 +8,7 @@
             <p class="text-gray-500 dark:text-gray-400 mb-2">Joined {{.Stats.CreatedAt.Format "Jan 2, 2006"}}</p>
             {{if .Stats.TeamName}}
             <p class="text-gray-500 dark:text-gray-400">
-                Team: <span class="text-blue-400">{{.Stats.TeamName}}</span>
+                Team: {{if .Stats.TeamID}}<a href="/teams/{{.Stats.TeamID}}/profile" class="text-blue-400 hover:underline">{{.Stats.TeamName}}</a>{{else}}<span class="text-blue-400">{{.Stats.TeamName}}</span>{{end}}
             </p>
             {{end}}
         </div>
