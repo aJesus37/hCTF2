@@ -72,6 +72,16 @@ func init() {
 	}
 }
 
+// firstNonEmpty returns the first non-empty string from the provided values
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 type Server struct {
 	db          *database.DB
 	templates   *template.Template
@@ -108,11 +118,13 @@ func (h *customFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	var (
-		port        = flag.Int("port", 8090, "Server port")
-		dbPath      = flag.String("db", "./hctf2.db", "Database path")
-		adminEmail  = flag.String("admin-email", "", "Admin email for first-time setup")
-		adminPass   = flag.String("admin-password", "", "Admin password for first-time setup")
-		motd        = flag.String("motd", "", "Message of the Day displayed below login form")
+		port             = flag.Int("port", 8090, "Server port")
+		dbPath           = flag.String("db", "./hctf2.db", "Database path")
+		adminEmail       = flag.String("admin-email", "", "Admin email for first-time setup")
+		adminPass        = flag.String("admin-password", "", "Admin password for first-time setup")
+		motd             = flag.String("motd", "", "Message of the Day displayed below login form")
+		enablePrometheus = flag.Bool("metrics", false, "Enable Prometheus /metrics endpoint")
+		otlpEndpoint     = flag.String("otel-otlp-endpoint", "", "OTLP exporter endpoint (e.g. localhost:4318)")
 	)
 	flag.Parse()
 
@@ -122,6 +134,8 @@ func main() {
 		ServiceVersion:       "0.5.0",
 		Environment:          os.Getenv("ENVIRONMENT"),
 		EnableStdoutExporter: os.Getenv("OTEL_EXPORTER_STDOUT") == "true",
+		EnablePrometheus:     *enablePrometheus || os.Getenv("OTEL_METRICS_PROMETHEUS") == "true",
+		OTLPEndpoint:         firstNonEmpty(*otlpEndpoint, os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")),
 	})
 	if err != nil {
 		log.Printf("Warning: Failed to initialize telemetry: %v", err)
@@ -236,6 +250,11 @@ func main() {
 	// Health check endpoints (no auth, no middleware)
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
+
+	// Prometheus metrics endpoint
+	if *enablePrometheus || os.Getenv("OTEL_METRICS_PROMETHEUS") == "true" {
+		r.Handle("/metrics", telemetry.PrometheusHandler())
+	}
 
 	// Public routes
 	r.Get("/", s.handleIndex)

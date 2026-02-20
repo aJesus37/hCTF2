@@ -3,15 +3,22 @@ package telemetry
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/trace"
@@ -32,11 +39,12 @@ var (
 
 // Config holds telemetry configuration
 type Config struct {
-	ServiceName    string
-	ServiceVersion string
-	Environment    string
-	// EnableStdoutExporter enables stdout trace exporter for debugging
+	ServiceName          string
+	ServiceVersion       string
+	Environment          string
 	EnableStdoutExporter bool
+	EnablePrometheus     bool
+	OTLPEndpoint         string // e.g. "localhost:4318"
 }
 
 // Init initializes OpenTelemetry with the given configuration
@@ -55,28 +63,40 @@ func Init(cfg Config) (func(), error) {
 		return nil, err
 	}
 
-	// Create trace exporter
-	var traceExporter sdktrace.SpanExporter
+	// Create trace exporters
+	var traceExporters []sdktrace.SpanExporter
+
 	if cfg.EnableStdoutExporter {
-		traceExporter, err = stdouttrace.New(stdouttrace.WithPrettyPrint())
+		stdoutExp, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("stdout trace exporter: %w", err)
 		}
+		traceExporters = append(traceExporters, stdoutExp)
+	}
+
+	if cfg.OTLPEndpoint != "" {
+		otlpExp, err := otlptracehttp.New(ctx,
+			otlptracehttp.WithEndpoint(cfg.OTLPEndpoint),
+			otlptracehttp.WithInsecure(),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("otlp trace exporter: %w", err)
+		}
+		traceExporters = append(traceExporters, otlpExp)
+	}
+
+	// Create tracer provider options
+	tpOpts := []sdktrace.TracerProviderOption{
+		sdktrace.WithResource(res),
+	}
+
+	// Add trace exporters
+	for _, exp := range traceExporters {
+		tpOpts = append(tpOpts, sdktrace.WithBatcher(exp))
 	}
 
 	// Create tracer provider
-	var tp *sdktrace.TracerProvider
-	if traceExporter != nil {
-		tp = sdktrace.NewTracerProvider(
-			sdktrace.WithBatcher(traceExporter),
-			sdktrace.WithResource(res),
-		)
-	} else {
-		// No-op tracer provider if no exporter configured
-		tp = sdktrace.NewTracerProvider(
-			sdktrace.WithResource(res),
-		)
-	}
+	tp := sdktrace.NewTracerProvider(tpOpts...)
 
 	// Set global tracer provider
 	otel.SetTracerProvider(tp)
@@ -90,9 +110,34 @@ func Init(cfg Config) (func(), error) {
 	// Initialize tracer
 	Tracer = tp.Tracer(cfg.ServiceName)
 
-	// Initialize meter (metrics)
-	meterProvider := otel.GetMeterProvider()
-	Meter = meterProvider.Meter(cfg.ServiceName)
+	// Create meter provider with appropriate exporters
+	var meterOpts []sdkmetric.Option
+	meterOpts = append(meterOpts, sdkmetric.WithResource(res))
+
+	if cfg.EnablePrometheus {
+		promExp, err := prometheus.New()
+		if err != nil {
+			return nil, fmt.Errorf("prometheus exporter: %w", err)
+		}
+		meterOpts = append(meterOpts, sdkmetric.WithReader(promExp))
+	}
+
+	if cfg.OTLPEndpoint != "" {
+		otlpMetricExp, err := otlpmetrichttp.New(ctx,
+			otlpmetrichttp.WithEndpoint(cfg.OTLPEndpoint),
+			otlpmetrichttp.WithInsecure(),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("otlp metric exporter: %w", err)
+		}
+		meterOpts = append(meterOpts, sdkmetric.WithReader(
+			sdkmetric.NewPeriodicReader(otlpMetricExp),
+		))
+	}
+
+	mp := sdkmetric.NewMeterProvider(meterOpts...)
+	otel.SetMeterProvider(mp)
+	Meter = mp.Meter(cfg.ServiceName)
 
 	// Initialize metrics
 	if err := initMetrics(); err != nil {
@@ -105,6 +150,9 @@ func Init(cfg Config) (func(), error) {
 		defer cancel()
 		if err := tp.Shutdown(ctx); err != nil {
 			log.Printf("Error shutting down tracer provider: %v", err)
+		}
+		if err := mp.Shutdown(ctx); err != nil {
+			log.Printf("Error shutting down meter provider: %v", err)
 		}
 	}
 
@@ -147,6 +195,11 @@ func initMetrics() error {
 	}
 
 	return nil
+}
+
+// PrometheusHandler returns the HTTP handler for /metrics endpoint.
+func PrometheusHandler() http.Handler {
+	return promhttp.Handler()
 }
 
 // Span creates a new span with the given name
