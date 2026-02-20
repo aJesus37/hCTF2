@@ -42,4 +42,4 @@ config.yml
 # Validation screenshots from Kimi
 docs/validation/*.png
 
-.task
+.task.worktrees/
