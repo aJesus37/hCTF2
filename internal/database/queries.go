@@ -11,6 +11,11 @@ import (
 	"github.com/yourusername/hctf2/internal/models"
 )
 
+// Ping checks database connectivity
+func (db *DB) Ping() error {
+	return db.DB.Ping()
+}
+
 // generateRandomCode creates a cryptographically secure random hex string
 func generateRandomCode() string {
 	b := make([]byte, 16)

@@ -233,6 +233,10 @@ func main() {
 		fs: http.FileServer(http.FS(staticFS)),
 	}))
 
+	// Health check endpoints (no auth, no middleware)
+	r.Get("/healthz", s.handleHealthz)
+	r.Get("/readyz", s.handleReadyz)
+
 	// Public routes
 	r.Get("/", s.handleIndex)
 	r.Get("/challenges", s.handleChallenges)
@@ -955,6 +959,27 @@ func (s *Server) handleViewChallenge(w http.ResponseWriter, r *http.Request) {
 		id, id, id)
 
 	w.Write([]byte(html))
+}
+
+// Health check handlers
+func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok"}`))
+}
+
+func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Check database connectivity
+	if err := s.db.Ping(); err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprintf(w, `{"status":"not_ready","checks":{"database":"error: %s"}}`, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ready","checks":{"database":"ok"}}`))
 }
 
 // Profile handlers

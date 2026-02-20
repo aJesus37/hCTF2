@@ -360,6 +360,56 @@ func TestNoPageCollision(t *testing.T) {
 	}
 }
 
+func TestHealthEndpoints(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer db.Close()
+
+	server := newTestServer(db)
+	router := newTestRouter(server)
+
+	tests := []struct {
+		name        string
+		path        string
+		statusCode  int
+		contentMust []string
+	}{
+		{
+			name:        "Liveness probe",
+			path:        "/healthz",
+			statusCode:  http.StatusOK,
+			contentMust: []string{`"status":"ok"`},
+		},
+		{
+			name:        "Readiness probe",
+			path:        "/readyz",
+			statusCode:  http.StatusOK,
+			contentMust: []string{`"status":"ready"`, `"database":"ok"`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", tt.path, nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			if w.Code != tt.statusCode {
+				t.Errorf("got status %d, want %d", w.Code, tt.statusCode)
+			}
+
+			body := w.Body.String()
+			for _, must := range tt.contentMust {
+				if !strings.Contains(body, must) {
+					t.Errorf("response missing %q, got: %s", must, body)
+				}
+			}
+		})
+	}
+}
+
 // Helper: Create a test server with minimal setup
 func newTestServer(db *database.DB) *Server {
 	// Parse templates
@@ -407,6 +457,10 @@ func createTemplates() (*template.Template, error) {
 // Helper: Create test router with all routes
 func newTestRouter(s *Server) *http.ServeMux {
 	mux := http.NewServeMux()
+
+	// Health check endpoints
+	mux.HandleFunc("GET /healthz", s.handleHealthz)
+	mux.HandleFunc("GET /readyz", s.handleReadyz)
 
 	// Create a simple router that redirects to server handlers
 	// Since we can't easily export chi router, we'll use the server's methods directly
