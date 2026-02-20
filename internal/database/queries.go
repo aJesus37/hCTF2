@@ -27,11 +27,12 @@ func generateRandomCode() string {
 
 // User queries
 func (db *DB) CreateUser(email, passwordHash, name string, isAdmin bool) (*models.User, error) {
-	query := `INSERT INTO users (email, password_hash, name, is_admin)
-	          VALUES (?, ?, ?, ?) RETURNING id, email, name, is_admin, created_at, updated_at`
+	id := GenerateID()
+	query := `INSERT INTO users (id, email, password_hash, name, is_admin)
+	          VALUES (?, ?, ?, ?, ?) RETURNING id, email, name, is_admin, created_at, updated_at`
 
 	var user models.User
-	err := db.QueryRow(query, email, passwordHash, name, isAdmin).Scan(
+	err := db.QueryRow(query, id, email, passwordHash, name, isAdmin).Scan(
 		&user.ID, &user.Email, &user.Name, &user.IsAdmin, &user.CreatedAt, &user.UpdatedAt,
 	)
 	user.PasswordHash = passwordHash
@@ -70,12 +71,13 @@ func (db *DB) GetUserByID(id string) (*models.User, error) {
 
 // Challenge queries
 func (db *DB) CreateChallenge(name, description, category, difficulty string, tags *string, visible bool, sqlEnabled bool, sqlDatasetURL, sqlSchemaHint *string) (*models.Challenge, error) {
-	query := `INSERT INTO challenges (name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint)
-	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	id := GenerateID()
+	query := `INSERT INTO challenges (id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint)
+	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	          RETURNING id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, created_at, updated_at`
 
 	var c models.Challenge
-	err := db.QueryRow(query, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint).Scan(
+	err := db.QueryRow(query, id, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint).Scan(
 		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.CreatedAt, &c.UpdatedAt,
 	)
 	return &c, err
@@ -141,12 +143,13 @@ func (db *DB) CreateQuestion(challengeID, name, description, flag string, flagMa
 		flagMask = &mask
 	}
 
-	query := `INSERT INTO questions (challenge_id, name, description, flag, flag_mask, case_sensitive, points, file_url)
-	          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	id := GenerateID()
+	query := `INSERT INTO questions (id, challenge_id, name, description, flag, flag_mask, case_sensitive, points, file_url)
+	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	          RETURNING id, challenge_id, name, description, flag, flag_mask, case_sensitive, points, file_url, created_at, updated_at`
 
 	var q models.Question
-	err := db.QueryRow(query, challengeID, name, description, flag, flagMask, caseSensitive, points, fileURL).Scan(
+	err := db.QueryRow(query, id, challengeID, name, description, flag, flagMask, caseSensitive, points, fileURL).Scan(
 		&q.ID, &q.ChallengeID, &q.Name, &q.Description, &q.Flag, &q.FlagMask, &q.CaseSensitive, &q.Points, &q.FileURL, &q.CreatedAt, &q.UpdatedAt,
 	)
 	return &q, err
@@ -228,9 +231,10 @@ func (db *DB) DeleteQuestion(id string) error {
 
 // Submission queries
 func (db *DB) CreateSubmission(questionID, userID string, teamID *string, submittedFlag string, isCorrect bool) error {
-	query := `INSERT INTO submissions (question_id, user_id, team_id, submitted_flag, is_correct)
-	          VALUES (?, ?, ?, ?, ?)`
-	_, err := db.Exec(query, questionID, userID, teamID, submittedFlag, isCorrect)
+	id := GenerateID()
+	query := `INSERT INTO submissions (id, question_id, user_id, team_id, submitted_flag, is_correct)
+	          VALUES (?, ?, ?, ?, ?, ?)`
+	_, err := db.Exec(query, id, questionID, userID, teamID, submittedFlag, isCorrect)
 	return err
 }
 
@@ -562,12 +566,14 @@ func (db *DB) GetCorrectSubmissionCount() (int, error) {
 
 // CreateTeam creates a new team
 func (db *DB) CreateTeam(name, description string, ownerID string) (*models.Team, error) {
-	query := `INSERT INTO teams (name, description, owner_id)
-	          VALUES (?, ?, ?)
+	id := GenerateID()
+	inviteID := generateRandomCode()
+	query := `INSERT INTO teams (id, name, description, owner_id, invite_id)
+	          VALUES (?, ?, ?, ?, ?)
 	          RETURNING id, name, description, owner_id, invite_id, invite_permission, created_at, updated_at`
 
 	var t models.Team
-	err := db.QueryRow(query, name, description, ownerID).Scan(
+	err := db.QueryRow(query, id, name, description, ownerID, inviteID).Scan(
 		&t.ID, &t.Name, &t.Description, &t.OwnerID, &t.InviteID, &t.InvitePermission, &t.CreatedAt, &t.UpdatedAt,
 	)
 	return &t, err
@@ -782,12 +788,13 @@ func (db *DB) UpdateInvitePermission(teamID, permission string) error {
 
 // CreateHint creates a new hint for a question
 func (db *DB) CreateHint(questionID, content string, cost, order int) (*models.Hint, error) {
-	query := `INSERT INTO hints (question_id, content, cost, "order")
-	          VALUES (?, ?, ?, ?)
+	id := GenerateID()
+	query := `INSERT INTO hints (id, question_id, content, cost, "order")
+	          VALUES (?, ?, ?, ?, ?)
 	          RETURNING id, question_id, content, cost, "order", created_at`
 
 	var h models.Hint
-	err := db.QueryRow(query, questionID, content, cost, order).Scan(
+	err := db.QueryRow(query, id, questionID, content, cost, order).Scan(
 		&h.ID, &h.QuestionID, &h.Content, &h.Cost, &h.Order, &h.CreatedAt,
 	)
 	return &h, err
@@ -817,9 +824,10 @@ func (db *DB) GetHintsByQuestionID(questionID string) ([]models.Hint, error) {
 
 // UnlockHint creates a hint unlock record (idempotent), recording the team the user was in at the time
 func (db *DB) UnlockHint(hintID, userID string, teamID *string) error {
-	query := `INSERT INTO hint_unlocks (hint_id, user_id, team_id) VALUES (?, ?, ?)
+	id := GenerateID()
+	query := `INSERT INTO hint_unlocks (id, hint_id, user_id, team_id) VALUES (?, ?, ?, ?)
 	          ON CONFLICT(hint_id, user_id) DO NOTHING`
-	_, err := db.Exec(query, hintID, userID, teamID)
+	_, err := db.Exec(query, id, hintID, userID, teamID)
 	return err
 }
 
@@ -1249,10 +1257,11 @@ func (db *DB) GetAllCategories() ([]models.CategoryOption, error) {
 }
 
 func (db *DB) CreateCategory(name string, sortOrder int) (*models.CategoryOption, error) {
-	query := `INSERT INTO categories (name, sort_order) VALUES (?, ?)
+	id := GenerateID()
+	query := `INSERT INTO categories (id, name, sort_order) VALUES (?, ?, ?)
 	          RETURNING id, name, sort_order, created_at`
 	var c models.CategoryOption
-	err := db.QueryRow(query, name, sortOrder).Scan(&c.ID, &c.Name, &c.SortOrder, &c.CreatedAt)
+	err := db.QueryRow(query, id, name, sortOrder).Scan(&c.ID, &c.Name, &c.SortOrder, &c.CreatedAt)
 	return &c, err
 }
 
@@ -1291,10 +1300,11 @@ func (db *DB) GetAllDifficulties() ([]models.DifficultyOption, error) {
 }
 
 func (db *DB) CreateDifficulty(name, color, textColor string, sortOrder int) (*models.DifficultyOption, error) {
-	query := `INSERT INTO difficulties (name, color, text_color, sort_order) VALUES (?, ?, ?, ?)
+	id := GenerateID()
+	query := `INSERT INTO difficulties (id, name, color, text_color, sort_order) VALUES (?, ?, ?, ?, ?)
 	          RETURNING id, name, color, text_color, sort_order, created_at`
 	var d models.DifficultyOption
-	err := db.QueryRow(query, name, color, textColor, sortOrder).Scan(&d.ID, &d.Name, &d.Color, &d.TextColor, &d.SortOrder, &d.CreatedAt)
+	err := db.QueryRow(query, id, name, color, textColor, sortOrder).Scan(&d.ID, &d.Name, &d.Color, &d.TextColor, &d.SortOrder, &d.CreatedAt)
 	return &d, err
 }
 
