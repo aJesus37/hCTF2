@@ -69,22 +69,52 @@ func (db *DB) GetUserByID(id string) (*models.User, error) {
 	return &user, nil
 }
 
+// CalculateDynamicScore computes the current point value for a question based on solve count
+// Uses linear decay from initial_points down to minimum_points based on decay_threshold
+func CalculateDynamicScore(challenge models.Challenge, solveCount int) int {
+	if !challenge.DynamicScoring {
+		return 0 // Return 0 to indicate static scoring should be used
+	}
+	if solveCount <= 0 {
+		return challenge.InitialPoints
+	}
+	if solveCount >= challenge.DecayThreshold {
+		return challenge.MinimumPoints
+	}
+	// Linear decay
+	decay := float64(challenge.InitialPoints-challenge.MinimumPoints) *
+		float64(solveCount) / float64(challenge.DecayThreshold)
+	score := challenge.InitialPoints - int(decay)
+	if score < challenge.MinimumPoints {
+		return challenge.MinimumPoints
+	}
+	return score
+}
+
+// GetQuestionSolveCount returns the number of correct solves for a question
+func (db *DB) GetQuestionSolveCount(questionID string) (int, error) {
+	var count int
+	query := `SELECT COUNT(DISTINCT user_id) FROM submissions WHERE question_id = ? AND is_correct = 1`
+	err := db.QueryRow(query, questionID).Scan(&count)
+	return count, err
+}
+
 // Challenge queries
-func (db *DB) CreateChallenge(name, description, category, difficulty string, tags *string, visible bool, sqlEnabled bool, sqlDatasetURL, sqlSchemaHint *string) (*models.Challenge, error) {
+func (db *DB) CreateChallenge(name, description, category, difficulty string, tags *string, visible bool, sqlEnabled bool, sqlDatasetURL, sqlSchemaHint *string, dynamicScoring bool, initialPoints, minimumPoints, decayThreshold int) (*models.Challenge, error) {
 	id := GenerateID()
-	query := `INSERT INTO challenges (id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint)
-	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	          RETURNING id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, created_at, updated_at`
+	query := `INSERT INTO challenges (id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold)
+	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	          RETURNING id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold, created_at, updated_at`
 
 	var c models.Challenge
-	err := db.QueryRow(query, id, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint).Scan(
-		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.CreatedAt, &c.UpdatedAt,
+	err := db.QueryRow(query, id, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint, dynamicScoring, initialPoints, minimumPoints, decayThreshold).Scan(
+		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.CreatedAt, &c.UpdatedAt,
 	)
 	return &c, err
 }
 
 func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
-	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, created_at, updated_at
+	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold, created_at, updated_at
 	          FROM challenges`
 	if visibleOnly {
 		query += " WHERE visible = 1"
@@ -100,7 +130,7 @@ func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
 	var challenges []models.Challenge
 	for rows.Next() {
 		var c models.Challenge
-		if err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		challenges = append(challenges, c)
@@ -109,12 +139,12 @@ func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
 }
 
 func (db *DB) GetChallengeByID(id string) (*models.Challenge, error) {
-	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, created_at, updated_at
+	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold, created_at, updated_at
 	          FROM challenges WHERE id = ?`
 
 	var c models.Challenge
 	err := db.QueryRow(query, id).Scan(
-		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.CreatedAt, &c.UpdatedAt,
+		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.CreatedAt, &c.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -122,11 +152,11 @@ func (db *DB) GetChallengeByID(id string) (*models.Challenge, error) {
 	return &c, nil
 }
 
-func (db *DB) UpdateChallenge(id, name, description, category, difficulty string, tags *string, visible bool, sqlEnabled bool, sqlDatasetURL, sqlSchemaHint *string) error {
+func (db *DB) UpdateChallenge(id, name, description, category, difficulty string, tags *string, visible bool, sqlEnabled bool, sqlDatasetURL, sqlSchemaHint *string, dynamicScoring bool, initialPoints, minimumPoints, decayThreshold int) error {
 	query := `UPDATE challenges
-	          SET name = ?, description = ?, category = ?, difficulty = ?, tags = ?, visible = ?, sql_enabled = ?, sql_dataset_url = ?, sql_schema_hint = ?, updated_at = CURRENT_TIMESTAMP
+	          SET name = ?, description = ?, category = ?, difficulty = ?, tags = ?, visible = ?, sql_enabled = ?, sql_dataset_url = ?, sql_schema_hint = ?, dynamic_scoring = ?, initial_points = ?, minimum_points = ?, decay_threshold = ?, updated_at = CURRENT_TIMESTAMP
 	          WHERE id = ?`
-	_, err := db.Exec(query, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint, id)
+	_, err := db.Exec(query, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint, dynamicScoring, initialPoints, minimumPoints, decayThreshold, id)
 	return err
 }
 
@@ -664,6 +694,7 @@ func (db *DB) GetTeamMembers(teamID string) ([]models.User, error) {
 // Only submissions made while the user was in the team (s.team_id = t.id) count.
 // Each unique question is counted once per team regardless of how many members solved it.
 // Submissions/hints with NULL team_id were made before joining a team and don't count.
+// Dynamic scoring: points decay based on number of solves before this team's solve.
 func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 	query := `
 		SELECT
@@ -676,7 +707,22 @@ func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 		LEFT JOIN (
 			SELECT
 				s.team_id,
-				SUM(q.points) as points,
+				SUM(
+					CASE 
+						WHEN c.dynamic_scoring = 1 THEN
+							MAX(
+								c.minimum_points,
+								c.initial_points - CAST(
+									(c.initial_points - c.minimum_points) * 
+									(SELECT COUNT(*) FROM submissions s2 
+									 WHERE s2.question_id = s.question_id 
+									 AND s2.is_correct = 1 
+									 AND s2.created_at < s.created_at) / 
+									CAST(c.decay_threshold AS REAL) AS INTEGER
+							)
+						ELSE q.points
+					END
+				) as points,
 				COUNT(*) as solve_count,
 				MAX(s.created_at) as last_solve
 			FROM (
@@ -690,6 +736,7 @@ func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 				GROUP BY s.team_id, s.question_id
 			) s
 			JOIN questions q ON q.id = s.question_id
+			JOIN challenges c ON q.challenge_id = c.id
 			GROUP BY s.team_id
 		) team_pts ON team_pts.team_id = t.id
 		LEFT JOIN (
