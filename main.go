@@ -117,6 +117,13 @@ func (h *customFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.fs.ServeHTTP(w, r)
 }
 
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
+
 func main() {
 	var (
 		port             = flag.Int("port", 8090, "Server port")
@@ -132,8 +139,29 @@ func main() {
 		smtpUser         = flag.String("smtp-user", "", "SMTP username")
 		smtpPass         = flag.String("smtp-password", "", "SMTP password")
 		baseURL          = flag.String("base-url", "http://localhost:8090", "Base URL for links in emails")
+		jwtSecret        = flag.String("jwt-secret", getEnv("JWT_SECRET", ""), "JWT signing secret (min 32 chars, required in production)")
+		dev              = flag.Bool("dev", false, "Enable development mode (allows default JWT secret, relaxed security)")
 	)
 	flag.Parse()
+
+	// Check if development mode is enabled via --dev flag
+	devMode := *dev
+
+	// Set JWT secret
+	jwtSecretValue := *jwtSecret
+
+	if jwtSecretValue == "" || jwtSecretValue == "change-this-secret-in-production" {
+		if devMode {
+			log.Println("WARNING: Using default JWT secret in development mode. DO NOT use in production!")
+			jwtSecretValue = "change-this-secret-in-production"
+		} else {
+			log.Fatal("ERROR: JWT secret is required. Use --dev for development, or set --jwt-secret flag, JWT_SECRET env var. The secret must be at least 32 characters.")
+		}
+	}
+
+	if err := auth.SetJWTSecret(jwtSecretValue); err != nil {
+		log.Fatalf("ERROR: Invalid JWT secret: %v", err)
+	}
 
 	// Create email service
 	emailSvc := email.NewService(email.Config{
@@ -1144,18 +1172,18 @@ func (s *Server) handleTeamProfile(w http.ResponseWriter, r *http.Request) {
 	customCode, _ := s.db.GetCustomCode("team")
 
 	data := map[string]interface{}{
-		"Title":               team.Name + " - Team Profile",
-		"Page":                "team-profile",
-		"User":                claims,
-		"Team":                team,
-		"Members":             members,
-		"Owner":               owner,
-		"Stats":               teamStats,
-		"SolvedChallenges":    solvedChallenges,
-		"ScoringChallenges":   scoringChallenges,
-		"RecentSubmissions":   recentSubmissions,
-		"ScoringSubmissions":  scoringSubmissions,
-		"CustomCode":          customCode,
+		"Title":              team.Name + " - Team Profile",
+		"Page":               "team-profile",
+		"User":               claims,
+		"Team":               team,
+		"Members":            members,
+		"Owner":              owner,
+		"Stats":              teamStats,
+		"SolvedChallenges":   solvedChallenges,
+		"ScoringChallenges":  scoringChallenges,
+		"RecentSubmissions":  recentSubmissions,
+		"ScoringSubmissions": scoringSubmissions,
+		"CustomCode":         customCode,
 	}
 	s.render(w, "base.html", data)
 }
