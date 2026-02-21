@@ -28,6 +28,7 @@ Run `./hctf2 --help` to see all available flags:
 --smtp-password PASSWORD       SMTP password
 --base-url URL                 Base URL for links in emails (default: http://localhost:8090)
 --jwt-secret SECRET            JWT signing secret (min 32 chars, required in production)
+--cors-origins ORIGINS         Comma-separated list of allowed CORS origins (empty = same-origin only)
 --dev                          Enable development mode (allows default JWT secret)
 ```
 
@@ -117,9 +118,38 @@ server {
 }
 ```
 
-### CORS Settings
+### CORS Origins
 
-**Current Status:** CORS is not explicitly configured. The application serves from a single origin.
+Control which origins can make cross-origin requests to the API.
+
+**Default:** Empty (same-origin only, most secure)
+
+**Configuration options:**
+1. CLI flag: `--cors-origins "https://example.com,https://app.example.com"`
+2. Environment variable: `CORS_ORIGINS=https://example.com,https://app.example.com`
+
+**Special values:**
+- `"*"` - Allow all origins (NOT recommended for production)
+- `""` (empty) - Same-origin only (default, recommended)
+
+For most deployments, leave this empty as the web UI is served from the same origin.
+
+**Examples:**
+
+Same-origin only (default, secure):
+```bash
+./hctf2
+```
+
+Allow specific origins:
+```bash
+./hctf2 --cors-origins "https://app.example.com,https://admin.example.com"
+```
+
+Allow all origins (NOT recommended for production):
+```bash
+./hctf2 --cors-origins "*"
+```
 
 ## Database Configuration
 
