@@ -26,18 +26,22 @@ type Team struct {
 }
 
 type Challenge struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Description   string    `json:"description"`
-	Category      string    `json:"category"`
-	Difficulty    string    `json:"difficulty"`
-	Tags          *string   `json:"tags,omitempty"`
-	Visible       bool      `json:"visible"`
-	SQLEnabled    bool      `json:"sql_enabled"`
-	SQLDatasetURL *string   `json:"sql_dataset_url,omitempty"`
-	SQLSchemaHint *string   `json:"sql_schema_hint,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	Category       string    `json:"category"`
+	Difficulty     string    `json:"difficulty"`
+	Tags           *string   `json:"tags,omitempty"`
+	Visible        bool      `json:"visible"`
+	SQLEnabled     bool      `json:"sql_enabled"`
+	SQLDatasetURL  *string   `json:"sql_dataset_url,omitempty"`
+	SQLSchemaHint  *string   `json:"sql_schema_hint,omitempty"`
+	DynamicScoring bool      `json:"dynamic_scoring"`
+	InitialPoints  int       `json:"initial_points"`
+	MinimumPoints  int       `json:"minimum_points"`
+	DecayThreshold int       `json:"decay_threshold"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type Question struct {
