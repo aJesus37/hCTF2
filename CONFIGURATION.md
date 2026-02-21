@@ -204,7 +204,6 @@ Database backups should be handled outside the application. Example cron job:
 0 2 * * * cp /var/lib/hctf2/hctf2.db /backups/hctf2-$(date +\%Y\%m\%d).db
 ```
 
-
 ## Security Settings
 
 ### JWT Secret Configuration
@@ -274,32 +273,77 @@ ERROR: Invalid JWT secret: JWT secret must be at least 32 characters
 
 ## Authentication Configuration
 
-### JWT Configuration
+The JWT secret is **required** for production deployments. The server will refuse to start without a proper secret unless `--dev` mode is explicitly enabled.
 
-**Environment Variable:**
-- `JWT_SECRET` - Secret key for signing JWT tokens
+**Configuration Methods:**
 
-**Security Notes:**
-- Must be a cryptographically secure random string
-- Should be at least 32 bytes (256 bits)
+1. **Command-Line Flag:**
+   ```bash
+   ./hctf2 --jwt-secret "$(openssl rand -base64 32)"
+   ```
+
+2. **Environment Variable:**
+   ```bash
+   export JWT_SECRET="$(openssl rand -base64 32)"
+   ./hctf2
+   ```
+
+3. **Development Mode** (insecure, for local development only):
+   ```bash
+   ./hctf2 --dev
+   ```
+
+**Security Requirements:**
+- Minimum 32 characters
+- Cryptographically secure random string
+- Must be identical across all server instances in a cluster
 - Never commit to version control
-- Must be the same across all server instances
+- Rotate periodically in production
 
-**Generate JWT Secret:**
+**Generate a Secure Secret:**
 
-Using OpenSSL:
+Using OpenSSL (recommended):
 ```bash
 openssl rand -base64 32
 ```
 
-Using Go:
+Using Python:
 ```bash
-go run -c 'package main; import ("crypto/rand"; "encoding/base64"; "fmt"; "io"); func main() { b := make([]byte, 32); io.ReadFull(rand.Reader, b); fmt.Println(base64.StdEncoding.EncodeToString(b)) }'
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
+Using /dev/urandom:
+```bash
+cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
+```
+
+**Production vs Development:**
+
+| Mode | Command | Behavior |
+|------|---------|----------|
+| Production (default) | `./hctf2 --jwt-secret <secret>` | Requires valid JWT secret |
+| Development | `./hctf2 --dev` | Allows default insecure secret with warning |
+
+**Failure Modes:**
+
+If the JWT secret is not configured in production mode:
+```
+ERROR: JWT secret is required. Use --dev for development, or set --jwt-secret flag, JWT_SECRET env var. The secret must be at least 32 characters.
+```
+
+If the JWT secret is too short:
+```
+ERROR: Invalid JWT secret: JWT secret must be at least 32 characters
+```
+
+## Authentication Configuration
+
+### JWT Token Settings
+
 **Token Expiration:**
-- Currently hardcoded to 24 hours
-- Can be modified in `internal/auth/jwt.go` if needed
+- Currently hardcoded to 7 days
+- Stored in HttpOnly cookies for security
+- Can be modified in `internal/auth/middleware.go` if needed
 
 ### Initial Admin Setup
 

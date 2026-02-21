@@ -25,7 +25,7 @@ tasks:
   run:
     desc: Run the application with admin setup
     cmds:
-      - go run {{.MAIN_PATH}} --port 8090 --admin-email admin@hctf.local --admin-password changeme
+      - go run {{.MAIN_PATH}} --port 8090 --admin-email admin@hctf.local --admin-password changeme --dev
 
   run-dev:
     desc: Run the application without admin setup
