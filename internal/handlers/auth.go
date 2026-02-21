@@ -283,7 +283,9 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 // @Router /auth/reset-password [post]
 func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`<p class="text-red-500 dark:text-red-400">Invalid request</p>`))
 		return
 	}
 
@@ -292,46 +294,61 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	confirmPassword := r.FormValue("confirm_password")
 
 	if token == "" {
-		http.Error(w, "Token is required", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`<p class="text-red-500 dark:text-red-400">Token is required</p>`))
 		return
 	}
 
 	if newPassword == "" || confirmPassword == "" {
-		http.Error(w, "Password is required", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`<p class="text-red-500 dark:text-red-400">Password is required</p>`))
 		return
 	}
 
 	if newPassword != confirmPassword {
-		http.Error(w, "Passwords do not match", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`<p class="text-red-500 dark:text-red-400">Passwords do not match</p>`))
 		return
 	}
 
 	// Validate token
 	user, err := h.db.GetUserByResetToken(token)
 	if err != nil {
-		http.Error(w, "Invalid or expired token", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`<p class="text-red-500 dark:text-red-400">Invalid or expired token</p>`))
 		return
 	}
 
 	// Hash new password
 	passwordHash, err := auth.HashPassword(newPassword)
 	if err != nil {
-		http.Error(w, "Error processing password", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`<p class="text-red-500 dark:text-red-400">Error processing password</p>`))
 		return
 	}
 
 	// Update password
 	if err := h.db.UpdatePassword(user.ID, passwordHash); err != nil {
-		http.Error(w, "Error updating password", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`<p class="text-red-500 dark:text-red-400">Error updating password</p>`))
 		return
 	}
 
 	// Clear token
 	if err := h.db.ClearPasswordResetToken(user.ID); err != nil {
-		http.Error(w, "Error clearing token", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`<p class="text-red-500 dark:text-red-400">Error clearing token</p>`))
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Password reset successful. You can now login."))
+	w.Write([]byte(`<p class="text-green-500 dark:text-green-400">Password reset successful! <a href="/login" class="underline">Click here to login</a>.</p>`))
 }
