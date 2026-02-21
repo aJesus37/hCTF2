@@ -158,7 +158,7 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 
 	// Return HTMX-friendly HTML response
 	if isCorrect {
-		// Calculate actual points earned after hint deductions
+		// Calculate actual points earned after hint deductions and dynamic scoring
 		hintCost := 0
 		if h.db != nil {
 			cost, err := h.db.GetUserHintCostForQuestion(claims.UserID, questionID)
@@ -166,7 +166,29 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 				hintCost = cost
 			}
 		}
-		pointsEarned := question.Points - hintCost
+
+		// Get the challenge for dynamic scoring
+		challenge, err := h.db.GetChallengeByID(question.ChallengeID)
+		if err != nil {
+			http.Error(w, "Failed to get challenge", http.StatusInternalServerError)
+			return
+		}
+
+		// Calculate base points (dynamic or static)
+		basePoints := question.Points
+		if challenge.DynamicScoring {
+			solveCount, err := h.db.GetQuestionSolveCount(questionID)
+			if err != nil {
+				http.Error(w, "Failed to get solve count", http.StatusInternalServerError)
+				return
+			}
+			dynamicScore := database.CalculateDynamicScore(*challenge, solveCount)
+			if dynamicScore > 0 {
+				basePoints = dynamicScore
+			}
+		}
+
+		pointsEarned := basePoints - hintCost
 		if pointsEarned < 0 {
 			pointsEarned = 0
 		}
@@ -183,15 +205,19 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 }
 
 type CreateChallengeRequest struct {
-	Name          string  `json:"name"`
-	Description   string  `json:"description"`
-	Category      string  `json:"category"`
-	Difficulty    string  `json:"difficulty"`
-	Tags          *string `json:"tags,omitempty"`
-	Visible       bool    `json:"visible"`
-	SQLEnabled    bool    `json:"sql_enabled"`
-	SQLDatasetURL *string `json:"sql_dataset_url,omitempty"`
-	SQLSchemaHint *string `json:"sql_schema_hint,omitempty"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description"`
+	Category       string  `json:"category"`
+	Difficulty     string  `json:"difficulty"`
+	Tags           *string `json:"tags,omitempty"`
+	Visible        bool    `json:"visible"`
+	SQLEnabled     bool    `json:"sql_enabled"`
+	SQLDatasetURL  *string `json:"sql_dataset_url,omitempty"`
+	SQLSchemaHint  *string `json:"sql_schema_hint,omitempty"`
+	DynamicScoring bool    `json:"dynamic_scoring"`
+	InitialPoints  int     `json:"initial_points"`
+	MinimumPoints  int     `json:"minimum_points"`
+	DecayThreshold int     `json:"decay_threshold"`
 }
 
 // CreateChallenge godoc
@@ -231,6 +257,22 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		req.Difficulty = r.FormValue("difficulty")
 		req.Visible = r.FormValue("visible") == "on"
 		req.SQLEnabled = r.FormValue("sql_enabled") == "on"
+		req.DynamicScoring = r.FormValue("dynamic_scoring") == "on"
+		if initialPoints := r.FormValue("initial_points"); initialPoints != "" {
+			fmt.Sscanf(initialPoints, "%d", &req.InitialPoints)
+		} else {
+			req.InitialPoints = 1000
+		}
+		if minimumPoints := r.FormValue("minimum_points"); minimumPoints != "" {
+			fmt.Sscanf(minimumPoints, "%d", &req.MinimumPoints)
+		} else {
+			req.MinimumPoints = 100
+		}
+		if decayThreshold := r.FormValue("decay_threshold"); decayThreshold != "" {
+			fmt.Sscanf(decayThreshold, "%d", &req.DecayThreshold)
+		} else {
+			req.DecayThreshold = 100
+		}
 		datasetURL := r.FormValue("sql_dataset_url")
 		if datasetURL != "" {
 			req.SQLDatasetURL = &datasetURL
@@ -241,7 +283,7 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	challenge, err := h.db.CreateChallenge(req.Name, req.Description, req.Category, req.Difficulty, req.Tags, req.Visible, req.SQLEnabled, req.SQLDatasetURL, req.SQLSchemaHint)
+	challenge, err := h.db.CreateChallenge(req.Name, req.Description, req.Category, req.Difficulty, req.Tags, req.Visible, req.SQLEnabled, req.SQLDatasetURL, req.SQLSchemaHint, req.DynamicScoring, req.InitialPoints, req.MinimumPoints, req.DecayThreshold)
 	if err != nil {
 		if strings.Contains(contentType, "application/json") {
 			http.Error(w, "Failed to create challenge", http.StatusInternalServerError)
@@ -346,6 +388,22 @@ func (h *ChallengeHandler) UpdateChallenge(w http.ResponseWriter, r *http.Reques
 		req.Difficulty = r.FormValue("difficulty")
 		req.Visible = r.FormValue("visible") == "on"
 		req.SQLEnabled = r.FormValue("sql_enabled") == "on"
+		req.DynamicScoring = r.FormValue("dynamic_scoring") == "on"
+		if initialPoints := r.FormValue("initial_points"); initialPoints != "" {
+			fmt.Sscanf(initialPoints, "%d", &req.InitialPoints)
+		} else {
+			req.InitialPoints = 1000
+		}
+		if minimumPoints := r.FormValue("minimum_points"); minimumPoints != "" {
+			fmt.Sscanf(minimumPoints, "%d", &req.MinimumPoints)
+		} else {
+			req.MinimumPoints = 100
+		}
+		if decayThreshold := r.FormValue("decay_threshold"); decayThreshold != "" {
+			fmt.Sscanf(decayThreshold, "%d", &req.DecayThreshold)
+		} else {
+			req.DecayThreshold = 100
+		}
 		datasetURL := r.FormValue("sql_dataset_url")
 		if datasetURL != "" {
 			req.SQLDatasetURL = &datasetURL
@@ -356,7 +414,7 @@ func (h *ChallengeHandler) UpdateChallenge(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	if err := h.db.UpdateChallenge(id, req.Name, req.Description, req.Category, req.Difficulty, req.Tags, req.Visible, req.SQLEnabled, req.SQLDatasetURL, req.SQLSchemaHint); err != nil {
+	if err := h.db.UpdateChallenge(id, req.Name, req.Description, req.Category, req.Difficulty, req.Tags, req.Visible, req.SQLEnabled, req.SQLDatasetURL, req.SQLSchemaHint, req.DynamicScoring, req.InitialPoints, req.MinimumPoints, req.DecayThreshold); err != nil {
 		if strings.Contains(contentType, "application/json") {
 			http.Error(w, "Failed to update challenge", http.StatusInternalServerError)
 		} else {
