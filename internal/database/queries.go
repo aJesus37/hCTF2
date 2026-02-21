@@ -278,6 +278,7 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 
 	var entries []models.ScoreboardEntry
 	rank := 1
+	var prevPoints int
 	for rows.Next() {
 		var e models.ScoreboardEntry
 		var lastSolveStr string
@@ -292,8 +293,15 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 			parsedTime = time.Now()
 		}
 		e.LastSolve = parsedTime
+		
+		// Apply standard competition ranking (1224 rule)
+		// Same score = same rank, next rank skips
+		if len(entries) > 0 && e.Points < prevPoints {
+			rank = len(entries) + 1
+		}
 		e.Rank = rank
-		rank++
+		prevPoints = e.Points
+		
 		entries = append(entries, e)
 	}
 	return entries, nil
@@ -705,6 +713,7 @@ func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 
 	var entries []models.ScoreboardEntry
 	rank := 1
+	var prevPoints int
 	for rows.Next() {
 		var e models.ScoreboardEntry
 		var lastSolveStr string
@@ -717,8 +726,15 @@ func (db *DB) GetTeamScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 			parsedTime = time.Now()
 		}
 		e.LastSolve = parsedTime
+		
+		// Apply standard competition ranking (1224 rule)
+		// Same score = same rank, next rank skips
+		if len(entries) > 0 && e.Points < prevPoints {
+			rank = len(entries) + 1
+		}
 		e.Rank = rank
-		rank++
+		prevPoints = e.Points
+		
 		entries = append(entries, e)
 	}
 	return entries, nil
