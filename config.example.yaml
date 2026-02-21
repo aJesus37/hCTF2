@@ -28,23 +28,20 @@ database:
   path: ./hctf2.db
 
 auth:
-  # JWT signing secret (REQUIRED for production).
-  # Configurable via:
-  #   - CLI flag: --jwt-secret
-  #   - Environment variable: JWT_SECRET
-  #   - This config file: jwt_secret (below)
-  # Minimum 32 characters required.
-  # Generate with: openssl rand -base64 32
+  # JWT signing secret (REQUIRED - no default).
+  # The server will fail to start in production mode if not set.
+  # 
+  # Set via one of:
+  #   - CLI flag: --jwt-secret "$(openssl rand -base64 32)"
+  #   - Environment variable: JWT_SECRET=$(openssl rand -base64 32)
+  #   - Uncomment and set below:
   #
-  # IMPORTANT: Replace this placeholder with a secure random secret!
-  # In production mode (--dev not set), the server will refuse to start
-  # if this is not changed from the placeholder.
-  jwt_secret: "CHANGE-THIS-TO-A-SECURE-RANDOM-STRING-MIN-32-CHARS"
+  # jwt_secret: ""  # Minimum 32 characters. Generate: openssl rand -base64 32
 
   # How long JWT sessions remain valid.
   # Not currently runtime-configurable; hardcoded in internal/auth/.
-  # Default: 24h
-  session_duration: 24h
+  # Default: 168h (7 days)
+  # session_duration: 168h
 
 admin:
   # Email address for the initial admin account.
