@@ -939,6 +939,11 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		sqlSchemaHint = *challenge.SQLSchemaHint
 	}
 
+	dynamicScoringChecked := ""
+	if challenge.DynamicScoring {
+		dynamicScoringChecked = "checked"
+	}
+
 	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
 		<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">
 			<div>
@@ -981,6 +986,31 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 					</div>
 				</div>
 			</div>
+			<!-- Dynamic Scoring Section -->
+			<div class="border-t border-dark-border pt-3 mt-3">
+				<p class="text-xs font-medium text-yellow-400 mb-2">Dynamic Scoring</p>
+				<label class="flex items-center text-sm text-gray-300 cursor-pointer mb-2">
+					<input type="checkbox" name="dynamic_scoring" value="on" %s class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> Enable dynamic scoring
+				</label>
+				<p class="text-xs text-gray-500 mb-2 pl-6">Points decay linearly from Initial down to Minimum once Decay Threshold solves are reached.</p>
+				<div class="grid grid-cols-3 gap-3 pl-6">
+					<div>
+						<label class="block text-xs font-medium text-gray-300 mb-1">Initial Points</label>
+						<input type="number" name="initial_points" value="%d" min="1" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
+						<p class="text-xs text-gray-500 mt-1">Max pts (0 solves)</p>
+					</div>
+					<div>
+						<label class="block text-xs font-medium text-gray-300 mb-1">Minimum Points</label>
+						<input type="number" name="minimum_points" value="%d" min="1" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
+						<p class="text-xs text-gray-500 mt-1">Floor (never below)</p>
+					</div>
+					<div>
+						<label class="block text-xs font-medium text-gray-300 mb-1">Decay Threshold</label>
+						<input type="number" name="decay_threshold" value="%d" min="1" class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
+						<p class="text-xs text-gray-500 mt-1">Solves to reach min</p>
+					</div>
+				</div>
+			</div>
 			<div class="flex gap-2">
 				<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
 				<button type="button" hx-get="/admin/challenges/%s/view" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
@@ -996,6 +1026,10 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		sqlEnabledChecked,
 		sqlDatasetURL,
 		sqlSchemaHint,
+		dynamicScoringChecked,
+		challenge.InitialPoints,
+		challenge.MinimumPoints,
+		challenge.DecayThreshold,
 		id, id)
 
 	w.Write([]byte(html))
@@ -1290,42 +1324,42 @@ func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
 		flagMask = *question.FlagMask
 	}
 
-	html := fmt.Sprintf(`<div id="question-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+	html := fmt.Sprintf(`<div id="question-%s" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
 		<form hx-put="/api/admin/questions/%s" hx-target="closest #question-%s" hx-swap="outerHTML" class="space-y-3">
 			<div>
-				<label class="block text-xs font-medium text-gray-300 mb-1">Challenge</label>
-				<select name="challenge_id" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+				<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Challenge</label>
+				<select name="challenge_id" class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 					%s
 				</select>
 			</div>
 			<div>
-				<label class="block text-xs font-medium text-gray-300 mb-1">Question Name</label>
-				<input type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+				<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Question Name</label>
+				<input type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 			</div>
 			<div>
-				<label class="block text-xs font-medium text-gray-300 mb-1">Description</label>
-				<textarea name="description" placeholder="Question description and hints..." class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>%s</textarea>
+				<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+				<textarea name="description" placeholder="Question description and hints..." class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>%s</textarea>
 			</div>
 			<div>
-				<label class="block text-xs font-medium text-gray-300 mb-1">Flag</label>
-				<input type="text" name="flag" value="%s" placeholder="flag{...}" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+				<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Flag</label>
+				<input type="text" name="flag" value="%s" placeholder="flag{...}" class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 			</div>
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label class="block text-xs font-medium text-gray-300 mb-1">Points</label>
-					<input type="number" name="points" value="%d" placeholder="100" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+					<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Points</label>
+					<input type="number" name="points" value="%d" placeholder="100" class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-300 mb-1">Flag Mask</label>
-					<input type="text" name="flag_mask" value="%s" placeholder="flag{****}" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm">
+					<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Flag Mask</label>
+					<input type="text" name="flag_mask" value="%s" placeholder="flag{****}" class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm">
 				</div>
 			</div>
-			<label class="flex items-center text-sm text-gray-300 cursor-pointer">
-				<input type="checkbox" name="case_sensitive" value="on" %s class="w-4 h-4 rounded border-dark-border bg-dark-bg cursor-pointer mr-2"> Case sensitive flag
+			<label class="flex items-center text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+				<input type="checkbox" name="case_sensitive" value="on" %s class="w-4 h-4 rounded border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg cursor-pointer mr-2"> Case sensitive flag
 			</label>
 			<div class="flex gap-2">
 				<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
-				<button type="button" hx-get="/admin/questions/%s/view" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
+				<button type="button" hx-get="/admin/questions/%s/view" hx-target="closest #question-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-400 dark:bg-gray-600 hover:bg-gray-500 dark:hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
 			</div>
 		</form>
 	</div>`,

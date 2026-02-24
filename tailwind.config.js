@@ -2,6 +2,7 @@
 module.exports = {
   content: [
     './internal/views/templates/**/*.html',
+    './main.go',
   ],
   darkMode: 'class',
   theme: {
