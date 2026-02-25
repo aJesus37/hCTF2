@@ -48,6 +48,7 @@ import (
 	"github.com/yourusername/hctf2/internal/database"
 	"github.com/yourusername/hctf2/internal/email"
 	"github.com/yourusername/hctf2/internal/handlers"
+	"github.com/yourusername/hctf2/internal/ratelimit"
 	"github.com/yourusername/hctf2/internal/models"
 	"github.com/yourusername/hctf2/internal/telemetry"
 	"github.com/yourusername/hctf2/internal/utils"
@@ -94,7 +95,8 @@ type Server struct {
 	sqlH        *handlers.SQLHandler
 	profileH    *handlers.ProfileHandler
 	settingsH   *handlers.SettingsHandler
-	motd        string
+	motd           string
+	submitLimiter  *ratelimit.Limiter
 }
 
 // customFileHandler wraps the file server to set proper content types for WASM and workers
@@ -179,6 +181,7 @@ func main() {
 		jwtSecret        = flag.String("jwt-secret", getEnv("JWT_SECRET", ""), "JWT signing secret (min 32 chars, required in production)")
 		dev              = flag.Bool("dev", false, "Enable development mode (allows default JWT secret, relaxed security)")
 		corsOrigins      = flag.String("cors-origins", getEnv("CORS_ORIGINS", ""), "Comma-separated list of allowed CORS origins (empty = same-origin only)")
+		submissionRateLimit = flag.Int("submission-rate-limit", 5, "Max flag submissions per minute per user (0 = unlimited)")
 	)
 	flag.Parse()
 
@@ -283,7 +286,7 @@ func main() {
 		db:          db,
 		templates:   tmpl,
 		authH:       handlers.NewAuthHandler(db, emailSvc, *baseURL),
-		challengeH:  handlers.NewChallengeHandler(db),
+		challengeH:  handlers.NewChallengeHandler(db, nil),
 		scoreboardH: handlers.NewScoreboardHandler(db),
 		teamH:       handlers.NewTeamHandler(db),
 		hintH:       handlers.NewHintHandler(db),
@@ -291,6 +294,12 @@ func main() {
 		profileH:    handlers.NewProfileHandler(db),
 		settingsH:   handlers.NewSettingsHandler(db),
 		motd:        *motd,
+	}
+
+	// Initialize submission rate limiter
+	if *submissionRateLimit > 0 {
+		s.submitLimiter = ratelimit.New(*submissionRateLimit, time.Minute)
+		s.challengeH = handlers.NewChallengeHandler(db, s.submitLimiter)
 	}
 
 	// Parse CORS origins from CLI flag

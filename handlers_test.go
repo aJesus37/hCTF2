@@ -423,7 +423,7 @@ func newTestServer(db *database.DB) *Server {
 		db:          db,
 		templates:   tmpl,
 		authH:       handlers.NewAuthHandler(db, email.NewService(email.Config{}), "http://localhost:8090"),
-		challengeH:  handlers.NewChallengeHandler(db),
+		challengeH:  handlers.NewChallengeHandler(db, nil),
 		scoreboardH: handlers.NewScoreboardHandler(db),
 		sqlH:        handlers.NewSQLHandler(db),
 	}

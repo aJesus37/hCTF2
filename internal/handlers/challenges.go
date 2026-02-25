@@ -9,14 +9,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/yourusername/hctf2/internal/auth"
 	"github.com/yourusername/hctf2/internal/database"
+	"github.com/yourusername/hctf2/internal/ratelimit"
 )
 
 type ChallengeHandler struct {
-	db *database.DB
+	db            *database.DB
+	submitLimiter *ratelimit.Limiter
 }
 
-func NewChallengeHandler(db *database.DB) *ChallengeHandler {
-	return &ChallengeHandler{db: db}
+func NewChallengeHandler(db *database.DB, limiter *ratelimit.Limiter) *ChallengeHandler {
+	return &ChallengeHandler{db: db, submitLimiter: limiter}
 }
 
 // ListChallenges godoc
@@ -102,6 +104,14 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 
 	if claims == nil {
 		w.Write([]byte(`<div class="text-red-400">Unauthorized</div>`))
+		return
+	}
+
+	// Check rate limit
+	if h.submitLimiter != nil && !h.submitLimiter.Allow(claims.UserID) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte(`<div class="p-3 bg-red-900/50 border border-red-700 rounded text-red-300 text-sm">Too many attempts. Please wait before trying again.</div>`))
 		return
 	}
 
