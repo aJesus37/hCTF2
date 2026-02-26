@@ -56,29 +56,44 @@ hctf2/
 ### Making Changes
 
 1. **Read Before Editing**: Always read existing code before modifying
+1a. **Validate UI with agent-browser**: Use `npx agent-browser` to screenshot and verify EVERY UI change before marking it done — no exceptions, even for trivial changes. Run `task rebuild`, start server on a free port (`./hctf2 --port 8092 --dev`), then take a screenshot. NEVER use Python Playwright scripts — agent-browser is faster.
 2. **Force Rebuild**: Before running server, use `task rebuild` to ensure binary is fresh (task build uses caching)
 3. **Test Locally**: Changes should be testable with `task run`
-4. **Validate with agent-browser**: For UI changes, validate using agent-browser in headed mode (see Validation section)
+4. **Validate with agent-browser**: For UI changes, validate using agent-browser (see Validation section)
 5. **Update Docs**: If changing APIs or behavior, update relevant .md files
 6. **Commit Properly**: Use conventional commits (see below)
 
 ### Validation with agent-browser
 
-For browser-based projects like hCTF2, always validate UI changes:
+For browser-based projects like hCTF2, always validate UI changes using `npx agent-browser`. Commands chain with `&&` in a single shell call — the browser persists via daemon so there's no per-command startup cost.
 
 ```bash
-# 1. Force rebuild to ensure latest changes
+# 1. Force rebuild
 task rebuild
 
-# 2. Start server
-./hctf2 --port 8090
+# 2. Start server (background)
+./hctf2 --port 8092 --dev --db /tmp/hctf2_test.db \
+  --admin-email admin@test.com --admin-password testpass123 &
 
-# 3. In another terminal, open in headed mode
-npx agent-browser --headed --session hctf2 open http://localhost:8090
+# 3. Login and navigate in one chained call
+npx agent-browser --session hctf2 open http://localhost:8092/login && \
+npx agent-browser --session hctf2 fill 'input[name="email"]' admin@test.com && \
+npx agent-browser --session hctf2 fill 'input[name="password"]' testpass123 && \
+npx agent-browser --session hctf2 find role button click --name Login && \
+npx agent-browser --session hctf2 open http://localhost:8092/admin
 
-# 4. Take screenshots for documentation
-npx agent-browser --session hctf2 screenshot --full result.png
+# 4. Interact and screenshot
+npx agent-browser --session hctf2 click 'button:has-text("+ Create Challenge")' && \
+npx agent-browser --session hctf2 screenshot --full /tmp/result.png
+
+# 5. Read the screenshot with the Read tool to inspect it
 ```
+
+Key flags:
+- `--session <name>` — isolates browser state; daemon keeps browser alive between calls
+- `--full` — full-page screenshot
+- `--annotate` — numbered element labels for precise clicking
+- `snapshot -i` — accessibility tree of interactive elements (faster than screenshot for finding selectors)
 
 **What to validate:**
 - Both light and dark themes (toggle with ☀️/🌙 button)

@@ -5,6 +5,7 @@ import (
 	"html"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/yourusername/hctf2/internal/auth"
@@ -569,4 +570,40 @@ func (h *SettingsHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(""))
+}
+
+// SetScoreFreeze handles POST /api/admin/settings/freeze
+func (h *SettingsHandler) SetScoreFreeze(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	enabled := r.FormValue("freeze_enabled") == "1"
+	freezeAtStr := r.FormValue("freeze_at")
+
+	var freezeAt *time.Time
+	if freezeAtStr != "" {
+		t, err := time.Parse("2006-01-02T15:04", freezeAtStr)
+		if err == nil {
+			ft := t.UTC()
+			freezeAt = &ft
+		}
+	}
+
+	if err := h.db.SetScoreFreeze(enabled, freezeAt); err != nil {
+		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		return
+	}
+
+	frozen := h.db.IsFrozen()
+	statusText := "Live"
+	statusClass := "text-green-400"
+	if frozen {
+		statusText = "Frozen"
+		statusClass = "text-blue-400"
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<span id="freeze-status" class="%s font-semibold">%s</span>`, statusClass, statusText)
 }

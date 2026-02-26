@@ -38,6 +38,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -48,7 +49,9 @@ import (
 	"github.com/yourusername/hctf2/internal/database"
 	"github.com/yourusername/hctf2/internal/email"
 	"github.com/yourusername/hctf2/internal/handlers"
+	"github.com/yourusername/hctf2/internal/ratelimit"
 	"github.com/yourusername/hctf2/internal/models"
+	"github.com/yourusername/hctf2/internal/storage"
 	"github.com/yourusername/hctf2/internal/telemetry"
 	"github.com/yourusername/hctf2/internal/utils"
 )
@@ -84,17 +87,21 @@ func firstNonEmpty(values ...string) string {
 }
 
 type Server struct {
-	db          *database.DB
-	templates   *template.Template
-	authH       *handlers.AuthHandler
-	challengeH  *handlers.ChallengeHandler
-	scoreboardH *handlers.ScoreboardHandler
-	teamH       *handlers.TeamHandler
-	hintH       *handlers.HintHandler
-	sqlH        *handlers.SQLHandler
-	profileH    *handlers.ProfileHandler
-	settingsH   *handlers.SettingsHandler
-	motd        string
+	db               *database.DB
+	templates        *template.Template
+	authH            *handlers.AuthHandler
+	challengeH       *handlers.ChallengeHandler
+	challengeFileH   *handlers.ChallengeFileHandler
+	scoreboardH      *handlers.ScoreboardHandler
+	teamH            *handlers.TeamHandler
+	hintH            *handlers.HintHandler
+	sqlH             *handlers.SQLHandler
+	profileH         *handlers.ProfileHandler
+	settingsH        *handlers.SettingsHandler
+	importExportH    *handlers.ImportExportHandler
+	motd             string
+	submitLimiter    *ratelimit.Limiter
+	storage          storage.Storage
 }
 
 // customFileHandler wraps the file server to set proper content types for WASM and workers
@@ -179,6 +186,8 @@ func main() {
 		jwtSecret        = flag.String("jwt-secret", getEnv("JWT_SECRET", ""), "JWT signing secret (min 32 chars, required in production)")
 		dev              = flag.Bool("dev", false, "Enable development mode (allows default JWT secret, relaxed security)")
 		corsOrigins      = flag.String("cors-origins", getEnv("CORS_ORIGINS", ""), "Comma-separated list of allowed CORS origins (empty = same-origin only)")
+		submissionRateLimit = flag.Int("submission-rate-limit", 5, "Max flag submissions per minute per user (0 = unlimited)")
+		uploadDir           = flag.String("upload-dir", "./uploads", "Directory for file uploads")
 	)
 	flag.Parse()
 
@@ -278,19 +287,31 @@ func main() {
 		log.Fatalf("Failed to parse templates: %v", err)
 	}
 
+	// Initialize storage
+	stor := storage.NewLocal(*uploadDir, "/uploads")
+
 	// Initialize server
 	s := &Server{
-		db:          db,
-		templates:   tmpl,
-		authH:       handlers.NewAuthHandler(db, emailSvc, *baseURL),
-		challengeH:  handlers.NewChallengeHandler(db),
-		scoreboardH: handlers.NewScoreboardHandler(db),
-		teamH:       handlers.NewTeamHandler(db),
-		hintH:       handlers.NewHintHandler(db),
-		sqlH:        handlers.NewSQLHandler(db),
-		profileH:    handlers.NewProfileHandler(db),
-		settingsH:   handlers.NewSettingsHandler(db),
-		motd:        *motd,
+		db:               db,
+		templates:        tmpl,
+		authH:            handlers.NewAuthHandler(db, emailSvc, *baseURL),
+		challengeH:       handlers.NewChallengeHandler(db, nil, stor),
+		challengeFileH:   handlers.NewChallengeFileHandler(db, stor),
+		scoreboardH:      handlers.NewScoreboardHandler(db),
+		teamH:            handlers.NewTeamHandler(db),
+		hintH:            handlers.NewHintHandler(db),
+		sqlH:             handlers.NewSQLHandler(db),
+		profileH:         handlers.NewProfileHandler(db),
+		settingsH:        handlers.NewSettingsHandler(db),
+		importExportH:    handlers.NewImportExportHandler(db),
+		motd:             *motd,
+		storage:          stor,
+	}
+
+	// Initialize submission rate limiter
+	if *submissionRateLimit > 0 {
+		s.submitLimiter = ratelimit.New(*submissionRateLimit, time.Minute)
+		s.challengeH = handlers.NewChallengeHandler(db, s.submitLimiter, stor)
 	}
 
 	// Parse CORS origins from CLI flag
@@ -422,12 +443,28 @@ func main() {
 		r.Post("/api/hints/{id}/unlock", s.hintH.UnlockHint)
 	})
 
+	// Serve uploaded files (authenticated)
+	r.With(auth.RequireAuth).Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
+		filename := chi.URLParam(r, "*")
+		filename = filepath.Base(filename) // prevent path traversal
+		http.ServeFile(w, r, filepath.Join(*uploadDir, filename))
+	})
+
 	// API routes - Admin (protected)
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireAdmin)
 		r.Post("/api/admin/challenges", s.challengeH.CreateChallenge)
 		r.Put("/api/admin/challenges/{id}", s.challengeH.UpdateChallenge)
 		r.Delete("/api/admin/challenges/{id}", s.challengeH.DeleteChallenge)
+		r.Post("/api/admin/challenges/{id}/upload", s.challengeH.UploadChallengeFile)
+		r.Post("/api/admin/challenges/{id}/file-url", s.challengeH.SetChallengeFileURLHandler)
+		r.Delete("/api/admin/challenges/{id}/file", s.challengeH.DeleteChallengeFile)
+		// Multiple files support
+		r.Get("/api/admin/challenges/{id}/files", s.challengeFileH.ListFiles)
+		r.Post("/api/admin/challenges/{id}/files", s.challengeFileH.UploadFile)
+		r.Post("/api/admin/challenges/{id}/files/url", s.challengeFileH.AddExternalURL)
+		r.Post("/api/admin/challenges/{id}/files/batch", s.challengeFileH.BatchUpload)
+		r.Delete("/api/admin/challenge-files/{file_id}", s.challengeFileH.DeleteFile)
 		r.Post("/api/admin/questions", s.challengeH.CreateQuestion)
 		r.Put("/api/admin/questions/{id}", s.challengeH.UpdateQuestion)
 		r.Delete("/api/admin/questions/{id}", s.challengeH.DeleteQuestion)
@@ -445,6 +482,9 @@ func main() {
 		r.Get("/api/admin/users", s.settingsH.ListUsers)
 		r.Put("/api/admin/users/{id}/admin", s.settingsH.UpdateUserAdmin)
 		r.Delete("/api/admin/users/{id}", s.settingsH.DeleteUser)
+		r.Post("/api/admin/settings/freeze", s.settingsH.SetScoreFreeze)
+		r.Get("/api/admin/export", s.importExportH.ExportChallenges)
+		r.Post("/api/admin/import", s.importExportH.ImportChallenges)
 		r.Get("/api/categories-checkboxes", s.handleCategoriesCheckboxes)
 		r.Get("/api/difficulties-dropdown", s.handleDifficultiesDropdown)
 	})
@@ -460,6 +500,7 @@ func main() {
 
 	// API routes - Scoreboard
 	r.Get("/api/scoreboard", s.scoreboardH.GetScoreboard)
+	r.Get("/api/ctftime", s.scoreboardH.CTFtimeExport)
 
 	// 404 handler for unmatched routes
 	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -654,6 +695,9 @@ func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
 
 	customCode, _ := s.db.GetCustomCode("challenge")
 
+	// Get challenge files
+	challengeFiles, _ := s.db.GetChallengeFiles(id)
+
 	data := map[string]interface{}{
 		"Title":           challenge.Name,
 		"Page":            "challenge",
@@ -661,6 +705,7 @@ func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
 		"Challenge":       challenge,
 		"Questions":       questions,
 		"SolvedQuestions": solvedQuestions,
+		"ChallengeFiles":  challengeFiles,
 		"CustomCode":      customCode,
 	}
 	s.render(w, "base.html", data)
@@ -864,17 +909,33 @@ func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 
 	customCode, _ := s.db.GetCustomCode("admin")
 
+	freezeEnabled, freezeAt, _ := s.db.GetScoreFreeze()
+	freezeAtStr := ""
+	if freezeAt != nil {
+		freezeAtStr = freezeAt.Format("2006-01-02T15:04")
+	}
+
 	data := map[string]interface{}{
-		"Title":        "Admin Dashboard",
-		"Page":         "admin",
-		"User":         claims,
-		"Challenges":   challenges,
-		"Questions":    questionsWithChallenge,
-		"Hints":        hints,
-		"Categories":   categories,
-		"Difficulties": difficulties,
-		"Users":        users,
-		"CustomCode":   customCode,
+		"Title":         "Admin Dashboard",
+		"Page":          "admin",
+		"User":          claims,
+		"Challenges":    challenges,
+		"Questions":     questionsWithChallenge,
+		"Hints":         hints,
+		"Categories":    categories,
+		"Difficulties":  difficulties,
+		"Users":         users,
+		"CustomCode":    customCode,
+		"FreezeEnabled": freezeEnabled,
+		"Frozen":        s.db.IsFrozen(),
+		"FreezeAt":      freezeAtStr,
+		"BaseURL":       func() string {
+			scheme := "http"
+			if r.TLS != nil {
+				scheme = "https"
+			}
+			return scheme + "://" + r.Host
+		}(),
 	}
 	s.render(w, "base.html", data)
 }
@@ -944,11 +1005,73 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		dynamicScoringChecked = "checked"
 	}
 
+	// File attachments section (new table)
+	files, _ := s.db.GetChallengeFiles(id)
+	filesHTML := `<div class="space-y-2 mb-3">`
+	for _, f := range files {
+		sizeStr := ""
+		if f.SizeBytes != nil && *f.SizeBytes > 0 {
+			if *f.SizeBytes < 1024 {
+				sizeStr = fmt.Sprintf(" (%d bytes)", *f.SizeBytes)
+			} else if *f.SizeBytes < 1024*1024 {
+				sizeStr = fmt.Sprintf(" (%.1f KB)", float64(*f.SizeBytes)/1024)
+			} else {
+				sizeStr = fmt.Sprintf(" (%.1f MB)", float64(*f.SizeBytes)/(1024*1024))
+			}
+		}
+		filesHTML += fmt.Sprintf(`<div class="flex items-center justify-between bg-dark-bg border border-dark-border rounded p-2">
+			<div class="flex items-center gap-2">
+				<span class="text-green-400 text-sm">📎 %s%s</span>
+				<a href="%s" class="text-blue-400 hover:text-blue-300 text-sm underline" target="_blank">Download</a>
+			</div>
+			<button hx-delete="/api/admin/challenge-files/%s" hx-target="#file-section-%s" hx-swap="outerHTML" class="text-red-400 hover:text-red-300 text-xs">Remove</button>
+		</div>`, f.Filename, sizeStr, f.StoragePath, f.ID, id)
+	}
+	filesHTML += `</div>`
+
+	// Add new files form - supports multiple at once
+	fileSection := fmt.Sprintf(`%s
+	<div x-data="{ files: [{source: 'none'}] }" class="border-t border-dark-border pt-3 mt-3">
+		<p class="text-xs font-medium text-blue-400 mb-2">Add New Files</p>
+		
+		<template x-for="(file, index) in files" :key="index">
+			<div class="mb-2 p-2 bg-dark-bg border border-dark-border rounded">
+				<div class="flex gap-2 mb-1">
+					<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+						<input type="radio" :name="'newfile_' + index + '_source'" value="none" x-model="file.source" class="mr-1" checked> Skip
+					</label>
+					<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+						<input type="radio" :name="'newfile_' + index + '_source'" value="upload" x-model="file.source" class="mr-1"> Upload
+					</label>
+					<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+						<input type="radio" :name="'newfile_' + index + '_source'" value="external" x-model="file.source" class="mr-1"> URL
+					</label>
+				</div>
+				<div x-show="file.source === 'upload'">
+					<input type="file" :name="'newfile_' + index + '_file'" class="text-xs text-gray-300 w-full">
+				</div>
+				<div x-show="file.source === 'external'" class="space-y-1">
+					<input type="text" :name="'newfile_' + index + '_name'" placeholder="Filename (optional)" class="w-full px-2 py-1 bg-dark-bg border border-dark-border text-white rounded text-xs">
+					<input type="url" :name="'newfile_' + index + '_url'" placeholder="https://example.com/file.zip" class="w-full px-2 py-1 bg-dark-bg border border-dark-border text-white rounded text-xs">
+				</div>
+			</div>
+		</template>
+		
+		<div class="flex gap-2 mt-2">
+			<button type="button" @click="files.push({source: 'none'})" class="text-blue-400 hover:text-blue-300 text-xs">+ Add another</button>
+			<button type="button" 
+				hx-post="/api/admin/challenges/%s/files/batch"
+				hx-target="#file-section-%s"
+				hx-encoding="multipart/form-data"
+				class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs">Upload All</button>
+		</div>
+	</div>`, filesHTML, id, id)
+
 	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
 		<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">
 			<div>
 				<label class="block text-xs font-medium text-gray-300 mb-1">Name</label>
-				<input type="text" name="name" value="%s" placeholder="e.g., Web Security 101" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+				<input autofocus type="text" name="name" value="%s" placeholder="e.g., Web Security 101" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 			</div>
 			<div>
 				<label class="block text-xs font-medium text-gray-300 mb-1">Description</label>
@@ -1011,6 +1134,11 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 					</div>
 				</div>
 			</div>
+		<!-- File Attachment Section -->
+		<div class="border-t border-dark-border pt-3 mt-3">
+			<p class="text-xs font-medium text-blue-400 mb-2">File Attachment</p>
+			<div id="file-section-%s">%s</div>
+		</div>
 			<div class="flex gap-2">
 				<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
 				<button type="button" hx-get="/admin/challenges/%s/view" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
@@ -1030,7 +1158,7 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		challenge.InitialPoints,
 		challenge.MinimumPoints,
 		challenge.DecayThreshold,
-		id, id)
+		id, fileSection, id, id)
 
 	w.Write([]byte(html))
 }
@@ -1334,7 +1462,7 @@ func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
 			</div>
 			<div>
 				<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Question Name</label>
-				<input type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+				<input autofocus type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 			</div>
 			<div>
 				<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>

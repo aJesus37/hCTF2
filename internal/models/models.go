@@ -40,8 +40,20 @@ type Challenge struct {
 	InitialPoints  int       `json:"initial_points"`
 	MinimumPoints  int       `json:"minimum_points"`
 	DecayThreshold int       `json:"decay_threshold"`
+	FileURL        *string   `json:"file_url,omitempty"` // Deprecated: use ChallengeFiles
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// ChallengeFile represents a file attachment for a challenge
+type ChallengeFile struct {
+	ID           string    `json:"id"`
+	ChallengeID  string    `json:"challenge_id"`
+	Filename     string    `json:"filename"`
+	StorageType  string    `json:"storage_type"` // 'local' or 'external'
+	StoragePath  string    `json:"storage_path"` // URL or local path
+	SizeBytes    *int64    `json:"size_bytes,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type Question struct {

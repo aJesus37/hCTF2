@@ -74,6 +74,7 @@
                 hx-post="/api/admin/challenges"
                 hx-target="#challenges-list"
                 hx-swap="beforeend scroll:#challenges-list:bottom"
+                hx-encoding="multipart/form-data"
                 @htmx:after-request="
                     if($event.detail.successful) {
                         showCreateForm = false;
@@ -241,6 +242,39 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- File Attachments -->
+                <div class="border-t border-gray-200 dark:border-dark-border pt-4 mt-4" x-data="{ files: [{source: 'none'}] }">
+                    <h4 class="text-sm font-medium text-blue-400 mb-3">File Attachments</h4>
+                    
+                    <template x-for="(file, index) in files" :key="index">
+                        <div class="mb-3 p-3 bg-gray-100 dark:bg-dark-bg rounded">
+                            <div class="flex gap-3 mb-2">
+                                <label class="flex items-center text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                                    <input type="radio" :name="'file_' + index + '_source'" value="none" x-model="file.source" class="mr-1"> Skip
+                                </label>
+                                <label class="flex items-center text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                                    <input type="radio" :name="'file_' + index + '_source'" value="upload" x-model="file.source" class="mr-1"> Upload
+                                </label>
+                                <label class="flex items-center text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                                    <input type="radio" :name="'file_' + index + '_source'" value="external" x-model="file.source" class="mr-1"> URL
+                                </label>
+                            </div>
+                            
+                            <div x-show="file.source === 'upload'">
+                                <input type="file" :name="'file_' + index" class="text-sm text-gray-300 w-full">
+                            </div>
+                            <div x-show="file.source === 'external'" class="space-y-1">
+                                <input type="text" :name="'file_' + index + '_name'" placeholder="Filename (optional)" class="w-full px-3 py-1 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded text-sm">
+                                <input type="url" :name="'file_' + index + '_url'" placeholder="https://example.com/file.zip" class="w-full px-3 py-1 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded text-sm">
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <button type="button" @click="files.push({source: 'none'})" class="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 text-sm">
+                        + Add another file
+                    </button>
                 </div>
 
                 <div class="flex gap-3 pt-2">
@@ -693,6 +727,68 @@
 
     <!-- Settings Tab -->
     <div x-show="tab === 'settings'" class="space-y-8">
+        <!-- Score Freeze -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Score Freeze</h3>
+            <form hx-post="/api/admin/settings/freeze" hx-target="#freeze-status" class="space-y-4">
+                <div>
+                    <label class="text-xs text-gray-300 block mb-1">Freeze At (leave blank for immediate)</label>
+                    <input type="datetime-local" name="freeze_at"
+                           value="{{.FreezeAt}}"
+                           class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                </div>
+                <div class="flex items-center gap-3">
+                    <label class="text-xs text-gray-300">Freeze Enabled</label>
+                    <input type="hidden" name="freeze_enabled" value="0">
+                    <input type="checkbox" name="freeze_enabled" value="1" {{if .FreezeEnabled}}checked{{end}}
+                           class="rounded">
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
+                        Save Freeze Settings
+                    </button>
+                    <span class="text-sm text-gray-400">Status: <span id="freeze-status" class="{{if .Frozen}}text-blue-400{{else}}text-green-400{{end}} font-semibold">{{if .Frozen}}Frozen{{else}}Live{{end}}</span></span>
+                </div>
+            </form>
+        </div>
+        <!-- CTFtime Integration -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-white mb-2">CTFtime Integration</h3>
+            <p class="text-sm text-gray-400 mb-3">Enter this URL in your CTFtime event scoreboard settings:</p>
+            <div class="flex items-center gap-2">
+                <code id="ctftime-url" class="bg-gray-900 text-purple-300 px-3 py-2 rounded text-sm flex-1 select-all">{{.BaseURL}}/api/ctftime</code>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('ctftime-url').textContent.trim())"
+                        class="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition">
+                    Copy
+                </button>
+            </div>
+        </div>
+        <!-- Import / Export -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Challenge Import / Export</h3>
+            <div class="flex flex-col gap-4">
+                <!-- Export -->
+                <div>
+                    <a href="/api/admin/export" download
+                       class="inline-block px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition">
+                        Export All Challenges (JSON)
+                    </a>
+                    <p class="text-xs text-gray-400 mt-1">Downloads a JSON file with all challenges, questions, hints, categories and difficulties.</p>
+                </div>
+                <!-- Import -->
+                <div>
+                    <label class="text-xs text-gray-300 block mb-1">Import Challenges (JSON)</label>
+                    <input type="file" name="file" accept=".json"
+                           hx-post="/api/admin/import"
+                           hx-target="#import-result"
+                           hx-encoding="multipart/form-data"
+                           hx-trigger="change"
+                           class="text-sm text-gray-300 block mb-2">
+                    <div id="import-result"></div>
+                </div>
+            </div>
+        </div>
         <!-- Categories Section -->
         <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Categories</h2>

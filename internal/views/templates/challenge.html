@@ -9,6 +9,22 @@
         <span class="text-gray-500 dark:text-gray-400">Category: {{range $i, $cat := splitCategories .Challenge.Category}}{{if $i}}, {{end}}<span class="text-blue-400">{{$cat}}</span>{{end}}</span>
     </div>
     <div class="text-gray-600 dark:text-gray-300 prose dark:prose-invert max-w-none">{{markdown .Challenge.Description}}</div>
+
+    {{if .ChallengeFiles}}
+    <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <span class="text-blue-700 dark:text-blue-300 font-medium block mb-2">📎 Challenge Files:</span>
+        <div class="space-y-1">
+            {{range .ChallengeFiles}}
+            <div class="flex items-center gap-2">
+                <span class="text-gray-700 dark:text-gray-300 text-sm">{{.Filename}}</span>
+                <a href="{{.StoragePath}}" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm underline" target="_blank" download>
+                    Download
+                </a>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
 </div>
 
 <div class="space-y-6">

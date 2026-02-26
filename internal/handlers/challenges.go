@@ -9,14 +9,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/yourusername/hctf2/internal/auth"
 	"github.com/yourusername/hctf2/internal/database"
+	"github.com/yourusername/hctf2/internal/ratelimit"
+	"github.com/yourusername/hctf2/internal/storage"
 )
 
 type ChallengeHandler struct {
-	db *database.DB
+	db            *database.DB
+	submitLimiter *ratelimit.Limiter
+	storage       storage.Storage
 }
 
-func NewChallengeHandler(db *database.DB) *ChallengeHandler {
-	return &ChallengeHandler{db: db}
+func NewChallengeHandler(db *database.DB, limiter *ratelimit.Limiter, stor storage.Storage) *ChallengeHandler {
+	return &ChallengeHandler{db: db, submitLimiter: limiter, storage: stor}
 }
 
 // ListChallenges godoc
@@ -102,6 +106,14 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 
 	if claims == nil {
 		w.Write([]byte(`<div class="text-red-400">Unauthorized</div>`))
+		return
+	}
+
+	// Check rate limit
+	if h.submitLimiter != nil && !h.submitLimiter.Allow(claims.UserID) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte(`<div class="p-3 bg-red-900/50 border border-red-700 rounded text-red-300 text-sm">Too many attempts. Please wait before trying again.</div>`))
 		return
 	}
 
@@ -223,10 +235,11 @@ type CreateChallengeRequest struct {
 // CreateChallenge godoc
 // @Summary Create a new challenge (admin only)
 // @Tags Admin
-// @Accept json,application/x-www-form-urlencoded
+// @Accept json,application/x-www-form-urlencoded,multipart/form-data
 // @Produce json
 // @Security CookieAuth
 // @Param challenge body CreateChallengeRequest true "Challenge data"
+// @Param file formData file false "Optional file attachment (max 50MB)"
 // @Success 200 {object} models.Challenge
 // @Failure 400 {object} object{error=string}
 // @Failure 500 {object} object{error=string}
@@ -234,6 +247,7 @@ type CreateChallengeRequest struct {
 func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	var req CreateChallengeRequest
+	var fileURL string
 
 	if strings.Contains(contentType, "application/json") {
 		// JSON request
@@ -241,8 +255,49 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
 		}
+	} else if strings.Contains(contentType, "multipart/form-data") {
+		// Multipart form with potential file upload
+		if err := r.ParseMultipartForm(50 << 20); err != nil {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`File too large (max 50MB)`))
+			return
+		}
+		req.Name = r.FormValue("name")
+		req.Description = r.FormValue("description")
+		categories := r.Form["category"]
+		req.Category = strings.Join(categories, ",")
+		req.Difficulty = r.FormValue("difficulty")
+		req.Visible = r.FormValue("visible") == "on"
+		req.SQLEnabled = r.FormValue("sql_enabled") == "on"
+		req.DynamicScoring = r.FormValue("dynamic_scoring") == "on"
+		if initialPoints := r.FormValue("initial_points"); initialPoints != "" {
+			fmt.Sscanf(initialPoints, "%d", &req.InitialPoints)
+		} else {
+			req.InitialPoints = 1000
+		}
+		if minimumPoints := r.FormValue("minimum_points"); minimumPoints != "" {
+			fmt.Sscanf(minimumPoints, "%d", &req.MinimumPoints)
+		} else {
+			req.MinimumPoints = 100
+		}
+		if decayThreshold := r.FormValue("decay_threshold"); decayThreshold != "" {
+			fmt.Sscanf(decayThreshold, "%d", &req.DecayThreshold)
+		} else {
+			req.DecayThreshold = 100
+		}
+		datasetURL := r.FormValue("sql_dataset_url")
+		if datasetURL != "" {
+			req.SQLDatasetURL = &datasetURL
+		}
+		schemaHint := r.FormValue("sql_schema_hint")
+		if schemaHint != "" {
+			req.SQLSchemaHint = &schemaHint
+		}
+		// Handle multiple files
+		fileURL = "" // Not used anymore, we use challenge_files table
 	} else {
-		// Form data from HTMX
+		// Form data from HTMX (no file)
 		if err := r.ParseForm(); err != nil {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusBadRequest)
@@ -283,7 +338,11 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	challenge, err := h.db.CreateChallenge(req.Name, req.Description, req.Category, req.Difficulty, req.Tags, req.Visible, req.SQLEnabled, req.SQLDatasetURL, req.SQLSchemaHint, req.DynamicScoring, req.InitialPoints, req.MinimumPoints, req.DecayThreshold)
+	var fileURLPtr *string
+	if fileURL != "" {
+		fileURLPtr = &fileURL
+	}
+	challenge, err := h.db.CreateChallenge(req.Name, req.Description, req.Category, req.Difficulty, req.Tags, req.Visible, req.SQLEnabled, req.SQLDatasetURL, req.SQLSchemaHint, req.DynamicScoring, req.InitialPoints, req.MinimumPoints, req.DecayThreshold, fileURLPtr)
 	if err != nil {
 		if strings.Contains(contentType, "application/json") {
 			http.Error(w, "Failed to create challenge", http.StatusInternalServerError)
@@ -293,6 +352,40 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 			w.Write([]byte(`Failed to create challenge`))
 		}
 		return
+	}
+
+	// Process multiple files
+	if strings.Contains(contentType, "multipart/form-data") {
+		// Process uploaded files and external URLs
+		for i := 0; ; i++ {
+			sourceKey := fmt.Sprintf("file_%d_source", i)
+			source := r.FormValue(sourceKey)
+			if source == "" {
+				break // No more files
+			}
+			if source == "upload" {
+				fileKey := fmt.Sprintf("file_%d", i)
+				if file, header, err := r.FormFile(fileKey); err == nil {
+					url, err := h.storage.Upload(r.Context(), header.Filename, file)
+					file.Close()
+					if err == nil {
+						sizeBytes := header.Size
+						h.db.CreateChallengeFile(challenge.ID, header.Filename, "local", url, &sizeBytes)
+					}
+				}
+			} else if source == "external" {
+				urlKey := fmt.Sprintf("file_%d_url", i)
+				nameKey := fmt.Sprintf("file_%d_name", i)
+				externalURL := r.FormValue(urlKey)
+				if externalURL != "" {
+					filename := r.FormValue(nameKey)
+					if filename == "" {
+						filename = "external-file"
+					}
+					h.db.CreateChallengeFile(challenge.ID, filename, "external", externalURL, nil)
+				}
+			}
+		}
 	}
 
 	if strings.Contains(contentType, "application/json") {
@@ -1012,4 +1105,108 @@ func (h *ChallengeHandler) GetNextHintOrder(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]int{"nextOrder": nextOrder})
+}
+
+// UploadChallengeFile godoc
+// @Summary Upload a file attachment for a challenge (admin only)
+// @Tags Admin
+// @Accept multipart/form-data
+// @Produce html
+// @Security CookieAuth
+// @Param id path string true "Challenge ID"
+// @Param file formData file true "File to upload (max 50MB)"
+// @Success 200 {string} string "HTML fragment showing uploaded file"
+// @Failure 400 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /admin/challenges/{id}/upload [post]
+func (h *ChallengeHandler) UploadChallengeFile(w http.ResponseWriter, r *http.Request) {
+	challengeID := chi.URLParam(r, "id")
+
+	if err := r.ParseMultipartForm(50 << 20); err != nil { // 50MB
+		http.Error(w, "File too large (max 50MB)", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "No file provided", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	url, err := h.storage.Upload(r.Context(), header.Filename, file)
+	if err != nil {
+		http.Error(w, "Upload failed", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.db.SetChallengeFileURL(challengeID, url); err != nil {
+		h.storage.Delete(r.Context(), url)
+		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<div class="text-green-400 text-sm">File uploaded: <a href="%s" class="underline" target="_blank">%s</a>
+        <button hx-delete="/api/admin/challenges/%s/file" hx-target="#file-section-%s" class="ml-2 text-red-400 hover:text-red-300 text-xs">Remove</button>
+    </div>`, url, header.Filename, challengeID, challengeID)
+}
+
+// DeleteChallengeFile godoc
+// @Summary Delete a challenge's file attachment (admin only)
+// @Tags Admin
+// @Produce html
+// @Security CookieAuth
+// @Param id path string true "Challenge ID"
+// @Success 200 {string} string "HTML fragment indicating no file attached"
+// @Failure 404 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /admin/challenges/{id}/file [delete]
+func (h *ChallengeHandler) DeleteChallengeFile(w http.ResponseWriter, r *http.Request) {
+	challengeID := chi.URLParam(r, "id")
+
+	challenge, err := h.db.GetChallengeByID(challengeID)
+	if err != nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if challenge.FileURL != nil && *challenge.FileURL != "" {
+		h.storage.Delete(r.Context(), *challenge.FileURL)
+	}
+
+	if err := h.db.SetChallengeFileURL(challengeID, ""); err != nil {
+		http.Error(w, "Failed to update", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(`<div class="text-gray-400 text-sm">No file attached.</div>`))
+}
+
+// SetChallengeFileURLHandler handles POST /api/admin/challenges/{id}/file-url
+// Sets an external URL as the challenge file.
+func (h *ChallengeHandler) SetChallengeFileURLHandler(w http.ResponseWriter, r *http.Request) {
+	challengeID := chi.URLParam(r, "id")
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	externalURL := r.FormValue("external_file_url")
+	if externalURL == "" {
+		http.Error(w, "No URL provided", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.db.SetChallengeFileURL(challengeID, externalURL); err != nil {
+		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<div class="text-green-400 text-sm">File URL set: <a href="%s" class="underline" target="_blank">%s</a>
+        <button hx-delete="/api/admin/challenges/%s/file" hx-target="#file-section-%s" class="ml-2 text-red-400 hover:text-red-300 text-xs">Remove</button>
+    </div>`, externalURL, externalURL, challengeID, challengeID)
 }

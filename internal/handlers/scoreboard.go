@@ -157,3 +157,49 @@ func (h *ScoreboardHandler) GetTeamScoreboard(w http.ResponseWriter, r *http.Req
 		json.NewEncoder(w).Encode(entries)
 	}
 }
+
+// CTFtimeExport godoc
+// @Summary Export scoreboard in CTFtime.org JSON format
+// @Description Returns team standings in the format expected by CTFtime.org. No authentication required.
+// @Tags Scoreboard
+// @Produce json
+// @Success 200 {object} object{standings=[]object{pos=int,team=string,score=int}}
+// @Failure 404 {string} string "No team data available"
+// @Failure 500 {string} string "Internal server error"
+// @Router /api/ctftime [get]
+func (h *ScoreboardHandler) CTFtimeExport(w http.ResponseWriter, r *http.Request) {
+	entries, err := h.db.GetTeamScoreboard(500)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	if len(entries) == 0 {
+		http.Error(w, "No team data available", http.StatusNotFound)
+		return
+	}
+
+	type standing struct {
+		Pos   int    `json:"pos"`
+		Team  string `json:"team"`
+		Score int    `json:"score"`
+	}
+	type ctftimeResponse struct {
+		Standings []standing `json:"standings"`
+	}
+
+	resp := ctftimeResponse{}
+	for _, e := range entries {
+		name := e.UserName
+		if e.TeamName != nil {
+			name = *e.TeamName
+		}
+		resp.Standings = append(resp.Standings, standing{
+			Pos:   e.Rank,
+			Team:  name,
+			Score: e.Points,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}

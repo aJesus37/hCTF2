@@ -44,9 +44,11 @@ services:
     volumes:
       - ./data:/data
     environment:
-      DATABASE_PATH: /data/hctf2.db
-      ADMIN_EMAIL: admin@hctf.local
-      ADMIN_PASSWORD: changeme
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    command: >
+      --db /data/hctf2.db
+      --admin-email admin@hctf.local
+      --admin-password changeme
     restart: unless-stopped
 ```
 </details>
