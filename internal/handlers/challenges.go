@@ -294,12 +294,20 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		if schemaHint != "" {
 			req.SQLSchemaHint = &schemaHint
 		}
-		// Handle file upload
-		if file, header, err := r.FormFile("file"); err == nil {
-			defer file.Close()
-			url, err := h.storage.Upload(r.Context(), header.Filename, file)
-			if err == nil {
-				fileURL = url
+		// Handle file upload or external URL
+		fileSource := r.FormValue("file_source")
+		if fileSource == "upload" {
+			if file, header, err := r.FormFile("file"); err == nil {
+				defer file.Close()
+				url, err := h.storage.Upload(r.Context(), header.Filename, file)
+				if err == nil {
+					fileURL = url
+				}
+			}
+		} else if fileSource == "external" {
+			externalURL := r.FormValue("external_file_url")
+			if externalURL != "" {
+				fileURL = externalURL
 			}
 		}
 	} else {
@@ -1154,4 +1162,31 @@ func (h *ChallengeHandler) DeleteChallengeFile(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(`<div class="text-gray-400 text-sm">No file attached.</div>`))
+}
+
+// SetChallengeFileURLHandler handles POST /api/admin/challenges/{id}/file-url
+// Sets an external URL as the challenge file.
+func (h *ChallengeHandler) SetChallengeFileURLHandler(w http.ResponseWriter, r *http.Request) {
+	challengeID := chi.URLParam(r, "id")
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	externalURL := r.FormValue("external_file_url")
+	if externalURL == "" {
+		http.Error(w, "No URL provided", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.db.SetChallengeFileURL(challengeID, externalURL); err != nil {
+		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<div class="text-green-400 text-sm">File URL set: <a href="%s" class="underline" target="_blank">%s</a>
+        <button hx-delete="/api/admin/challenges/%s/file" hx-target="#file-section-%s" class="ml-2 text-red-400 hover:text-red-300 text-xs">Remove</button>
+    </div>`, externalURL, externalURL, challengeID, challengeID)
 }

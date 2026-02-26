@@ -455,6 +455,7 @@ func main() {
 		r.Put("/api/admin/challenges/{id}", s.challengeH.UpdateChallenge)
 		r.Delete("/api/admin/challenges/{id}", s.challengeH.DeleteChallenge)
 		r.Post("/api/admin/challenges/{id}/upload", s.challengeH.UploadChallengeFile)
+		r.Post("/api/admin/challenges/{id}/file-url", s.challengeH.SetChallengeFileURLHandler)
 		r.Delete("/api/admin/challenges/{id}/file", s.challengeH.DeleteChallengeFile)
 		r.Post("/api/admin/questions", s.challengeH.CreateQuestion)
 		r.Put("/api/admin/questions/{id}", s.challengeH.UpdateQuestion)
@@ -995,17 +996,38 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 	// File attachment section
 	fileSection := ""
 	if challenge.FileURL != nil && *challenge.FileURL != "" {
-		fileSection = fmt.Sprintf(`<div class="text-green-400 text-sm">File: <a href="%s" class="underline" target="_blank">%s</a>
+		fileSection = fmt.Sprintf(`<div class="text-green-400 text-sm">Current file: <a href="%s" class="underline" target="_blank">%s</a>
 			<button hx-delete="/api/admin/challenges/%s/file" hx-target="#file-section-%s" class="ml-2 text-red-400 hover:text-red-300 text-xs">Remove</button>
 		</div>`, *challenge.FileURL, *challenge.FileURL, id, id)
 	} else {
-		fileSection = fmt.Sprintf(`<label class="text-xs text-gray-300 block mb-1">Attach File (max 50MB)</label>
-			<input type="file" name="file"
-				hx-post="/api/admin/challenges/%s/upload"
-				hx-target="#file-section-%s"
-				hx-encoding="multipart/form-data"
-				hx-trigger="change"
-				class="text-sm text-gray-300">`, id, id)
+		fileSection = fmt.Sprintf(`<div x-data="{ fileSource: 'none' }">
+			<div class="flex gap-3 mb-2">
+				<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+					<input type="radio" name="file_source" value="none" x-model="fileSource" class="mr-1" checked> No file
+				</label>
+				<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+					<input type="radio" name="file_source" value="upload" x-model="fileSource" class="mr-1"> Upload
+				</label>
+				<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+					<input type="radio" name="file_source" value="external" x-model="fileSource" class="mr-1"> External URL
+				</label>
+			</div>
+			<div x-show="fileSource === 'upload'" class="mt-2">
+				<input type="file" name="file"
+					hx-post="/api/admin/challenges/%s/upload"
+					hx-target="#file-section-%s"
+					hx-encoding="multipart/form-data"
+					hx-trigger="change"
+					class="text-sm text-gray-300">
+			</div>
+			<div x-show="fileSource === 'external'" class="mt-2">
+				<input type="url" name="external_file_url" placeholder="https://example.com/file.zip" 
+					hx-post="/api/admin/challenges/%s/file-url"
+					hx-target="#file-section-%s"
+					hx-trigger="change"
+					class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
+			</div>
+		</div>`, id, id, id, id)
 	}
 
 	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
