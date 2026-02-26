@@ -4,10 +4,18 @@ definitions:
     properties:
       category:
         type: string
+      decay_threshold:
+        type: integer
       description:
         type: string
       difficulty:
         type: string
+      dynamic_scoring:
+        type: boolean
+      initial_points:
+        type: integer
+      minimum_points:
+        type: integer
       name:
         type: string
       sql_dataset_url:
@@ -64,12 +72,22 @@ definitions:
         type: string
       created_at:
         type: string
+      decay_threshold:
+        type: integer
       description:
         type: string
       difficulty:
         type: string
+      dynamic_scoring:
+        type: boolean
+      file_url:
+        type: string
       id:
         type: string
+      initial_points:
+        type: integer
+      minimum_points:
+        type: integer
       name:
         type: string
       sql_dataset_url:
@@ -385,6 +403,81 @@ paths:
       security:
       - CookieAuth: []
       summary: Update an existing challenge (admin only)
+      tags:
+      - Admin
+  /admin/challenges/{id}/file:
+    delete:
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML fragment indicating no file attached
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Delete a challenge's file attachment (admin only)
+      tags:
+      - Admin
+  /admin/challenges/{id}/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: File to upload (max 50MB)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML fragment showing uploaded file
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Upload a file attachment for a challenge (admin only)
       tags:
       - Admin
   /admin/custom-code:
@@ -907,6 +1000,40 @@ paths:
       summary: Toggle admin status for a user (admin only)
       tags:
       - Admin
+  /api/ctftime:
+    get:
+      description: Returns team standings in the format expected by CTFtime.org. No
+        authentication required.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              standings:
+                items:
+                  properties:
+                    pos:
+                      type: integer
+                    score:
+                      type: integer
+                    team:
+                      type: string
+                  type: object
+                type: array
+            type: object
+        "404":
+          description: No team data available
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Export scoreboard in CTFtime.org JSON format
+      tags:
+      - Scoreboard
   /auth/forgot-password:
     post:
       consumes:

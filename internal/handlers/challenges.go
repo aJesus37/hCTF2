@@ -1026,7 +1026,18 @@ func (h *ChallengeHandler) GetNextHintOrder(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(map[string]int{"nextOrder": nextOrder})
 }
 
-// UploadChallengeFile handles POST /api/admin/challenges/{id}/upload
+// UploadChallengeFile godoc
+// @Summary Upload a file attachment for a challenge (admin only)
+// @Tags Admin
+// @Accept multipart/form-data
+// @Produce html
+// @Security CookieAuth
+// @Param id path string true "Challenge ID"
+// @Param file formData file true "File to upload (max 50MB)"
+// @Success 200 {string} string "HTML fragment showing uploaded file"
+// @Failure 400 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /admin/challenges/{id}/upload [post]
 func (h *ChallengeHandler) UploadChallengeFile(w http.ResponseWriter, r *http.Request) {
 	challengeID := chi.URLParam(r, "id")
 
@@ -1060,7 +1071,16 @@ func (h *ChallengeHandler) UploadChallengeFile(w http.ResponseWriter, r *http.Re
     </div>`, url, header.Filename, challengeID, challengeID)
 }
 
-// DeleteChallengeFile handles DELETE /api/admin/challenges/{id}/file
+// DeleteChallengeFile godoc
+// @Summary Delete a challenge's file attachment (admin only)
+// @Tags Admin
+// @Produce html
+// @Security CookieAuth
+// @Param id path string true "Challenge ID"
+// @Success 200 {string} string "HTML fragment indicating no file attached"
+// @Failure 404 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /admin/challenges/{id}/file [delete]
 func (h *ChallengeHandler) DeleteChallengeFile(w http.ResponseWriter, r *http.Request) {
 	challengeID := chi.URLParam(r, "id")
 
