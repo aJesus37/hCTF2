@@ -1892,3 +1892,68 @@ func (db *DB) ImportBundle(categories, difficulties []string, challenges []model
 
 	return result, nil
 }
+
+// Challenge Files queries
+
+// CreateChallengeFile creates a new file record for a challenge
+func (db *DB) CreateChallengeFile(challengeID, filename, storageType, storagePath string, sizeBytes *int64) (*models.ChallengeFile, error) {
+	id := GenerateID()
+	query := `INSERT INTO challenge_files (id, challenge_id, filename, storage_type, storage_path, size_bytes)
+	          VALUES (?, ?, ?, ?, ?, ?)
+	          RETURNING id, challenge_id, filename, storage_type, storage_path, size_bytes, created_at`
+
+	var f models.ChallengeFile
+	err := db.QueryRow(query, id, challengeID, filename, storageType, storagePath, sizeBytes).Scan(
+		&f.ID, &f.ChallengeID, &f.Filename, &f.StorageType, &f.StoragePath, &f.SizeBytes, &f.CreatedAt,
+	)
+	return &f, err
+}
+
+// GetChallengeFiles returns all files for a challenge
+func (db *DB) GetChallengeFiles(challengeID string) ([]models.ChallengeFile, error) {
+	query := `SELECT id, challenge_id, filename, storage_type, storage_path, size_bytes, created_at
+	          FROM challenge_files WHERE challenge_id = ? ORDER BY created_at`
+
+	rows, err := db.Query(query, challengeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var files []models.ChallengeFile
+	for rows.Next() {
+		var f models.ChallengeFile
+		if err := rows.Scan(&f.ID, &f.ChallengeID, &f.Filename, &f.StorageType, &f.StoragePath, &f.SizeBytes, &f.CreatedAt); err != nil {
+			return nil, err
+		}
+		files = append(files, f)
+	}
+	return files, nil
+}
+
+// GetChallengeFileByID returns a single file by ID
+func (db *DB) GetChallengeFileByID(fileID string) (*models.ChallengeFile, error) {
+	query := `SELECT id, challenge_id, filename, storage_type, storage_path, size_bytes, created_at
+	          FROM challenge_files WHERE id = ?`
+
+	var f models.ChallengeFile
+	err := db.QueryRow(query, fileID).Scan(
+		&f.ID, &f.ChallengeID, &f.Filename, &f.StorageType, &f.StoragePath, &f.SizeBytes, &f.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &f, nil
+}
+
+// DeleteChallengeFile deletes a file record
+func (db *DB) DeleteChallengeFile(fileID string) error {
+	_, err := db.Exec("DELETE FROM challenge_files WHERE id = ?", fileID)
+	return err
+}
+
+// DeleteAllChallengeFiles deletes all files for a challenge
+func (db *DB) DeleteAllChallengeFiles(challengeID string) error {
+	_, err := db.Exec("DELETE FROM challenge_files WHERE challenge_id = ?", challengeID)
+	return err
+}

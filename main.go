@@ -87,20 +87,21 @@ func firstNonEmpty(values ...string) string {
 }
 
 type Server struct {
-	db            *database.DB
-	templates     *template.Template
-	authH         *handlers.AuthHandler
-	challengeH    *handlers.ChallengeHandler
-	scoreboardH   *handlers.ScoreboardHandler
-	teamH         *handlers.TeamHandler
-	hintH         *handlers.HintHandler
-	sqlH          *handlers.SQLHandler
-	profileH      *handlers.ProfileHandler
-	settingsH     *handlers.SettingsHandler
-	importExportH *handlers.ImportExportHandler
-	motd          string
-	submitLimiter *ratelimit.Limiter
-	storage       storage.Storage
+	db               *database.DB
+	templates        *template.Template
+	authH            *handlers.AuthHandler
+	challengeH       *handlers.ChallengeHandler
+	challengeFileH   *handlers.ChallengeFileHandler
+	scoreboardH      *handlers.ScoreboardHandler
+	teamH            *handlers.TeamHandler
+	hintH            *handlers.HintHandler
+	sqlH             *handlers.SQLHandler
+	profileH         *handlers.ProfileHandler
+	settingsH        *handlers.SettingsHandler
+	importExportH    *handlers.ImportExportHandler
+	motd             string
+	submitLimiter    *ratelimit.Limiter
+	storage          storage.Storage
 }
 
 // customFileHandler wraps the file server to set proper content types for WASM and workers
@@ -291,19 +292,20 @@ func main() {
 
 	// Initialize server
 	s := &Server{
-		db:            db,
-		templates:     tmpl,
-		authH:         handlers.NewAuthHandler(db, emailSvc, *baseURL),
-		challengeH:    handlers.NewChallengeHandler(db, nil, stor),
-		scoreboardH:   handlers.NewScoreboardHandler(db),
-		teamH:         handlers.NewTeamHandler(db),
-		hintH:         handlers.NewHintHandler(db),
-		sqlH:          handlers.NewSQLHandler(db),
-		profileH:      handlers.NewProfileHandler(db),
-		settingsH:     handlers.NewSettingsHandler(db),
-		importExportH: handlers.NewImportExportHandler(db),
-		motd:          *motd,
-		storage:       stor,
+		db:               db,
+		templates:        tmpl,
+		authH:            handlers.NewAuthHandler(db, emailSvc, *baseURL),
+		challengeH:       handlers.NewChallengeHandler(db, nil, stor),
+		challengeFileH:   handlers.NewChallengeFileHandler(db, stor),
+		scoreboardH:      handlers.NewScoreboardHandler(db),
+		teamH:            handlers.NewTeamHandler(db),
+		hintH:            handlers.NewHintHandler(db),
+		sqlH:             handlers.NewSQLHandler(db),
+		profileH:         handlers.NewProfileHandler(db),
+		settingsH:        handlers.NewSettingsHandler(db),
+		importExportH:    handlers.NewImportExportHandler(db),
+		motd:             *motd,
+		storage:          stor,
 	}
 
 	// Initialize submission rate limiter
@@ -457,6 +459,11 @@ func main() {
 		r.Post("/api/admin/challenges/{id}/upload", s.challengeH.UploadChallengeFile)
 		r.Post("/api/admin/challenges/{id}/file-url", s.challengeH.SetChallengeFileURLHandler)
 		r.Delete("/api/admin/challenges/{id}/file", s.challengeH.DeleteChallengeFile)
+		// Multiple files support
+		r.Get("/api/admin/challenges/{id}/files", s.challengeFileH.ListFiles)
+		r.Post("/api/admin/challenges/{id}/files", s.challengeFileH.UploadFile)
+		r.Post("/api/admin/challenges/{id}/files/url", s.challengeFileH.AddExternalURL)
+		r.Delete("/api/admin/challenge-files/{file_id}", s.challengeFileH.DeleteFile)
 		r.Post("/api/admin/questions", s.challengeH.CreateQuestion)
 		r.Put("/api/admin/questions/{id}", s.challengeH.UpdateQuestion)
 		r.Delete("/api/admin/questions/{id}", s.challengeH.DeleteQuestion)
@@ -687,6 +694,9 @@ func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
 
 	customCode, _ := s.db.GetCustomCode("challenge")
 
+	// Get challenge files
+	challengeFiles, _ := s.db.GetChallengeFiles(id)
+
 	data := map[string]interface{}{
 		"Title":           challenge.Name,
 		"Page":            "challenge",
@@ -694,6 +704,7 @@ func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
 		"Challenge":       challenge,
 		"Questions":       questions,
 		"SolvedQuestions": solvedQuestions,
+		"ChallengeFiles":  challengeFiles,
 		"CustomCode":      customCode,
 	}
 	s.render(w, "base.html", data)
@@ -993,42 +1004,63 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		dynamicScoringChecked = "checked"
 	}
 
-	// File attachment section
-	fileSection := ""
-	if challenge.FileURL != nil && *challenge.FileURL != "" {
-		fileSection = fmt.Sprintf(`<div class="text-green-400 text-sm">Current file: <a href="%s" class="underline" target="_blank">%s</a>
-			<button hx-delete="/api/admin/challenges/%s/file" hx-target="#file-section-%s" class="ml-2 text-red-400 hover:text-red-300 text-xs">Remove</button>
-		</div>`, *challenge.FileURL, *challenge.FileURL, id, id)
-	} else {
-		fileSection = fmt.Sprintf(`<div x-data="{ fileSource: 'none' }">
-			<div class="flex gap-3 mb-2">
-				<label class="flex items-center text-xs text-gray-300 cursor-pointer">
-					<input type="radio" name="file_source" value="none" x-model="fileSource" class="mr-1" checked> No file
-				</label>
-				<label class="flex items-center text-xs text-gray-300 cursor-pointer">
-					<input type="radio" name="file_source" value="upload" x-model="fileSource" class="mr-1"> Upload
-				</label>
-				<label class="flex items-center text-xs text-gray-300 cursor-pointer">
-					<input type="radio" name="file_source" value="external" x-model="fileSource" class="mr-1"> External URL
-				</label>
+	// File attachments section (new table)
+	files, _ := s.db.GetChallengeFiles(id)
+	filesHTML := `<div class="space-y-2 mb-3">`
+	for _, f := range files {
+		sizeStr := ""
+		if f.SizeBytes != nil && *f.SizeBytes > 0 {
+			if *f.SizeBytes < 1024 {
+				sizeStr = fmt.Sprintf(" (%d bytes)", *f.SizeBytes)
+			} else if *f.SizeBytes < 1024*1024 {
+				sizeStr = fmt.Sprintf(" (%.1f KB)", float64(*f.SizeBytes)/1024)
+			} else {
+				sizeStr = fmt.Sprintf(" (%.1f MB)", float64(*f.SizeBytes)/(1024*1024))
+			}
+		}
+		filesHTML += fmt.Sprintf(`<div class="flex items-center justify-between bg-dark-bg border border-dark-border rounded p-2">
+			<div class="flex items-center gap-2">
+				<span class="text-green-400 text-sm">📎 %s%s</span>
+				<a href="%s" class="text-blue-400 hover:text-blue-300 text-sm underline" target="_blank">Download</a>
 			</div>
-			<div x-show="fileSource === 'upload'" class="mt-2">
-				<input type="file" name="file"
-					hx-post="/api/admin/challenges/%s/upload"
-					hx-target="#file-section-%s"
-					hx-encoding="multipart/form-data"
-					hx-trigger="change"
-					class="text-sm text-gray-300">
-			</div>
-			<div x-show="fileSource === 'external'" class="mt-2">
-				<input type="url" name="external_file_url" placeholder="https://example.com/file.zip" 
-					hx-post="/api/admin/challenges/%s/file-url"
-					hx-target="#file-section-%s"
-					hx-trigger="change"
-					class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
-			</div>
-		</div>`, id, id, id, id)
+			<button hx-delete="/api/admin/challenge-files/%s" hx-target="#file-section-%s" hx-swap="outerHTML" class="text-red-400 hover:text-red-300 text-xs">Remove</button>
+		</div>`, f.Filename, sizeStr, f.StoragePath, f.ID, id)
 	}
+	filesHTML += `</div>`
+
+	// Add new file form
+	fileSection := fmt.Sprintf(`%s
+	<div x-data="{ fileSource: 'none' }" class="border-t border-dark-border pt-3 mt-3">
+		<p class="text-xs font-medium text-blue-400 mb-2">Add New File</p>
+		<div class="flex gap-3 mb-2">
+			<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+				<input type="radio" name="file_source" value="none" x-model="fileSource" class="mr-1" checked> No file
+			</label>
+			<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+				<input type="radio" name="file_source" value="upload" x-model="fileSource" class="mr-1"> Upload
+			</label>
+			<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+				<input type="radio" name="file_source" value="external" x-model="fileSource" class="mr-1"> External URL
+			</label>
+		</div>
+		<div x-show="fileSource === 'upload'" class="mt-2">
+			<input type="file" name="file"
+				hx-post="/api/admin/challenges/%s/files"
+				hx-target="#file-section-%s"
+				hx-encoding="multipart/form-data"
+				hx-trigger="change"
+				class="text-sm text-gray-300">
+		</div>
+		<div x-show="fileSource === 'external'" class="mt-2 space-y-2">
+			<input type="text" name="filename" placeholder="Filename (optional)" 
+				class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
+			<input type="url" name="external_url" placeholder="https://example.com/file.zip" 
+				hx-post="/api/admin/challenges/%s/files/url"
+				hx-target="#file-section-%s"
+				hx-trigger="change"
+				class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
+		</div>
+	</div>`, filesHTML, id, id, id, id)
 
 	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
 		<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">

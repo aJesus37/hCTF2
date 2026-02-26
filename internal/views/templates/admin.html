@@ -244,34 +244,10 @@
                     </div>
                 </div>
 
-                <!-- File Attachment -->
-                <div class="border-t border-gray-200 dark:border-dark-border pt-4 mt-4" x-data="{ fileSource: 'none' }">
-                    <h4 class="text-sm font-medium text-blue-400 mb-3">File Attachment</h4>
-                    
-                    <div class="flex gap-4 mb-3">
-                        <label class="flex items-center text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                            <input type="radio" name="file_source" value="none" x-model="fileSource" class="mr-2" checked>
-                            No file
-                        </label>
-                        <label class="flex items-center text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                            <input type="radio" name="file_source" value="upload" x-model="fileSource" class="mr-2">
-                            Upload file
-                        </label>
-                        <label class="flex items-center text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                            <input type="radio" name="file_source" value="external" x-model="fileSource" class="mr-2">
-                            External URL
-                        </label>
-                    </div>
-                    
-                    <div x-show="fileSource === 'upload'" x-transition class="mt-2">
-                        <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Upload File (max 50MB)</label>
-                        <input type="file" name="file" class="text-sm text-gray-300">
-                    </div>
-                    
-                    <div x-show="fileSource === 'external'" x-transition class="mt-2">
-                        <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">External URL</label>
-                        <input type="url" name="external_file_url" placeholder="https://example.com/file.zip" class="w-full px-3 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded text-sm focus:outline-none focus:border-purple-500">
-                    </div>
+                <!-- File Attachments -->
+                <div class="border-t border-gray-200 dark:border-dark-border pt-4 mt-4">
+                    <h4 class="text-sm font-medium text-blue-400 mb-3">File Attachments</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Multiple files can be attached after creating the challenge. Click "Edit" to add files.</p>
                 </div>
 
                 <div class="flex gap-3 pt-2">
