@@ -235,10 +235,11 @@ type CreateChallengeRequest struct {
 // CreateChallenge godoc
 // @Summary Create a new challenge (admin only)
 // @Tags Admin
-// @Accept json,application/x-www-form-urlencoded
+// @Accept json,application/x-www-form-urlencoded,multipart/form-data
 // @Produce json
 // @Security CookieAuth
 // @Param challenge body CreateChallengeRequest true "Challenge data"
+// @Param file formData file false "Optional file attachment (max 50MB)"
 // @Success 200 {object} models.Challenge
 // @Failure 400 {object} object{error=string}
 // @Failure 500 {object} object{error=string}
@@ -246,6 +247,7 @@ type CreateChallengeRequest struct {
 func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	var req CreateChallengeRequest
+	var fileURL string
 
 	if strings.Contains(contentType, "application/json") {
 		// JSON request
@@ -253,8 +255,55 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
 		}
+	} else if strings.Contains(contentType, "multipart/form-data") {
+		// Multipart form with potential file upload
+		if err := r.ParseMultipartForm(50 << 20); err != nil {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`File too large (max 50MB)`))
+			return
+		}
+		req.Name = r.FormValue("name")
+		req.Description = r.FormValue("description")
+		categories := r.Form["category"]
+		req.Category = strings.Join(categories, ",")
+		req.Difficulty = r.FormValue("difficulty")
+		req.Visible = r.FormValue("visible") == "on"
+		req.SQLEnabled = r.FormValue("sql_enabled") == "on"
+		req.DynamicScoring = r.FormValue("dynamic_scoring") == "on"
+		if initialPoints := r.FormValue("initial_points"); initialPoints != "" {
+			fmt.Sscanf(initialPoints, "%d", &req.InitialPoints)
+		} else {
+			req.InitialPoints = 1000
+		}
+		if minimumPoints := r.FormValue("minimum_points"); minimumPoints != "" {
+			fmt.Sscanf(minimumPoints, "%d", &req.MinimumPoints)
+		} else {
+			req.MinimumPoints = 100
+		}
+		if decayThreshold := r.FormValue("decay_threshold"); decayThreshold != "" {
+			fmt.Sscanf(decayThreshold, "%d", &req.DecayThreshold)
+		} else {
+			req.DecayThreshold = 100
+		}
+		datasetURL := r.FormValue("sql_dataset_url")
+		if datasetURL != "" {
+			req.SQLDatasetURL = &datasetURL
+		}
+		schemaHint := r.FormValue("sql_schema_hint")
+		if schemaHint != "" {
+			req.SQLSchemaHint = &schemaHint
+		}
+		// Handle file upload
+		if file, header, err := r.FormFile("file"); err == nil {
+			defer file.Close()
+			url, err := h.storage.Upload(r.Context(), header.Filename, file)
+			if err == nil {
+				fileURL = url
+			}
+		}
 	} else {
-		// Form data from HTMX
+		// Form data from HTMX (no file)
 		if err := r.ParseForm(); err != nil {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusBadRequest)
@@ -295,7 +344,11 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	challenge, err := h.db.CreateChallenge(req.Name, req.Description, req.Category, req.Difficulty, req.Tags, req.Visible, req.SQLEnabled, req.SQLDatasetURL, req.SQLSchemaHint, req.DynamicScoring, req.InitialPoints, req.MinimumPoints, req.DecayThreshold)
+	var fileURLPtr *string
+	if fileURL != "" {
+		fileURLPtr = &fileURL
+	}
+	challenge, err := h.db.CreateChallenge(req.Name, req.Description, req.Category, req.Difficulty, req.Tags, req.Visible, req.SQLEnabled, req.SQLDatasetURL, req.SQLSchemaHint, req.DynamicScoring, req.InitialPoints, req.MinimumPoints, req.DecayThreshold, fileURLPtr)
 	if err != nil {
 		if strings.Contains(contentType, "application/json") {
 			http.Error(w, "Failed to create challenge", http.StatusInternalServerError)

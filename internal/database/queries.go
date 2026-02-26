@@ -100,15 +100,15 @@ func (db *DB) GetQuestionSolveCount(questionID string) (int, error) {
 }
 
 // Challenge queries
-func (db *DB) CreateChallenge(name, description, category, difficulty string, tags *string, visible bool, sqlEnabled bool, sqlDatasetURL, sqlSchemaHint *string, dynamicScoring bool, initialPoints, minimumPoints, decayThreshold int) (*models.Challenge, error) {
+func (db *DB) CreateChallenge(name, description, category, difficulty string, tags *string, visible bool, sqlEnabled bool, sqlDatasetURL, sqlSchemaHint *string, dynamicScoring bool, initialPoints, minimumPoints, decayThreshold int, fileURL *string) (*models.Challenge, error) {
 	id := GenerateID()
-	query := `INSERT INTO challenges (id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold)
-	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	          RETURNING id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold, created_at, updated_at`
+	query := `INSERT INTO challenges (id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold, file_url)
+	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	          RETURNING id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold, file_url, created_at, updated_at`
 
 	var c models.Challenge
-	err := db.QueryRow(query, id, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint, dynamicScoring, initialPoints, minimumPoints, decayThreshold).Scan(
-		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.CreatedAt, &c.UpdatedAt,
+	err := db.QueryRow(query, id, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint, dynamicScoring, initialPoints, minimumPoints, decayThreshold, fileURL).Scan(
+		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.FileURL, &c.CreatedAt, &c.UpdatedAt,
 	)
 	return &c, err
 }

@@ -74,6 +74,7 @@
                 hx-post="/api/admin/challenges"
                 hx-target="#challenges-list"
                 hx-swap="beforeend scroll:#challenges-list:bottom"
+                hx-encoding="multipart/form-data"
                 @htmx:after-request="
                     if($event.detail.successful) {
                         showCreateForm = false;
@@ -243,10 +244,11 @@
                     </div>
                 </div>
 
-                <!-- File Attachment Info -->
+                <!-- File Attachment -->
                 <div class="border-t border-gray-200 dark:border-dark-border pt-4 mt-4">
                     <h4 class="text-sm font-medium text-blue-400 mb-3">File Attachment</h4>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Files can be attached after creating the challenge. Click "Edit" on the challenge to add file attachments.</p>
+                    <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Attach File (max 50MB)</label>
+                    <input type="file" name="file" class="text-sm text-gray-300">
                 </div>
 
                 <div class="flex gap-3 pt-2">
