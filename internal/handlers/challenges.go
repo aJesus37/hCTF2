@@ -294,22 +294,8 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		if schemaHint != "" {
 			req.SQLSchemaHint = &schemaHint
 		}
-		// Handle file upload or external URL
-		fileSource := r.FormValue("file_source")
-		if fileSource == "upload" {
-			if file, header, err := r.FormFile("file"); err == nil {
-				defer file.Close()
-				url, err := h.storage.Upload(r.Context(), header.Filename, file)
-				if err == nil {
-					fileURL = url
-				}
-			}
-		} else if fileSource == "external" {
-			externalURL := r.FormValue("external_file_url")
-			if externalURL != "" {
-				fileURL = externalURL
-			}
-		}
+		// Handle multiple files
+		fileURL = "" // Not used anymore, we use challenge_files table
 	} else {
 		// Form data from HTMX (no file)
 		if err := r.ParseForm(); err != nil {
@@ -366,6 +352,40 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 			w.Write([]byte(`Failed to create challenge`))
 		}
 		return
+	}
+
+	// Process multiple files
+	if strings.Contains(contentType, "multipart/form-data") {
+		// Process uploaded files and external URLs
+		for i := 0; ; i++ {
+			sourceKey := fmt.Sprintf("file_%d_source", i)
+			source := r.FormValue(sourceKey)
+			if source == "" {
+				break // No more files
+			}
+			if source == "upload" {
+				fileKey := fmt.Sprintf("file_%d", i)
+				if file, header, err := r.FormFile(fileKey); err == nil {
+					url, err := h.storage.Upload(r.Context(), header.Filename, file)
+					file.Close()
+					if err == nil {
+						sizeBytes := header.Size
+						h.db.CreateChallengeFile(challenge.ID, header.Filename, "local", url, &sizeBytes)
+					}
+				}
+			} else if source == "external" {
+				urlKey := fmt.Sprintf("file_%d_url", i)
+				nameKey := fmt.Sprintf("file_%d_name", i)
+				externalURL := r.FormValue(urlKey)
+				if externalURL != "" {
+					filename := r.FormValue(nameKey)
+					if filename == "" {
+						filename = "external-file"
+					}
+					h.db.CreateChallengeFile(challenge.ID, filename, "external", externalURL, nil)
+				}
+			}
+		}
 	}
 
 	if strings.Contains(contentType, "application/json") {

@@ -161,3 +161,49 @@ func (h *ChallengeFileHandler) renderFileList(w http.ResponseWriter, challengeID
 	html += `</div>`
 	w.Write([]byte(html))
 }
+
+// BatchUpload handles POST /api/admin/challenges/{id}/files/batch
+// Uploads multiple files at once from the edit form
+func (h *ChallengeFileHandler) BatchUpload(w http.ResponseWriter, r *http.Request) {
+	challengeID := chi.URLParam(r, "id")
+
+	if err := r.ParseMultipartForm(100 << 20); err != nil { // 100MB total
+		http.Error(w, "Files too large (max 100MB total)", http.StatusBadRequest)
+		return
+	}
+
+	// Process multiple files
+	for i := 0; ; i++ {
+		sourceKey := fmt.Sprintf("newfile_%d_source", i)
+		source := r.FormValue(sourceKey)
+		if source == "" {
+			break // No more files
+		}
+
+		if source == "upload" {
+			fileKey := fmt.Sprintf("newfile_%d_file", i)
+			if file, header, err := r.FormFile(fileKey); err == nil {
+				url, uploadErr := h.storage.Upload(r.Context(), header.Filename, file)
+				file.Close()
+				if uploadErr == nil {
+					sizeBytes := header.Size
+					h.db.CreateChallengeFile(challengeID, header.Filename, "local", url, &sizeBytes)
+				}
+			}
+		} else if source == "external" {
+			urlKey := fmt.Sprintf("newfile_%d_url", i)
+			nameKey := fmt.Sprintf("newfile_%d_name", i)
+			externalURL := r.FormValue(urlKey)
+			if externalURL != "" {
+				filename := r.FormValue(nameKey)
+				if filename == "" {
+					filename = "external-file"
+				}
+				h.db.CreateChallengeFile(challengeID, filename, "external", externalURL, nil)
+			}
+		}
+	}
+
+	// Return updated file list
+	h.renderFileList(w, challengeID)
+}

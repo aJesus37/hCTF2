@@ -463,6 +463,7 @@ func main() {
 		r.Get("/api/admin/challenges/{id}/files", s.challengeFileH.ListFiles)
 		r.Post("/api/admin/challenges/{id}/files", s.challengeFileH.UploadFile)
 		r.Post("/api/admin/challenges/{id}/files/url", s.challengeFileH.AddExternalURL)
+		r.Post("/api/admin/challenges/{id}/files/batch", s.challengeFileH.BatchUpload)
 		r.Delete("/api/admin/challenge-files/{file_id}", s.challengeFileH.DeleteFile)
 		r.Post("/api/admin/questions", s.challengeH.CreateQuestion)
 		r.Put("/api/admin/questions/{id}", s.challengeH.UpdateQuestion)
@@ -1028,39 +1029,43 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 	filesHTML += `</div>`
 
-	// Add new file form
+	// Add new files form - supports multiple at once
 	fileSection := fmt.Sprintf(`%s
-	<div x-data="{ fileSource: 'none' }" class="border-t border-dark-border pt-3 mt-3">
-		<p class="text-xs font-medium text-blue-400 mb-2">Add New File</p>
-		<div class="flex gap-3 mb-2">
-			<label class="flex items-center text-xs text-gray-300 cursor-pointer">
-				<input type="radio" name="file_source" value="none" x-model="fileSource" class="mr-1" checked> No file
-			</label>
-			<label class="flex items-center text-xs text-gray-300 cursor-pointer">
-				<input type="radio" name="file_source" value="upload" x-model="fileSource" class="mr-1"> Upload
-			</label>
-			<label class="flex items-center text-xs text-gray-300 cursor-pointer">
-				<input type="radio" name="file_source" value="external" x-model="fileSource" class="mr-1"> External URL
-			</label>
-		</div>
-		<div x-show="fileSource === 'upload'" class="mt-2">
-			<input type="file" name="file"
-				hx-post="/api/admin/challenges/%s/files"
+	<div x-data="{ files: [{source: 'none'}] }" class="border-t border-dark-border pt-3 mt-3">
+		<p class="text-xs font-medium text-blue-400 mb-2">Add New Files</p>
+		
+		<template x-for="(file, index) in files" :key="index">
+			<div class="mb-2 p-2 bg-dark-bg border border-dark-border rounded">
+				<div class="flex gap-2 mb-1">
+					<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+						<input type="radio" :name="'newfile_' + index + '_source'" value="none" x-model="file.source" class="mr-1" checked> Skip
+					</label>
+					<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+						<input type="radio" :name="'newfile_' + index + '_source'" value="upload" x-model="file.source" class="mr-1"> Upload
+					</label>
+					<label class="flex items-center text-xs text-gray-300 cursor-pointer">
+						<input type="radio" :name="'newfile_' + index + '_source'" value="external" x-model="file.source" class="mr-1"> URL
+					</label>
+				</div>
+				<div x-show="file.source === 'upload'">
+					<input type="file" :name="'newfile_' + index + '_file'" class="text-xs text-gray-300 w-full">
+				</div>
+				<div x-show="file.source === 'external'" class="space-y-1">
+					<input type="text" :name="'newfile_' + index + '_name'" placeholder="Filename (optional)" class="w-full px-2 py-1 bg-dark-bg border border-dark-border text-white rounded text-xs">
+					<input type="url" :name="'newfile_' + index + '_url'" placeholder="https://example.com/file.zip" class="w-full px-2 py-1 bg-dark-bg border border-dark-border text-white rounded text-xs">
+				</div>
+			</div>
+		</template>
+		
+		<div class="flex gap-2 mt-2">
+			<button type="button" @click="files.push({source: 'none'})" class="text-blue-400 hover:text-blue-300 text-xs">+ Add another</button>
+			<button type="button" 
+				hx-post="/api/admin/challenges/%s/files/batch"
 				hx-target="#file-section-%s"
 				hx-encoding="multipart/form-data"
-				hx-trigger="change"
-				class="text-sm text-gray-300">
+				class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs">Upload All</button>
 		</div>
-		<div x-show="fileSource === 'external'" class="mt-2 space-y-2">
-			<input type="text" name="filename" placeholder="Filename (optional)" 
-				class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
-			<input type="url" name="external_url" placeholder="https://example.com/file.zip" 
-				hx-post="/api/admin/challenges/%s/files/url"
-				hx-target="#file-section-%s"
-				hx-trigger="change"
-				class="w-full px-3 py-2 bg-dark-bg border border-dark-border text-white rounded text-sm focus:outline-none focus:border-purple-500">
-		</div>
-	</div>`, filesHTML, id, id, id, id)
+	</div>`, filesHTML, id, id)
 
 	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
 		<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">

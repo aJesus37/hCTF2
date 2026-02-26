@@ -245,9 +245,36 @@
                 </div>
 
                 <!-- File Attachments -->
-                <div class="border-t border-gray-200 dark:border-dark-border pt-4 mt-4">
+                <div class="border-t border-gray-200 dark:border-dark-border pt-4 mt-4" x-data="{ files: [{source: 'none'}] }">
                     <h4 class="text-sm font-medium text-blue-400 mb-3">File Attachments</h4>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Multiple files can be attached after creating the challenge. Click "Edit" to add files.</p>
+                    
+                    <template x-for="(file, index) in files" :key="index">
+                        <div class="mb-3 p-3 bg-gray-100 dark:bg-dark-bg rounded">
+                            <div class="flex gap-3 mb-2">
+                                <label class="flex items-center text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                                    <input type="radio" :name="'file_' + index + '_source'" value="none" x-model="file.source" class="mr-1"> Skip
+                                </label>
+                                <label class="flex items-center text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                                    <input type="radio" :name="'file_' + index + '_source'" value="upload" x-model="file.source" class="mr-1"> Upload
+                                </label>
+                                <label class="flex items-center text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                                    <input type="radio" :name="'file_' + index + '_source'" value="external" x-model="file.source" class="mr-1"> URL
+                                </label>
+                            </div>
+                            
+                            <div x-show="file.source === 'upload'">
+                                <input type="file" :name="'file_' + index" class="text-sm text-gray-300 w-full">
+                            </div>
+                            <div x-show="file.source === 'external'" class="space-y-1">
+                                <input type="text" :name="'file_' + index + '_name'" placeholder="Filename (optional)" class="w-full px-3 py-1 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded text-sm">
+                                <input type="url" :name="'file_' + index + '_url'" placeholder="https://example.com/file.zip" class="w-full px-3 py-1 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded text-sm">
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <button type="button" @click="files.push({source: 'none'})" class="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 text-sm">
+                        + Add another file
+                    </button>
                 </div>
 
                 <div class="flex gap-3 pt-2">
