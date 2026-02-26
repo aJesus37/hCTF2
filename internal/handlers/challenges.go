@@ -10,15 +10,17 @@ import (
 	"github.com/yourusername/hctf2/internal/auth"
 	"github.com/yourusername/hctf2/internal/database"
 	"github.com/yourusername/hctf2/internal/ratelimit"
+	"github.com/yourusername/hctf2/internal/storage"
 )
 
 type ChallengeHandler struct {
 	db            *database.DB
 	submitLimiter *ratelimit.Limiter
+	storage       storage.Storage
 }
 
-func NewChallengeHandler(db *database.DB, limiter *ratelimit.Limiter) *ChallengeHandler {
-	return &ChallengeHandler{db: db, submitLimiter: limiter}
+func NewChallengeHandler(db *database.DB, limiter *ratelimit.Limiter, stor storage.Storage) *ChallengeHandler {
+	return &ChallengeHandler{db: db, submitLimiter: limiter, storage: stor}
 }
 
 // ListChallenges godoc
@@ -1022,4 +1024,61 @@ func (h *ChallengeHandler) GetNextHintOrder(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]int{"nextOrder": nextOrder})
+}
+
+// UploadChallengeFile handles POST /api/admin/challenges/{id}/upload
+func (h *ChallengeHandler) UploadChallengeFile(w http.ResponseWriter, r *http.Request) {
+	challengeID := chi.URLParam(r, "id")
+
+	if err := r.ParseMultipartForm(50 << 20); err != nil { // 50MB
+		http.Error(w, "File too large (max 50MB)", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "No file provided", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	url, err := h.storage.Upload(r.Context(), header.Filename, file)
+	if err != nil {
+		http.Error(w, "Upload failed", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.db.SetChallengeFileURL(challengeID, url); err != nil {
+		h.storage.Delete(r.Context(), url)
+		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<div class="text-green-400 text-sm">File uploaded: <a href="%s" class="underline" target="_blank">%s</a>
+        <button hx-delete="/api/admin/challenges/%s/file" hx-target="#file-section-%s" class="ml-2 text-red-400 hover:text-red-300 text-xs">Remove</button>
+    </div>`, url, header.Filename, challengeID, challengeID)
+}
+
+// DeleteChallengeFile handles DELETE /api/admin/challenges/{id}/file
+func (h *ChallengeHandler) DeleteChallengeFile(w http.ResponseWriter, r *http.Request) {
+	challengeID := chi.URLParam(r, "id")
+
+	challenge, err := h.db.GetChallengeByID(challengeID)
+	if err != nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if challenge.FileURL != nil && *challenge.FileURL != "" {
+		h.storage.Delete(r.Context(), *challenge.FileURL)
+	}
+
+	if err := h.db.SetChallengeFileURL(challengeID, ""); err != nil {
+		http.Error(w, "Failed to update", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(`<div class="text-gray-400 text-sm">No file attached.</div>`))
 }

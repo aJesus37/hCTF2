@@ -114,7 +114,7 @@ func (db *DB) CreateChallenge(name, description, category, difficulty string, ta
 }
 
 func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
-	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), created_at, updated_at
+	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), file_url, created_at, updated_at
 	          FROM challenges`
 	if visibleOnly {
 		query += " WHERE visible = 1"
@@ -130,7 +130,7 @@ func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
 	var challenges []models.Challenge
 	for rows.Next() {
 		var c models.Challenge
-		if err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.FileURL, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		challenges = append(challenges, c)
@@ -139,12 +139,12 @@ func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
 }
 
 func (db *DB) GetChallengeByID(id string) (*models.Challenge, error) {
-	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), created_at, updated_at
+	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), file_url, created_at, updated_at
 	          FROM challenges WHERE id = ?`
 
 	var c models.Challenge
 	err := db.QueryRow(query, id).Scan(
-		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.CreatedAt, &c.UpdatedAt,
+		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.FileURL, &c.CreatedAt, &c.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -162,6 +162,16 @@ func (db *DB) UpdateChallenge(id, name, description, category, difficulty string
 
 func (db *DB) DeleteChallenge(id string) error {
 	_, err := db.Exec("DELETE FROM challenges WHERE id = ?", id)
+	return err
+}
+
+// SetChallengeFileURL updates the file_url for a challenge.
+func (db *DB) SetChallengeFileURL(challengeID, url string) error {
+	var fileURL interface{}
+	if url != "" {
+		fileURL = url
+	}
+	_, err := db.Exec(`UPDATE challenges SET file_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, fileURL, challengeID)
 	return err
 }
 
@@ -1738,4 +1748,147 @@ func (db *DB) FreezeTimestamp() *time.Time {
 		return &now
 	}
 	return freezeAt
+}
+
+// ExportBundle builds the full export payload.
+func (db *DB) ExportBundle() (*models.ExportBundle, error) {
+	bundle := &models.ExportBundle{
+		Version:    1,
+		ExportedAt: time.Now(),
+	}
+
+	// Categories
+	cats, _ := db.GetAllCategories()
+	for _, c := range cats {
+		bundle.Categories = append(bundle.Categories, c.Name)
+	}
+
+	// Difficulties
+	diffs, _ := db.GetAllDifficulties()
+	for _, d := range diffs {
+		bundle.Difficulties = append(bundle.Difficulties, d.Name)
+	}
+
+	// Challenges
+	challenges, err := db.GetChallenges(false) // include hidden
+	if err != nil {
+		return nil, err
+	}
+
+	for _, c := range challenges {
+		ec := models.ExportChallenge{
+			Name:           c.Name,
+			Description:    c.Description,
+			Category:       c.Category,
+			Difficulty:     c.Difficulty,
+			Visible:        c.Visible,
+			DynamicScoring: c.DynamicScoring,
+			InitialPoints:  c.InitialPoints,
+			MinimumPoints:  c.MinimumPoints,
+			DecayThreshold: c.DecayThreshold,
+		}
+		if c.FileURL != nil {
+			ec.FileURL = *c.FileURL
+		}
+
+		questions, err := db.GetQuestionsByChallengeID(c.ID)
+		if err != nil {
+			continue
+		}
+		for _, q := range questions {
+			eq := models.ExportQuestion{
+				Name:          q.Name,
+				Description:   q.Description,
+				Flag:          q.Flag,
+				CaseSensitive: q.CaseSensitive,
+				Points:        q.Points,
+			}
+			if q.FlagMask != nil {
+				eq.FlagMask = *q.FlagMask
+			}
+			if q.FileURL != nil {
+				eq.FileURL = *q.FileURL
+			}
+
+			hints, _ := db.GetHintsByQuestionID(q.ID)
+			for _, h := range hints {
+				eq.Hints = append(eq.Hints, models.ExportHint{
+					Content: h.Content,
+					Cost:    h.Cost,
+					Order:   h.Order,
+				})
+			}
+			ec.Questions = append(ec.Questions, eq)
+		}
+		bundle.Challenges = append(bundle.Challenges, ec)
+	}
+
+	return bundle, nil
+}
+
+// ImportBundle imports challenges from an export bundle.
+func (db *DB) ImportBundle(categories, difficulties []string, challenges []models.ExportChallenge) (*models.ImportResult, error) {
+	result := &models.ImportResult{}
+
+	// Ensure categories exist
+	for _, cat := range categories {
+		db.Exec(`INSERT OR IGNORE INTO categories (id, name, sort_order, created_at) VALUES (?, ?, 0, CURRENT_TIMESTAMP)`, GenerateID(), cat)
+	}
+	for _, diff := range difficulties {
+		db.Exec(`INSERT OR IGNORE INTO difficulties (id, name, color, text_color, sort_order, created_at) VALUES (?, ?, 'bg-gray-600', 'text-white', 0, CURRENT_TIMESTAMP)`, GenerateID(), diff)
+	}
+
+	for _, ec := range challenges {
+		// Handle duplicate names
+		name := ec.Name
+		for i := 2; ; i++ {
+			var count int
+			db.QueryRow(`SELECT COUNT(*) FROM challenges WHERE name = ?`, name).Scan(&count)
+			if count == 0 {
+				break
+			}
+			if i == 2 && name == ec.Name {
+				result.Renamed = append(result.Renamed, fmt.Sprintf("%s → %s (%d)", ec.Name, ec.Name, i))
+			}
+			name = fmt.Sprintf("%s (%d)", ec.Name, i)
+		}
+
+		cID := GenerateID()
+		var fileURL interface{}
+		if ec.FileURL != "" {
+			fileURL = ec.FileURL
+		}
+		_, err := db.Exec(`
+			INSERT INTO challenges (id, name, description, category, difficulty, visible,
+				dynamic_scoring, initial_points, minimum_points, decay_threshold, file_url, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+			cID, name, ec.Description, ec.Category, ec.Difficulty, ec.Visible,
+			ec.DynamicScoring, ec.InitialPoints, ec.MinimumPoints, ec.DecayThreshold, fileURL)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("Failed to import %q: %v", ec.Name, err))
+			continue
+		}
+
+		for _, eq := range ec.Questions {
+			qID := GenerateID()
+			var qFileURL interface{}
+			if eq.FileURL != "" {
+				qFileURL = eq.FileURL
+			}
+			db.Exec(`
+				INSERT INTO questions (id, challenge_id, name, description, flag, flag_mask, case_sensitive, points, file_url, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+				qID, cID, eq.Name, eq.Description, eq.Flag, eq.FlagMask, eq.CaseSensitive, eq.Points, qFileURL)
+
+			for _, eh := range eq.Hints {
+				db.Exec(`
+					INSERT INTO hints (id, question_id, content, cost, "order", created_at)
+					VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+					GenerateID(), qID, eh.Content, eh.Cost, eh.Order)
+			}
+		}
+		result.Imported++
+	}
+
+	return result, nil
 }

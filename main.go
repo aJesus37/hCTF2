@@ -38,6 +38,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -50,6 +51,7 @@ import (
 	"github.com/yourusername/hctf2/internal/handlers"
 	"github.com/yourusername/hctf2/internal/ratelimit"
 	"github.com/yourusername/hctf2/internal/models"
+	"github.com/yourusername/hctf2/internal/storage"
 	"github.com/yourusername/hctf2/internal/telemetry"
 	"github.com/yourusername/hctf2/internal/utils"
 )
@@ -85,18 +87,20 @@ func firstNonEmpty(values ...string) string {
 }
 
 type Server struct {
-	db          *database.DB
-	templates   *template.Template
-	authH       *handlers.AuthHandler
-	challengeH  *handlers.ChallengeHandler
-	scoreboardH *handlers.ScoreboardHandler
-	teamH       *handlers.TeamHandler
-	hintH       *handlers.HintHandler
-	sqlH        *handlers.SQLHandler
-	profileH    *handlers.ProfileHandler
-	settingsH   *handlers.SettingsHandler
-	motd           string
-	submitLimiter  *ratelimit.Limiter
+	db            *database.DB
+	templates     *template.Template
+	authH         *handlers.AuthHandler
+	challengeH    *handlers.ChallengeHandler
+	scoreboardH   *handlers.ScoreboardHandler
+	teamH         *handlers.TeamHandler
+	hintH         *handlers.HintHandler
+	sqlH          *handlers.SQLHandler
+	profileH      *handlers.ProfileHandler
+	settingsH     *handlers.SettingsHandler
+	importExportH *handlers.ImportExportHandler
+	motd          string
+	submitLimiter *ratelimit.Limiter
+	storage       storage.Storage
 }
 
 // customFileHandler wraps the file server to set proper content types for WASM and workers
@@ -182,6 +186,7 @@ func main() {
 		dev              = flag.Bool("dev", false, "Enable development mode (allows default JWT secret, relaxed security)")
 		corsOrigins      = flag.String("cors-origins", getEnv("CORS_ORIGINS", ""), "Comma-separated list of allowed CORS origins (empty = same-origin only)")
 		submissionRateLimit = flag.Int("submission-rate-limit", 5, "Max flag submissions per minute per user (0 = unlimited)")
+		uploadDir           = flag.String("upload-dir", "./uploads", "Directory for file uploads")
 	)
 	flag.Parse()
 
@@ -281,25 +286,30 @@ func main() {
 		log.Fatalf("Failed to parse templates: %v", err)
 	}
 
+	// Initialize storage
+	stor := storage.NewLocal(*uploadDir, "/uploads")
+
 	// Initialize server
 	s := &Server{
-		db:          db,
-		templates:   tmpl,
-		authH:       handlers.NewAuthHandler(db, emailSvc, *baseURL),
-		challengeH:  handlers.NewChallengeHandler(db, nil),
-		scoreboardH: handlers.NewScoreboardHandler(db),
-		teamH:       handlers.NewTeamHandler(db),
-		hintH:       handlers.NewHintHandler(db),
-		sqlH:        handlers.NewSQLHandler(db),
-		profileH:    handlers.NewProfileHandler(db),
-		settingsH:   handlers.NewSettingsHandler(db),
-		motd:        *motd,
+		db:            db,
+		templates:     tmpl,
+		authH:         handlers.NewAuthHandler(db, emailSvc, *baseURL),
+		challengeH:    handlers.NewChallengeHandler(db, nil, stor),
+		scoreboardH:   handlers.NewScoreboardHandler(db),
+		teamH:         handlers.NewTeamHandler(db),
+		hintH:         handlers.NewHintHandler(db),
+		sqlH:          handlers.NewSQLHandler(db),
+		profileH:      handlers.NewProfileHandler(db),
+		settingsH:     handlers.NewSettingsHandler(db),
+		importExportH: handlers.NewImportExportHandler(db),
+		motd:          *motd,
+		storage:       stor,
 	}
 
 	// Initialize submission rate limiter
 	if *submissionRateLimit > 0 {
 		s.submitLimiter = ratelimit.New(*submissionRateLimit, time.Minute)
-		s.challengeH = handlers.NewChallengeHandler(db, s.submitLimiter)
+		s.challengeH = handlers.NewChallengeHandler(db, s.submitLimiter, stor)
 	}
 
 	// Parse CORS origins from CLI flag
@@ -431,12 +441,21 @@ func main() {
 		r.Post("/api/hints/{id}/unlock", s.hintH.UnlockHint)
 	})
 
+	// Serve uploaded files (authenticated)
+	r.With(auth.RequireAuth).Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
+		filename := chi.URLParam(r, "*")
+		filename = filepath.Base(filename) // prevent path traversal
+		http.ServeFile(w, r, filepath.Join(*uploadDir, filename))
+	})
+
 	// API routes - Admin (protected)
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireAdmin)
 		r.Post("/api/admin/challenges", s.challengeH.CreateChallenge)
 		r.Put("/api/admin/challenges/{id}", s.challengeH.UpdateChallenge)
 		r.Delete("/api/admin/challenges/{id}", s.challengeH.DeleteChallenge)
+		r.Post("/api/admin/challenges/{id}/upload", s.challengeH.UploadChallengeFile)
+		r.Delete("/api/admin/challenges/{id}/file", s.challengeH.DeleteChallengeFile)
 		r.Post("/api/admin/questions", s.challengeH.CreateQuestion)
 		r.Put("/api/admin/questions/{id}", s.challengeH.UpdateQuestion)
 		r.Delete("/api/admin/questions/{id}", s.challengeH.DeleteQuestion)
@@ -455,6 +474,8 @@ func main() {
 		r.Put("/api/admin/users/{id}/admin", s.settingsH.UpdateUserAdmin)
 		r.Delete("/api/admin/users/{id}", s.settingsH.DeleteUser)
 		r.Post("/api/admin/settings/freeze", s.settingsH.SetScoreFreeze)
+		r.Get("/api/admin/export", s.importExportH.ExportChallenges)
+		r.Post("/api/admin/import", s.importExportH.ImportChallenges)
 		r.Get("/api/categories-checkboxes", s.handleCategoriesCheckboxes)
 		r.Get("/api/difficulties-dropdown", s.handleDifficultiesDropdown)
 	})
@@ -971,11 +992,27 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		dynamicScoringChecked = "checked"
 	}
 
+	// File attachment section
+	fileSection := ""
+	if challenge.FileURL != nil && *challenge.FileURL != "" {
+		fileSection = fmt.Sprintf(`<div class="text-green-400 text-sm">File: <a href="%s" class="underline" target="_blank">%s</a>
+			<button hx-delete="/api/admin/challenges/%s/file" hx-target="#file-section-%s" class="ml-2 text-red-400 hover:text-red-300 text-xs">Remove</button>
+		</div>`, *challenge.FileURL, *challenge.FileURL, id, id)
+	} else {
+		fileSection = fmt.Sprintf(`<label class="text-xs text-gray-300 block mb-1">Attach File (max 50MB)</label>
+			<input type="file" name="file"
+				hx-post="/api/admin/challenges/%s/upload"
+				hx-target="#file-section-%s"
+				hx-encoding="multipart/form-data"
+				hx-trigger="change"
+				class="text-sm text-gray-300">`, id, id)
+	}
+
 	html := fmt.Sprintf(`<div id="challenge-%s" class="bg-dark-surface border border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
 		<form hx-put="/api/admin/challenges/%s" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="space-y-3">
 			<div>
 				<label class="block text-xs font-medium text-gray-300 mb-1">Name</label>
-				<input type="text" name="name" value="%s" placeholder="e.g., Web Security 101" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+				<input autofocus type="text" name="name" value="%s" placeholder="e.g., Web Security 101" class="w-full px-4 py-2 bg-dark-bg border border-dark-border text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 			</div>
 			<div>
 				<label class="block text-xs font-medium text-gray-300 mb-1">Description</label>
@@ -1038,6 +1075,11 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 					</div>
 				</div>
 			</div>
+		<!-- File Attachment Section -->
+		<div class="border-t border-dark-border pt-3 mt-3">
+			<p class="text-xs font-medium text-blue-400 mb-2">File Attachment</p>
+			<div id="file-section-%s">%s</div>
+		</div>
 			<div class="flex gap-2">
 				<button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">Save</button>
 				<button type="button" hx-get="/admin/challenges/%s/view" hx-target="closest #challenge-%s" hx-swap="outerHTML" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition">Cancel</button>
@@ -1057,7 +1099,7 @@ func (s *Server) handleEditChallenge(w http.ResponseWriter, r *http.Request) {
 		challenge.InitialPoints,
 		challenge.MinimumPoints,
 		challenge.DecayThreshold,
-		id, id)
+		id, fileSection, id, id)
 
 	w.Write([]byte(html))
 }
@@ -1361,7 +1403,7 @@ func (s *Server) handleEditQuestion(w http.ResponseWriter, r *http.Request) {
 			</div>
 			<div>
 				<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Question Name</label>
-				<input type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
+				<input autofocus type="text" name="name" value="%s" placeholder="e.g., Find the SQL Injection" class="w-full px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white rounded focus:outline-none focus:border-purple-500 text-sm" required>
 			</div>
 			<div>
 				<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>

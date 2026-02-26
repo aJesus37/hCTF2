@@ -40,6 +40,7 @@ type Challenge struct {
 	InitialPoints  int       `json:"initial_points"`
 	MinimumPoints  int       `json:"minimum_points"`
 	DecayThreshold int       `json:"decay_threshold"`
+	FileURL        *string   `json:"file_url,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }

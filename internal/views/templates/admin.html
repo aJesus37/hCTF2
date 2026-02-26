@@ -730,6 +730,31 @@
                 </button>
             </div>
         </div>
+        <!-- Import / Export -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Challenge Import / Export</h3>
+            <div class="flex flex-col gap-4">
+                <!-- Export -->
+                <div>
+                    <a href="/api/admin/export" download
+                       class="inline-block px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition">
+                        Export All Challenges (JSON)
+                    </a>
+                    <p class="text-xs text-gray-400 mt-1">Downloads a JSON file with all challenges, questions, hints, categories and difficulties.</p>
+                </div>
+                <!-- Import -->
+                <div>
+                    <label class="text-xs text-gray-300 block mb-1">Import Challenges (JSON)</label>
+                    <input type="file" name="file" accept=".json"
+                           hx-post="/api/admin/import"
+                           hx-target="#import-result"
+                           hx-encoding="multipart/form-data"
+                           hx-trigger="change"
+                           class="text-sm text-gray-300 block mb-2">
+                    <div id="import-result"></div>
+                </div>
+            </div>
+        </div>
         <!-- Categories Section -->
         <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Categories</h2>
