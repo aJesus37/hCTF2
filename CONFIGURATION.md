@@ -43,8 +43,7 @@ Run `./hctf2 --help` to see all available flags:
 ```bash
 ./hctf2 \
   --port 8080 \
-  --host 0.0.0.0 \
-  --database-path /var/lib/hctf2/hctf2.db \
+  --db /var/lib/hctf2/hctf2.db \
   --jwt-secret $(openssl rand -base64 32) \
   --admin-email admin@example.com \
   --admin-password "$(read -sp 'Admin password: ' pass && echo $pass)"
@@ -55,17 +54,10 @@ Run `./hctf2 --help` to see all available flags:
 All configuration can be set via environment variables:
 
 ```bash
-# Server
-export PORT=8080
-export HOST=0.0.0.0
-
-# Database
-export DATABASE_PATH=/var/lib/hctf2/hctf2.db
-
-# Authentication
+# Authentication (only JWT_SECRET works via env var)
 export JWT_SECRET=$(openssl rand -base64 32)
-export ADMIN_EMAIL=admin@example.com
-export ADMIN_PASSWORD=securepassword123
+
+# Other settings must use CLI flags
 ```
 
 Then run:
@@ -77,21 +69,21 @@ Then run:
 
 ### Port and Host
 
-**Environment Variables:**
-- `PORT` - Server listening port (default: 8080)
-- `HOST` - Server listening address (default: 0.0.0.0)
+**Note:** Port and host can only be configured via CLI flags (`--port`, `--db` for database path).
 
 **Examples:**
 
 Local only (development):
 ```bash
-./hctf2 --host 127.0.0.1 --port 3000
+./hctf2 --port 3000
 ```
 
 All interfaces (production):
 ```bash
-./hctf2 --host 0.0.0.0 --port 8080
+./hctf2 --port 8080
 ```
+
+**Note:** The server listens on all interfaces (0.0.0.0) by default. Use a firewall to restrict access if needed.
 
 ### TLS/HTTPS
 
@@ -156,7 +148,7 @@ Allow all origins (NOT recommended for production):
 ### SQLite Database
 
 **Environment Variable:**
-- `DATABASE_PATH` - Path to SQLite database file (default: data/hctf2.db)
+- Database path defaults to `./hctf2.db` (use `--db` flag to change)
 
 **Notes:**
 - Directory must exist before running the application
@@ -167,17 +159,17 @@ Allow all origins (NOT recommended for production):
 
 Local development:
 ```bash
-./hctf2 --database-path data/hctf2.db
+./hctf2 --db data/hctf2.db
 ```
 
 Production:
 ```bash
-./hctf2 --database-path /var/lib/hctf2/hctf2.db
+./hctf2 --db /var/lib/hctf2/hctf2.db
 ```
 
 Docker:
 ```bash
-./hctf2 --database-path /data/hctf2.db
+./hctf2 --db /data/hctf2.db
 ```
 
 ### Database Location Setup
@@ -192,7 +184,7 @@ sudo chmod 750 /var/lib/hctf2
 
 Then run as the `ctf2` user:
 ```bash
-sudo -u ctf2 ./hctf2 --database-path /var/lib/hctf2/hctf2.db
+sudo -u ctf2 ./hctf2 --db /var/lib/hctf2/hctf2.db
 ```
 
 ### Backup Configuration
@@ -207,71 +199,6 @@ Database backups should be handled outside the application. Example cron job:
 ## Security Settings
 
 ### JWT Secret Configuration
-
-The JWT secret is **required** for production deployments. The server will refuse to start without a proper secret unless `--dev` mode is explicitly enabled.
-
-**Configuration Methods:**
-
-1. **Command-Line Flag:**
-   ```bash
-   ./hctf2 --jwt-secret "$(openssl rand -base64 32)"
-   ```
-
-2. **Environment Variable:**
-   ```bash
-   export JWT_SECRET="$(openssl rand -base64 32)"
-   ./hctf2
-   ```
-
-3. **Development Mode** (insecure, for local development only):
-   ```bash
-   ./hctf2 --dev
-   ```
-
-**Security Requirements:**
-- Minimum 32 characters
-- Cryptographically secure random string
-- Must be identical across all server instances in a cluster
-- Never commit to version control
-- Rotate periodically in production
-
-**Generate a Secure Secret:**
-
-Using OpenSSL (recommended):
-```bash
-openssl rand -base64 32
-```
-
-Using Python:
-```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-Using /dev/urandom:
-```bash
-cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
-```
-
-**Production vs Development:**
-
-| Mode | Command | Behavior |
-|------|---------|----------|
-| Production (default) | `./hctf2 --jwt-secret <secret>` | Requires valid JWT secret |
-| Development | `./hctf2 --dev` | Allows default insecure secret with warning |
-
-**Failure Modes:**
-
-If the JWT secret is not configured in production mode:
-```
-ERROR: JWT secret is required. Use --dev for development, or set --jwt-secret flag, JWT_SECRET env var. The secret must be at least 32 characters.
-```
-
-If the JWT secret is too short:
-```
-ERROR: Invalid JWT secret: JWT secret must be at least 32 characters
-```
-
-## Authentication Configuration
 
 The JWT secret is **required** for production deployments. The server will refuse to start without a proper secret unless `--dev` mode is explicitly enabled.
 
@@ -409,8 +336,7 @@ These flags set up the initial administrator account. Subsequent runs don't requ
 - [ ] Set strong JWT secret with 256+ bits entropy
 - [ ] Use strong admin password (12+ characters)
 - [ ] Run behind HTTPS reverse proxy (nginx/Apache)
-- [ ] Set `Host: 0.0.0.0` to listen on all interfaces (or specific IP)
-- [ ] Use firewall to restrict access to port 8080 if needed
+- [ ] Use firewall to restrict access to the application port if needed
 - [ ] Enable database backups (daily minimum)
 - [ ] Monitor disk space for database growth
 - [ ] Configure log rotation
@@ -442,10 +368,12 @@ docker build -t hctf2 .
 docker run -d \
   --name hctf2 \
   -p 8080:8080 \
-  -e ADMIN_EMAIL=admin@example.com \
-  -e ADMIN_PASSWORD=password123 \
+  -e JWT_SECRET="$(openssl rand -base64 32)" \
   -v hctf2-data:/data \
-  hctf2
+  hctf2 \
+  --db /data/hctf2.db \
+  --admin-email admin@example.com \
+  --admin-password password123
 ```
 
 ## Troubleshooting Configuration
@@ -465,12 +393,13 @@ lsof -i :8080
 If you get "permission denied" errors:
 
 ```bash
-# Check permissions
-ls -la data/hctf2.db
+# Check permissions (adjust path as needed)
+ls -la hctf2.db
+ls -la /var/lib/hctf2/hctf2.db
 
 # Fix permissions (if needed)
-chmod 644 data/hctf2.db
-chmod 755 data/
+chmod 644 hctf2.db
+chmod 755 ./
 ```
 
 ### JWT Token Issues
@@ -641,11 +570,12 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 If migrations fail on startup:
 
 ```bash
-# Check database integrity
-sqlite3 data/hctf2.db "PRAGMA integrity_check;"
+# Check database integrity (adjust path as needed)
+sqlite3 hctf2.db "PRAGMA integrity_check;"
+sqlite3 /var/lib/hctf2/hctf2.db "PRAGMA integrity_check;"
 
 # For corrupted database, restore from backup
-cp /backups/hctf2-latest.db data/hctf2.db
+cp /backups/hctf2-latest.db hctf2.db
 ```
 
 ## Example Configurations
@@ -679,10 +609,11 @@ docker run -d \
   --restart unless-stopped \
   -p 127.0.0.1:8080:8080 \
   -e JWT_SECRET="$(openssl rand -base64 32)" \
-  -e ADMIN_EMAIL=admin@example.com \
-  -e ADMIN_PASSWORD=securepassword123 \
   -v /var/lib/hctf2:/data \
-  hctf2:latest
+  hctf2:latest \
+  --db /data/hctf2.db \
+  --admin-email admin@example.com \
+  --admin-password securepassword123
 ```
 
 Then use nginx/Apache for TLS termination and load balancing.

@@ -9,11 +9,6 @@ services:
     volumes:
       # Persist database
       - hctf2-data:/app/data
-    environment:
-      # Optional: Set admin credentials on first run
-      # Uncomment and change these values
-      # ADMIN_EMAIL: admin@hctf.local
-      # ADMIN_PASSWORD: changeme
     command:
       - --port
       - "8090"
