@@ -378,7 +378,7 @@ type ScoreEvolutionSeries struct {
 
 // GetScoreEvolution returns score history for top N users
 func (db *DB) GetScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSeries, error) {
-	// Get top N users by current score
+	// Get top N users by current score (include all users, not just non-admins)
 	topUsersQuery := `
 		SELECT u.id, u.name, COALESCE(SUM(q.points), 0) - COALESCE(hint_costs.total_cost, 0) as points
 		FROM users u
@@ -390,7 +390,6 @@ func (db *DB) GetScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSer
 			JOIN hints h ON hu.hint_id = h.id
 			GROUP BY hu.user_id
 		) hint_costs ON u.id = hint_costs.user_id
-		WHERE u.is_admin = 0
 		GROUP BY u.id, u.name, hint_costs.total_cost
 		ORDER BY points DESC
 		LIMIT ?
