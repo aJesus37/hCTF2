@@ -346,7 +346,22 @@ These flags set up the initial administrator account. Subsequent runs don't requ
 - 90-day retention (old data automatically cleaned up)
 - Chart.js renders the visualization client-side
 
-**No configuration required** — works out of the box.
+**Configuration:** None required — works out of the box.
+
+### Admin Visibility in Scoreboard
+
+**Current Status:** Admins are hidden from scoreboard by default.
+
+**Configuration:**
+- Go to **Admin Dashboard → Settings tab**
+- Toggle "Show Admins in Scoreboard"
+- Save settings
+
+**Behavior:**
+- When **enabled**: Admin users and teams owned by admins appear in both scoreboard and score evolution chart
+- When **disabled** (default): Admin users and teams are excluded from scoreboard and chart rankings
+
+This allows CTF organizers to participate without affecting competition rankings.
 
 ## Production Settings
 
