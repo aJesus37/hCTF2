@@ -752,6 +752,21 @@
                 </div>
             </form>
         </div>
+        
+        <!-- Score Evolution Chart -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Score Evolution Chart</h3>
+            <p class="text-sm text-gray-400 mb-3">The scoreboard displays a chart showing top 20 competitors' scores over time. Data is recorded every 15 minutes automatically.</p>
+            <div class="flex items-center gap-3">
+                <button hx-post="/api/admin/scoreboard/force-record" 
+                        hx-target="#force-record-status"
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition">
+                    Force Record Now
+                </button>
+                <span id="force-record-status" class="text-sm text-gray-400"></span>
+            </div>
+        </div>
+        
         <!-- CTFtime Integration -->
         <div class="bg-gray-800 rounded-lg p-6 mb-6">
             <h3 class="text-lg font-semibold text-white mb-2">CTFtime Integration</h3>

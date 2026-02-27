@@ -12,11 +12,17 @@ import (
 )
 
 type ScoreboardHandler struct {
-	db *database.DB
+	db       *database.DB
+	recorder ScoreRecorder
 }
 
-func NewScoreboardHandler(db *database.DB) *ScoreboardHandler {
-	return &ScoreboardHandler{db: db}
+// ScoreRecorder interface for the background recorder
+type ScoreRecorder interface {
+	ForceRecord() error
+}
+
+func NewScoreboardHandler(db *database.DB, recorder ScoreRecorder) *ScoreboardHandler {
+	return &ScoreboardHandler{db: db, recorder: recorder}
 }
 
 // GetScoreboard godoc
@@ -240,6 +246,29 @@ func (h *ScoreboardHandler) GetScoreEvolution(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// ForceScoreRecord godoc
+// @Summary Manually trigger score recording (admin only)
+// @Description Forces the background score recorder to capture a snapshot immediately. Admin only.
+// @Tags Scoreboard
+// @Security CookieAuth
+// @Success 200 {object} object{message=string}
+// @Failure 500 {object} object{error=string}
+// @Router /api/admin/scoreboard/force-record [post]
+func (h *ScoreboardHandler) ForceScoreRecord(w http.ResponseWriter, r *http.Request) {
+	if h.recorder == nil {
+		http.Error(w, `{"error":"score recorder not initialized"}`, http.StatusInternalServerError)
+		return
+	}
+	
+	if err := h.recorder.ForceRecord(); err != nil {
+		http.Error(w, `{"error":"failed to trigger recording"}`, http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Score recording triggered successfully"})
 }
 
 func formatEvolutionForChart(series []database.ScoreEvolutionSeries) map[string]interface{} {

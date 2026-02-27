@@ -59,6 +59,13 @@ func (r *Recorder) Stop() {
 	}
 }
 
+// ForceRecord triggers an immediate score recording (for admin manual trigger)
+func (r *Recorder) ForceRecord() error {
+	ctx := context.Background()
+	r.record(ctx)
+	return nil
+}
+
 func (r *Recorder) record(ctx context.Context) {
 	entries, err := r.db.GetScoreboard(r.topN)
 	if err != nil {

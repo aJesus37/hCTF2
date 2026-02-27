@@ -299,7 +299,7 @@ func main() {
 		authH:            handlers.NewAuthHandler(db, emailSvc, *baseURL),
 		challengeH:       handlers.NewChallengeHandler(db, nil, stor),
 		challengeFileH:   handlers.NewChallengeFileHandler(db, stor),
-		scoreboardH:      handlers.NewScoreboardHandler(db),
+		scoreboardH:      handlers.NewScoreboardHandler(db, nil), // recorder set after init
 		teamH:            handlers.NewTeamHandler(db),
 		hintH:            handlers.NewHintHandler(db),
 		sqlH:             handlers.NewSQLHandler(db),
@@ -318,6 +318,7 @@ func main() {
 
 	// Initialize score recorder (records top 20 scores every 15 minutes)
 	s.scoreRecorder = scorerecorder.New(db, 15*time.Minute, 20)
+	s.scoreboardH = handlers.NewScoreboardHandler(db, s.scoreRecorder)
 	s.scoreRecorder.Start()
 
 	// Parse CORS origins from CLI flag
@@ -491,6 +492,7 @@ func main() {
 		r.Post("/api/admin/settings/freeze", s.settingsH.SetScoreFreeze)
 		r.Get("/api/admin/export", s.importExportH.ExportChallenges)
 		r.Post("/api/admin/import", s.importExportH.ImportChallenges)
+		r.Post("/api/admin/scoreboard/force-record", s.scoreboardH.ForceScoreRecord)
 		r.Get("/api/categories-checkboxes", s.handleCategoriesCheckboxes)
 		r.Get("/api/difficulties-dropdown", s.handleDifficultiesDropdown)
 	})
