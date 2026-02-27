@@ -51,6 +51,7 @@ import (
 	"github.com/yourusername/hctf2/internal/handlers"
 	"github.com/yourusername/hctf2/internal/ratelimit"
 	"github.com/yourusername/hctf2/internal/models"
+	"github.com/yourusername/hctf2/internal/scorerecorder"
 	"github.com/yourusername/hctf2/internal/storage"
 	"github.com/yourusername/hctf2/internal/telemetry"
 	"github.com/yourusername/hctf2/internal/utils"
@@ -102,6 +103,7 @@ type Server struct {
 	motd             string
 	submitLimiter    *ratelimit.Limiter
 	storage          storage.Storage
+	scoreRecorder    *scorerecorder.Recorder
 }
 
 // customFileHandler wraps the file server to set proper content types for WASM and workers
@@ -313,6 +315,10 @@ func main() {
 		s.submitLimiter = ratelimit.New(*submissionRateLimit, time.Minute)
 		s.challengeH = handlers.NewChallengeHandler(db, s.submitLimiter, stor)
 	}
+
+	// Initialize score recorder (records top 20 scores every 15 minutes)
+	s.scoreRecorder = scorerecorder.New(db, 15*time.Minute, 20)
+	s.scoreRecorder.Start()
 
 	// Parse CORS origins from CLI flag
 	var allowedOrigins []string
@@ -530,6 +536,10 @@ func main() {
 		<-sigChan
 
 		log.Println("\nShutting down server...")
+		
+		// Stop score recorder
+		s.scoreRecorder.Stop()
+		
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
