@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Score evolution chart on scoreboard — visual timeline showing top 20 competitors' scores over time using Chart.js
+- Background score recorder — captures score snapshots every 15 minutes for historical tracking
 - Configurable JWT secret via --jwt-secret flag, JWT_SECRET env var, or config file
 - SQLite WAL mode for improved concurrent performance
 - Configurable CORS origins (default: same-origin only)

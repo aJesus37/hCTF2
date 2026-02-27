@@ -460,12 +460,19 @@ The following features have been implemented:
 11. ✅ **SQL Playground for Challenges** - Enable SQL mode per challenge
 12. ✅ **Enhanced Profile Links** - Clickable user names throughout
 13. ✅ **Dark/Light Theme Toggle** - Theme switching with persistence
+14. ✅ **Score Evolution Chart** - Chart.js visualization of top competitors' scores over time
+15. ✅ **File Attachments** - Local storage for challenge files (S3-ready interface)
+16. ✅ **Dynamic Scoring** - Points decay based on number of solves
+17. ✅ **Score Freezing** - Freeze scoreboard at competition end
+18. ✅ **CTFtime.org Export** - JSON format for CTFtime integration
+19. ✅ **Rate Limiting** - Per-user flag submission limits
+20. ✅ **Challenge Import/Export** - JSON format for backup and sharing
 
 ### Planned Features
 
-1. **File Uploads** - Add local storage or S3 integration for challenge files
-2. **Real-time Notifications** - WebSocket-based solve notifications
-3. **Challenge Docker Integration** - Per-challenge container spawning
+1. **Real-time Notifications** - WebSocket-based solve notifications
+2. **Challenge Docker Integration** - Per-challenge container spawning
+3. **S3 Storage Backend** - Alternative to local file storage
 
 ## Questions to Ask
 
@@ -487,11 +494,13 @@ Handlers are organized by domain in `internal/handlers/`:
 | ChallengeHandler | `challenges.go` | Challenges, questions, submissions, hints CRUD |
 | TeamHandler | `teams.go` | Team creation, joining, management |
 | HintHandler | `hints.go` | Hint viewing and unlocking |
-| ScoreboardHandler | `scoreboard.go` | Scoreboard data and rankings |
+| ScoreboardHandler | `scoreboard.go` | Scoreboard data, rankings, and evolution chart API |
 | ProfileHandler | `profile.go` | User profile pages and stats |
 | SettingsHandler | `settings.go` | Admin site settings, categories, difficulties, user management |
 | SQLHandler | `sql.go` | SQL Playground snapshot API |
 | UserHandler | `settings.go` | User management (admin panel for users) |
+| ChallengeFileHandler | `challengefiles.go` | File upload/download for challenges |
+| ImportExportHandler | `import_export.go` | Challenge import/export in JSON format |
 
 Page handlers (in `main.go`) route to templates; API handlers return JSON or HTMX fragments.
 

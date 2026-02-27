@@ -329,6 +329,25 @@ These flags set up the initial administrator account. Subsequent runs don't requ
 
 **Visibility:** Public (visible to all users)
 
+### Score Evolution Chart
+
+**Current Status:** Enabled by default. Shows a line chart of top competitors' scores over time.
+
+**Features:**
+- Visual timeline showing score progression for top 20 users
+- Toggle button to show/hide the chart
+- Automatically switches between individual and team modes
+- Dark/light theme support
+- Updates every 30 seconds (synchronized with scoreboard)
+
+**How it works:**
+- Background recorder captures score snapshots every 15 minutes
+- Data is stored in the `score_history` table
+- 90-day retention (old data automatically cleaned up)
+- Chart.js renders the visualization client-side
+
+**No configuration required** — works out of the box.
+
 ## Production Settings
 
 ### Security Hardening Checklist
