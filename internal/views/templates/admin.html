@@ -752,6 +752,27 @@
                 </div>
             </form>
         </div>
+
+        <!-- Admin Visibility in Scoreboard -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Admin Visibility</h3>
+            <form hx-post="/api/admin/settings/admin-visibility" hx-target="#admin-visibility-status" class="space-y-4">
+                <p class="text-sm text-gray-400">Control whether admin users and teams owned by admins appear in the scoreboard and score evolution chart.</p>
+                <div class="flex items-center gap-3">
+                    <label class="text-xs text-gray-300">Show Admins in Scoreboard</label>
+                    <input type="hidden" name="admin_visible" value="0">
+                    <input type="checkbox" name="admin_visible" value="1" {{if .AdminVisibleInScoreboard}}checked{{end}}
+                           class="rounded">
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">
+                        Save Visibility Settings
+                    </button>
+                    <span class="text-sm text-gray-400">Status: <span id="admin-visibility-status" class="font-semibold">{{if .AdminVisibleInScoreboard}}Visible{{else}}Hidden{{end}}</span></span>
+                </div>
+            </form>
+        </div>
         
         <!-- Score Evolution Chart -->
         <div class="bg-gray-800 rounded-lg p-6 mb-6">

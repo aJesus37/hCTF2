@@ -490,6 +490,7 @@ func main() {
 		r.Put("/api/admin/users/{id}/admin", s.settingsH.UpdateUserAdmin)
 		r.Delete("/api/admin/users/{id}", s.settingsH.DeleteUser)
 		r.Post("/api/admin/settings/freeze", s.settingsH.SetScoreFreeze)
+		r.Post("/api/admin/settings/admin-visibility", s.settingsH.SetAdminVisibility)
 		r.Get("/api/admin/export", s.importExportH.ExportChallenges)
 		r.Post("/api/admin/import", s.importExportH.ImportChallenges)
 		r.Post("/api/admin/scoreboard/force-record", s.scoreboardH.ForceScoreRecord)
@@ -928,20 +929,23 @@ func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		freezeAtStr = freezeAt.Format("2006-01-02T15:04")
 	}
 
+	adminVisible := s.db.GetAdminVisibleInScoreboard()
+
 	data := map[string]interface{}{
-		"Title":         "Admin Dashboard",
-		"Page":          "admin",
-		"User":          claims,
-		"Challenges":    challenges,
-		"Questions":     questionsWithChallenge,
-		"Hints":         hints,
-		"Categories":    categories,
-		"Difficulties":  difficulties,
-		"Users":         users,
-		"CustomCode":    customCode,
-		"FreezeEnabled": freezeEnabled,
-		"Frozen":        s.db.IsFrozen(),
-		"FreezeAt":      freezeAtStr,
+		"Title":                   "Admin Dashboard",
+		"Page":                    "admin",
+		"User":                    claims,
+		"Challenges":              challenges,
+		"Questions":               questionsWithChallenge,
+		"Hints":                   hints,
+		"Categories":              categories,
+		"Difficulties":            difficulties,
+		"Users":                   users,
+		"CustomCode":              customCode,
+		"FreezeEnabled":           freezeEnabled,
+		"Frozen":                  s.db.IsFrozen(),
+		"FreezeAt":                freezeAtStr,
+		"AdminVisibleInScoreboard": adminVisible,
 		"BaseURL":       func() string {
 			scheme := "http"
 			if r.TLS != nil {

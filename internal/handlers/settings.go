@@ -607,3 +607,26 @@ func (h *SettingsHandler) SetScoreFreeze(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `<span id="freeze-status" class="%s font-semibold">%s</span>`, statusClass, statusText)
 }
+
+// SetAdminVisibility handles POST /api/admin/settings/admin-visibility
+func (h *SettingsHandler) SetAdminVisibility(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	visible := r.FormValue("admin_visible") == "1"
+
+	if err := h.db.SetAdminVisibleInScoreboard(visible); err != nil {
+		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		return
+	}
+
+	statusText := "Hidden"
+	if visible {
+		statusText = "Visible"
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<span id="admin-visibility-status" class="font-semibold">%s</span>`, statusText)
+}

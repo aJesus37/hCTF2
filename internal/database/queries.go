@@ -294,6 +294,13 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 		args = append(args, ft.UTC().Format("2006-01-02 15:04:05"))
 	}
 
+	// Check if admins should be visible
+	adminVisible := db.GetAdminVisibleInScoreboard()
+	adminFilter := ""
+	if !adminVisible {
+		adminFilter = " WHERE u.is_admin = 0"
+	}
+
 	query := fmt.Sprintf(`
 		SELECT
 			u.id as user_id,
@@ -313,10 +320,11 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 			JOIN hints h ON hu.hint_id = h.id
 			GROUP BY hu.user_id
 		) hint_costs ON u.id = hint_costs.user_id
+		%s
 		GROUP BY u.id, u.name, u.team_id, t.name, hint_costs.total_cost
 		ORDER BY points DESC, last_solve ASC
 		LIMIT ?
-	`, freezeCond)
+	`, freezeCond, adminFilter)
 
 	args = append(args, limit)
 	rows, err := db.Query(query, args...)
@@ -378,8 +386,15 @@ type ScoreEvolutionSeries struct {
 
 // GetScoreEvolution returns score history for top N users
 func (db *DB) GetScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSeries, error) {
-	// Get top N users by current score (include all users, not just non-admins)
-	topUsersQuery := `
+	// Check if admins should be visible
+	adminVisible := db.GetAdminVisibleInScoreboard()
+	adminFilter := ""
+	if !adminVisible {
+		adminFilter = "WHERE u.is_admin = 0"
+	}
+
+	// Get top N users by current score
+	topUsersQuery := fmt.Sprintf(`
 		SELECT u.id, u.name, COALESCE(SUM(q.points), 0) - COALESCE(hint_costs.total_cost, 0) as points
 		FROM users u
 		LEFT JOIN submissions s ON u.id = s.user_id AND s.is_correct = 1
@@ -390,10 +405,11 @@ func (db *DB) GetScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSer
 			JOIN hints h ON hu.hint_id = h.id
 			GROUP BY hu.user_id
 		) hint_costs ON u.id = hint_costs.user_id
+		%s
 		GROUP BY u.id, u.name, hint_costs.total_cost
 		ORDER BY points DESC
 		LIMIT ?
-	`
+	`, adminFilter)
 
 	rows, err := db.Query(topUsersQuery, limit)
 	if err != nil {
@@ -451,6 +467,24 @@ func (db *DB) GetScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSer
 func (db *DB) CleanupScoreHistory(retentionDays int) error {
 	query := `DELETE FROM score_history WHERE recorded_at < datetime('now', '-? days')`
 	_, err := db.Exec(query, retentionDays)
+	return err
+}
+
+// GetAdminVisibleInScoreboard returns whether admins should appear in scoreboard
+func (db *DB) GetAdminVisibleInScoreboard() bool {
+	var visible bool
+	query := `SELECT COALESCE(admin_visible_in_scoreboard, 0) FROM settings LIMIT 1`
+	err := db.QueryRow(query).Scan(&visible)
+	if err != nil {
+		return false // Default to hidden
+	}
+	return visible
+}
+
+// SetAdminVisibleInScoreboard sets whether admins appear in scoreboard
+func (db *DB) SetAdminVisibleInScoreboard(visible bool) error {
+	query := `UPDATE settings SET admin_visible_in_scoreboard = ?`
+	_, err := db.Exec(query, visible)
 	return err
 }
 
