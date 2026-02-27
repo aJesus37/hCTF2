@@ -467,6 +467,94 @@ func (db *DB) GetScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSer
 	return result, nil
 }
 
+// GetTeamScoreEvolution returns score history for top N teams.
+// At each timestamp, computes team total as sum of each member's latest score.
+func (db *DB) GetTeamScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSeries, error) {
+	// Get top N teams by current score
+	topTeamsQuery := `
+		SELECT t.id, t.name
+		FROM teams t
+		WHERE EXISTS (
+			SELECT 1 FROM score_history sh
+			WHERE sh.team_id = t.id AND sh.recorded_at >= ?
+		)
+		ORDER BY (
+			SELECT COALESCE(SUM(latest_score.score), 0)
+			FROM (
+				SELECT sh.user_id, sh.score
+				FROM score_history sh
+				WHERE sh.team_id = t.id
+				AND sh.recorded_at = (
+					SELECT MAX(sh2.recorded_at) FROM score_history sh2
+					WHERE sh2.user_id = sh.user_id AND sh2.team_id = t.id
+				)
+				GROUP BY sh.user_id
+			) latest_score
+		) DESC
+		LIMIT ?
+	`
+
+	rows, err := db.Query(topTeamsQuery, since, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var teamIDs []string
+	var teamNames []string
+	for rows.Next() {
+		var id, name string
+		if err := rows.Scan(&id, &name); err != nil {
+			return nil, err
+		}
+		teamIDs = append(teamIDs, id)
+		teamNames = append(teamNames, name)
+	}
+
+	var result []ScoreEvolutionSeries
+	for i, teamID := range teamIDs {
+		// Get all individual score records for this team, ordered by time
+		historyQuery := `
+			SELECT user_id, recorded_at, score
+			FROM score_history
+			WHERE team_id = ? AND recorded_at >= ?
+			ORDER BY recorded_at ASC
+		`
+		histRows, err := db.Query(historyQuery, teamID, since)
+		if err != nil {
+			return nil, err
+		}
+
+		// Build team total at each event: sum of each member's latest score
+		userLatest := make(map[string]int) // user_id -> latest score
+		var points []ScoreEvolutionPoint
+		for histRows.Next() {
+			var userID string
+			var p ScoreEvolutionPoint
+			if err := histRows.Scan(&userID, &p.RecordedAt, &p.Score); err != nil {
+				histRows.Close()
+				return nil, err
+			}
+			userLatest[userID] = p.Score
+			// Sum all members' latest scores
+			total := 0
+			for _, s := range userLatest {
+				total += s
+			}
+			points = append(points, ScoreEvolutionPoint{RecordedAt: p.RecordedAt, Score: total})
+		}
+		histRows.Close()
+
+		result = append(result, ScoreEvolutionSeries{
+			UserID: teamID,
+			Name:   teamNames[i],
+			Scores: points,
+		})
+	}
+
+	return result, nil
+}
+
 // CleanupScoreHistory removes old records beyond retention period
 func (db *DB) CleanupScoreHistory(retentionDays int) error {
 	query := `DELETE FROM score_history WHERE recorded_at < datetime('now', '-? days')`

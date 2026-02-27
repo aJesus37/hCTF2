@@ -233,10 +233,18 @@ func (h *ScoreboardHandler) GetScoreEvolution(w http.ResponseWriter, r *http.Req
 		}
 	}
 
+	mode := r.URL.Query().Get("mode")
+
 	// Get data for last 7 days
 	since := time.Now().Add(-7 * 24 * time.Hour)
 
-	series, err := h.db.GetScoreEvolution(limit, since)
+	var series []database.ScoreEvolutionSeries
+	var err error
+	if mode == "team" {
+		series, err = h.db.GetTeamScoreEvolution(limit, since)
+	} else {
+		series, err = h.db.GetScoreEvolution(limit, since)
+	}
 	if err != nil {
 		http.Error(w, `{"error":"failed to fetch evolution"}`, http.StatusInternalServerError)
 		return
