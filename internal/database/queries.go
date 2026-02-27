@@ -356,6 +356,105 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 	return entries, nil
 }
 
+// InsertScoreHistory records a user's score snapshot
+func (db *DB) InsertScoreHistory(userID, teamID string, score, solveCount int) error {
+	query := `INSERT INTO score_history (id, user_id, team_id, score, solve_count) VALUES (?, ?, ?, ?, ?)`
+	_, err := db.Exec(query, GenerateID(), userID, teamID, score, solveCount)
+	return err
+}
+
+// ScoreEvolutionPoint represents a single data point for the chart
+type ScoreEvolutionPoint struct {
+	RecordedAt time.Time `json:"recorded_at"`
+	Score      int       `json:"score"`
+}
+
+// ScoreEvolutionSeries represents one user's score over time
+type ScoreEvolutionSeries struct {
+	UserID string                `json:"id"`
+	Name   string                `json:"name"`
+	Scores []ScoreEvolutionPoint `json:"scores"`
+}
+
+// GetScoreEvolution returns score history for top N users
+func (db *DB) GetScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSeries, error) {
+	// Get top N users by current score
+	topUsersQuery := `
+		SELECT u.id, u.name, COALESCE(SUM(q.points), 0) - COALESCE(hint_costs.total_cost, 0) as points
+		FROM users u
+		LEFT JOIN submissions s ON u.id = s.user_id AND s.is_correct = 1
+		LEFT JOIN questions q ON s.question_id = q.id
+		LEFT JOIN (
+			SELECT hu.user_id, SUM(h.cost) as total_cost
+			FROM hint_unlocks hu
+			JOIN hints h ON hu.hint_id = h.id
+			GROUP BY hu.user_id
+		) hint_costs ON u.id = hint_costs.user_id
+		WHERE u.is_admin = 0
+		GROUP BY u.id, u.name, hint_costs.total_cost
+		ORDER BY points DESC
+		LIMIT ?
+	`
+
+	rows, err := db.Query(topUsersQuery, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var userIDs []string
+	var userNames []string
+	for rows.Next() {
+		var id, name string
+		var points int
+		if err := rows.Scan(&id, &name, &points); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, id)
+		userNames = append(userNames, name)
+	}
+
+	var result []ScoreEvolutionSeries
+	for i, userID := range userIDs {
+		historyQuery := `
+			SELECT recorded_at, score 
+			FROM score_history 
+			WHERE user_id = ? AND recorded_at >= ?
+			ORDER BY recorded_at ASC
+		`
+		histRows, err := db.Query(historyQuery, userID, since)
+		if err != nil {
+			return nil, err
+		}
+
+		var points []ScoreEvolutionPoint
+		for histRows.Next() {
+			var p ScoreEvolutionPoint
+			if err := histRows.Scan(&p.RecordedAt, &p.Score); err != nil {
+				histRows.Close()
+				return nil, err
+			}
+			points = append(points, p)
+		}
+		histRows.Close()
+
+		result = append(result, ScoreEvolutionSeries{
+			UserID: userID,
+			Name:   userNames[i],
+			Scores: points,
+		})
+	}
+
+	return result, nil
+}
+
+// CleanupScoreHistory removes old records beyond retention period
+func (db *DB) CleanupScoreHistory(retentionDays int) error {
+	query := `DELETE FROM score_history WHERE recorded_at < datetime('now', '-? days')`
+	_, err := db.Exec(query, retentionDays)
+	return err
+}
+
 // Helper function to generate flag mask
 func generateFlagMask(flag string) string {
 	// Find the flag format (e.g., FLAG{...})
