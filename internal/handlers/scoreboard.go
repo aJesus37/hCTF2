@@ -19,6 +19,7 @@ type ScoreboardHandler struct {
 // ScoreRecorder interface for the background recorder
 type ScoreRecorder interface {
 	ForceRecord() error
+	RecordUser(userID string)
 }
 
 func NewScoreboardHandler(db *database.DB, recorder ScoreRecorder) *ScoreboardHandler {
@@ -272,11 +273,11 @@ func (h *ScoreboardHandler) ForceScoreRecord(w http.ResponseWriter, r *http.Requ
 }
 
 func formatEvolutionForChart(series []database.ScoreEvolutionSeries) map[string]interface{} {
-	// Collect all timestamps
+	// Collect all unique timestamps (second-level granularity)
 	timeMap := make(map[string]bool)
 	for _, s := range series {
 		for _, p := range s.Scores {
-			timeMap[p.RecordedAt.Format("15:04")] = true
+			timeMap[p.RecordedAt.Format("15:04:05")] = true
 		}
 	}
 
@@ -292,18 +293,24 @@ func formatEvolutionForChart(series []database.ScoreEvolutionSeries) map[string]
 
 	var chartSeries []map[string]interface{}
 	for i, s := range series {
+		// Build a map of interval -> latest score for this user
+		scoreAt := make(map[string]int)
+		for _, p := range s.Scores {
+			key := p.RecordedAt.Format("15:04:05")
+			scoreAt[key] = p.Score // last write wins (latest score at that second)
+		}
+
 		scores := make([]int, len(intervals))
-		// Fill in scores
+		hasValue := false
+		lastScore := 0
 		for j, interval := range intervals {
-			for _, p := range s.Scores {
-				if p.RecordedAt.Format("15:04") == interval {
-					scores[j] = p.Score
-					break
-				}
-			}
-			// Carry forward previous score if no data point
-			if j > 0 && scores[j] == 0 {
-				scores[j] = scores[j-1]
+			if val, ok := scoreAt[interval]; ok {
+				scores[j] = val
+				lastScore = val
+				hasValue = true
+			} else if hasValue {
+				// Carry forward previous score
+				scores[j] = lastScore
 			}
 		}
 

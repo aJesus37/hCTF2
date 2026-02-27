@@ -16,6 +16,7 @@ services:
       - "8090"
       - --db
       - /app/data/hctf2.db
+      - --dev
       - --admin-email
       - admin@hctf.local
       - --admin-password

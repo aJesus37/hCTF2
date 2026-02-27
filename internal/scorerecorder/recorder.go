@@ -66,6 +66,28 @@ func (r *Recorder) ForceRecord() error {
 	return nil
 }
 
+// RecordUser records a single user's current score immediately
+func (r *Recorder) RecordUser(userID string) {
+	entries, err := r.db.GetScoreboard(999999)
+	if err != nil {
+		log.Printf("[Recorder] Failed to get scoreboard for user %s: %v", userID, err)
+		return
+	}
+
+	for _, entry := range entries {
+		if entry.UserID == userID {
+			teamID := ""
+			if entry.TeamID != nil {
+				teamID = *entry.TeamID
+			}
+			if err := r.db.InsertScoreHistory(entry.UserID, teamID, entry.Points, entry.SolveCount); err != nil {
+				log.Printf("[Recorder] Failed to record score for user %s: %v", userID, err)
+			}
+			return
+		}
+	}
+}
+
 func (r *Recorder) record(ctx context.Context) {
 	entries, err := r.db.GetScoreboard(r.topN)
 	if err != nil {

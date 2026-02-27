@@ -615,6 +615,7 @@ func (h *SettingsHandler) SetAdminVisibility(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Checkbox sends "1" when checked, nothing when unchecked
 	visible := r.FormValue("admin_visible") == "1"
 
 	if err := h.db.SetAdminVisibleInScoreboard(visible); err != nil {

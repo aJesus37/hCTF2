@@ -367,7 +367,11 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 // InsertScoreHistory records a user's score snapshot
 func (db *DB) InsertScoreHistory(userID, teamID string, score, solveCount int) error {
 	query := `INSERT INTO score_history (id, user_id, team_id, score, solve_count) VALUES (?, ?, ?, ?, ?)`
-	_, err := db.Exec(query, GenerateID(), userID, teamID, score, solveCount)
+	var teamIDParam interface{}
+	if teamID != "" {
+		teamIDParam = teamID
+	}
+	_, err := db.Exec(query, GenerateID(), userID, teamIDParam, score, solveCount)
 	return err
 }
 

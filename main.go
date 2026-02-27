@@ -292,20 +292,24 @@ func main() {
 	// Initialize storage
 	stor := storage.NewLocal(*uploadDir, "/uploads")
 
+	// Initialize score recorder (records top 20 scores every 15 minutes)
+	recorder := scorerecorder.New(db, 15*time.Minute, 20)
+
 	// Initialize server
 	s := &Server{
 		db:               db,
 		templates:        tmpl,
 		authH:            handlers.NewAuthHandler(db, emailSvc, *baseURL),
-		challengeH:       handlers.NewChallengeHandler(db, nil, stor),
+		challengeH:       handlers.NewChallengeHandler(db, nil, stor, recorder),
 		challengeFileH:   handlers.NewChallengeFileHandler(db, stor),
-		scoreboardH:      handlers.NewScoreboardHandler(db, nil), // recorder set after init
+		scoreboardH:      handlers.NewScoreboardHandler(db, recorder),
 		teamH:            handlers.NewTeamHandler(db),
 		hintH:            handlers.NewHintHandler(db),
 		sqlH:             handlers.NewSQLHandler(db),
 		profileH:         handlers.NewProfileHandler(db),
 		settingsH:        handlers.NewSettingsHandler(db),
 		importExportH:    handlers.NewImportExportHandler(db),
+		scoreRecorder:    recorder,
 		motd:             *motd,
 		storage:          stor,
 	}
@@ -313,12 +317,9 @@ func main() {
 	// Initialize submission rate limiter
 	if *submissionRateLimit > 0 {
 		s.submitLimiter = ratelimit.New(*submissionRateLimit, time.Minute)
-		s.challengeH = handlers.NewChallengeHandler(db, s.submitLimiter, stor)
+		s.challengeH = handlers.NewChallengeHandler(db, s.submitLimiter, stor, recorder)
 	}
 
-	// Initialize score recorder (records top 20 scores every 15 minutes)
-	s.scoreRecorder = scorerecorder.New(db, 15*time.Minute, 20)
-	s.scoreboardH = handlers.NewScoreboardHandler(db, s.scoreRecorder)
 	s.scoreRecorder.Start()
 
 	// Parse CORS origins from CLI flag
