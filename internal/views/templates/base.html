@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="/static/css/custom.css">
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
+    {{if eq .Page "scoreboard"}}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    {{end}}
     <style>
         body {
             background-color: #0f172a;

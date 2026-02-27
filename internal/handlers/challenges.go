@@ -17,10 +17,11 @@ type ChallengeHandler struct {
 	db            *database.DB
 	submitLimiter *ratelimit.Limiter
 	storage       storage.Storage
+	recorder      ScoreRecorder
 }
 
-func NewChallengeHandler(db *database.DB, limiter *ratelimit.Limiter, stor storage.Storage) *ChallengeHandler {
-	return &ChallengeHandler{db: db, submitLimiter: limiter, storage: stor}
+func NewChallengeHandler(db *database.DB, limiter *ratelimit.Limiter, stor storage.Storage, recorder ScoreRecorder) *ChallengeHandler {
+	return &ChallengeHandler{db: db, submitLimiter: limiter, storage: stor, recorder: recorder}
 }
 
 // ListChallenges godoc
@@ -203,6 +204,11 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 		pointsEarned := basePoints - hintCost
 		if pointsEarned < 0 {
 			pointsEarned = 0
+		}
+
+		// Record score snapshot immediately for chart granularity
+		if h.recorder != nil {
+			go h.recorder.RecordUser(claims.UserID)
 		}
 
 		// Show hint cost info if hints were used

@@ -51,6 +51,7 @@ import (
 	"github.com/yourusername/hctf2/internal/handlers"
 	"github.com/yourusername/hctf2/internal/ratelimit"
 	"github.com/yourusername/hctf2/internal/models"
+	"github.com/yourusername/hctf2/internal/scorerecorder"
 	"github.com/yourusername/hctf2/internal/storage"
 	"github.com/yourusername/hctf2/internal/telemetry"
 	"github.com/yourusername/hctf2/internal/utils"
@@ -102,6 +103,7 @@ type Server struct {
 	motd             string
 	submitLimiter    *ratelimit.Limiter
 	storage          storage.Storage
+	scoreRecorder    *scorerecorder.Recorder
 }
 
 // customFileHandler wraps the file server to set proper content types for WASM and workers
@@ -290,20 +292,24 @@ func main() {
 	// Initialize storage
 	stor := storage.NewLocal(*uploadDir, "/uploads")
 
+	// Initialize score recorder (records top 20 scores every 15 minutes)
+	recorder := scorerecorder.New(db, 15*time.Minute, 20)
+
 	// Initialize server
 	s := &Server{
 		db:               db,
 		templates:        tmpl,
 		authH:            handlers.NewAuthHandler(db, emailSvc, *baseURL),
-		challengeH:       handlers.NewChallengeHandler(db, nil, stor),
+		challengeH:       handlers.NewChallengeHandler(db, nil, stor, recorder),
 		challengeFileH:   handlers.NewChallengeFileHandler(db, stor),
-		scoreboardH:      handlers.NewScoreboardHandler(db),
+		scoreboardH:      handlers.NewScoreboardHandler(db, recorder),
 		teamH:            handlers.NewTeamHandler(db),
 		hintH:            handlers.NewHintHandler(db),
 		sqlH:             handlers.NewSQLHandler(db),
 		profileH:         handlers.NewProfileHandler(db),
 		settingsH:        handlers.NewSettingsHandler(db),
 		importExportH:    handlers.NewImportExportHandler(db),
+		scoreRecorder:    recorder,
 		motd:             *motd,
 		storage:          stor,
 	}
@@ -311,8 +317,10 @@ func main() {
 	// Initialize submission rate limiter
 	if *submissionRateLimit > 0 {
 		s.submitLimiter = ratelimit.New(*submissionRateLimit, time.Minute)
-		s.challengeH = handlers.NewChallengeHandler(db, s.submitLimiter, stor)
+		s.challengeH = handlers.NewChallengeHandler(db, s.submitLimiter, stor, recorder)
 	}
+
+	s.scoreRecorder.Start()
 
 	// Parse CORS origins from CLI flag
 	var allowedOrigins []string
@@ -483,8 +491,10 @@ func main() {
 		r.Put("/api/admin/users/{id}/admin", s.settingsH.UpdateUserAdmin)
 		r.Delete("/api/admin/users/{id}", s.settingsH.DeleteUser)
 		r.Post("/api/admin/settings/freeze", s.settingsH.SetScoreFreeze)
+		r.Post("/api/admin/settings/admin-visibility", s.settingsH.SetAdminVisibility)
 		r.Get("/api/admin/export", s.importExportH.ExportChallenges)
 		r.Post("/api/admin/import", s.importExportH.ImportChallenges)
+		r.Post("/api/admin/scoreboard/force-record", s.scoreboardH.ForceScoreRecord)
 		r.Get("/api/categories-checkboxes", s.handleCategoriesCheckboxes)
 		r.Get("/api/difficulties-dropdown", s.handleDifficultiesDropdown)
 	})
@@ -500,6 +510,7 @@ func main() {
 
 	// API routes - Scoreboard
 	r.Get("/api/scoreboard", s.scoreboardH.GetScoreboard)
+	r.Get("/api/scoreboard/evolution", s.scoreboardH.GetScoreEvolution)
 	r.Get("/api/ctftime", s.scoreboardH.CTFtimeExport)
 
 	// 404 handler for unmatched routes
@@ -529,6 +540,10 @@ func main() {
 		<-sigChan
 
 		log.Println("\nShutting down server...")
+		
+		// Stop score recorder
+		s.scoreRecorder.Stop()
+		
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
@@ -915,20 +930,23 @@ func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		freezeAtStr = freezeAt.Format("2006-01-02T15:04")
 	}
 
+	adminVisible := s.db.GetAdminVisibleInScoreboard()
+
 	data := map[string]interface{}{
-		"Title":         "Admin Dashboard",
-		"Page":          "admin",
-		"User":          claims,
-		"Challenges":    challenges,
-		"Questions":     questionsWithChallenge,
-		"Hints":         hints,
-		"Categories":    categories,
-		"Difficulties":  difficulties,
-		"Users":         users,
-		"CustomCode":    customCode,
-		"FreezeEnabled": freezeEnabled,
-		"Frozen":        s.db.IsFrozen(),
-		"FreezeAt":      freezeAtStr,
+		"Title":                   "Admin Dashboard",
+		"Page":                    "admin",
+		"User":                    claims,
+		"Challenges":              challenges,
+		"Questions":               questionsWithChallenge,
+		"Hints":                   hints,
+		"Categories":              categories,
+		"Difficulties":            difficulties,
+		"Users":                   users,
+		"CustomCode":              customCode,
+		"FreezeEnabled":           freezeEnabled,
+		"Frozen":                  s.db.IsFrozen(),
+		"FreezeAt":                freezeAtStr,
+		"AdminVisibleInScoreboard": adminVisible,
 		"BaseURL":       func() string {
 			scheme := "http"
 			if r.TLS != nil {

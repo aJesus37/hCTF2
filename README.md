@@ -18,6 +18,7 @@ A self-hosted CTF (Capture The Flag) platform. Single binary, no dependencies, r
 - **Challenge management** — categories, difficulties, flag masking, point hints
 - **Team play** — create teams, invite-link based joining, team scoreboard
 - **SQL Playground** — per-challenge DuckDB WASM sandbox for SQL-style CTF challenges
+- **Score evolution chart** — visual timeline of top competitors' scores using Chart.js
 - **Dark/light theme** — persistent toggle, no flash of unstyled content
 - **Admin panel** — full CRUD for challenges, questions, hints, categories, users
 - **OpenAPI docs** — browsable Swagger UI at `/api/openapi`

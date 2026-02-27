@@ -294,6 +294,13 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 		args = append(args, ft.UTC().Format("2006-01-02 15:04:05"))
 	}
 
+	// Check if admins should be visible
+	adminVisible := db.GetAdminVisibleInScoreboard()
+	adminFilter := ""
+	if !adminVisible {
+		adminFilter = " WHERE u.is_admin = 0"
+	}
+
 	query := fmt.Sprintf(`
 		SELECT
 			u.id as user_id,
@@ -313,10 +320,11 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 			JOIN hints h ON hu.hint_id = h.id
 			GROUP BY hu.user_id
 		) hint_costs ON u.id = hint_costs.user_id
+		%s
 		GROUP BY u.id, u.name, u.team_id, t.name, hint_costs.total_cost
 		ORDER BY points DESC, last_solve ASC
 		LIMIT ?
-	`, freezeCond)
+	`, freezeCond, adminFilter)
 
 	args = append(args, limit)
 	rows, err := db.Query(query, args...)
@@ -354,6 +362,227 @@ func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 		entries = append(entries, e)
 	}
 	return entries, nil
+}
+
+// InsertScoreHistory records a user's score snapshot
+func (db *DB) InsertScoreHistory(userID, teamID string, score, solveCount int) error {
+	query := `INSERT INTO score_history (id, user_id, team_id, score, solve_count) VALUES (?, ?, ?, ?, ?)`
+	var teamIDParam interface{}
+	if teamID != "" {
+		teamIDParam = teamID
+	}
+	_, err := db.Exec(query, GenerateID(), userID, teamIDParam, score, solveCount)
+	return err
+}
+
+// ScoreEvolutionPoint represents a single data point for the chart
+type ScoreEvolutionPoint struct {
+	RecordedAt time.Time `json:"recorded_at"`
+	Score      int       `json:"score"`
+}
+
+// ScoreEvolutionSeries represents one user's score over time
+type ScoreEvolutionSeries struct {
+	UserID string                `json:"id"`
+	Name   string                `json:"name"`
+	Scores []ScoreEvolutionPoint `json:"scores"`
+}
+
+// GetScoreEvolution returns score history for top N users
+func (db *DB) GetScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSeries, error) {
+	// Check if admins should be visible
+	adminVisible := db.GetAdminVisibleInScoreboard()
+	adminFilter := ""
+	if !adminVisible {
+		adminFilter = "WHERE u.is_admin = 0"
+	}
+
+	// Get top N users by current score
+	topUsersQuery := fmt.Sprintf(`
+		SELECT u.id, u.name, COALESCE(SUM(q.points), 0) - COALESCE(hint_costs.total_cost, 0) as points
+		FROM users u
+		LEFT JOIN submissions s ON u.id = s.user_id AND s.is_correct = 1
+		LEFT JOIN questions q ON s.question_id = q.id
+		LEFT JOIN (
+			SELECT hu.user_id, SUM(h.cost) as total_cost
+			FROM hint_unlocks hu
+			JOIN hints h ON hu.hint_id = h.id
+			GROUP BY hu.user_id
+		) hint_costs ON u.id = hint_costs.user_id
+		%s
+		GROUP BY u.id, u.name, hint_costs.total_cost
+		ORDER BY points DESC
+		LIMIT ?
+	`, adminFilter)
+
+	rows, err := db.Query(topUsersQuery, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var userIDs []string
+	var userNames []string
+	for rows.Next() {
+		var id, name string
+		var points int
+		if err := rows.Scan(&id, &name, &points); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, id)
+		userNames = append(userNames, name)
+	}
+
+	var result []ScoreEvolutionSeries
+	for i, userID := range userIDs {
+		historyQuery := `
+			SELECT recorded_at, score 
+			FROM score_history 
+			WHERE user_id = ? AND recorded_at >= ?
+			ORDER BY recorded_at ASC
+		`
+		histRows, err := db.Query(historyQuery, userID, since)
+		if err != nil {
+			return nil, err
+		}
+
+		var points []ScoreEvolutionPoint
+		for histRows.Next() {
+			var p ScoreEvolutionPoint
+			if err := histRows.Scan(&p.RecordedAt, &p.Score); err != nil {
+				histRows.Close()
+				return nil, err
+			}
+			points = append(points, p)
+		}
+		histRows.Close()
+
+		result = append(result, ScoreEvolutionSeries{
+			UserID: userID,
+			Name:   userNames[i],
+			Scores: points,
+		})
+	}
+
+	return result, nil
+}
+
+// GetTeamScoreEvolution returns score history for top N teams.
+// At each timestamp, computes team total as sum of each member's latest score.
+func (db *DB) GetTeamScoreEvolution(limit int, since time.Time) ([]ScoreEvolutionSeries, error) {
+	// Get top N teams by current score
+	topTeamsQuery := `
+		SELECT t.id, t.name
+		FROM teams t
+		WHERE EXISTS (
+			SELECT 1 FROM score_history sh
+			WHERE sh.team_id = t.id AND sh.recorded_at >= ?
+		)
+		ORDER BY (
+			SELECT COALESCE(SUM(latest_score.score), 0)
+			FROM (
+				SELECT sh.user_id, sh.score
+				FROM score_history sh
+				WHERE sh.team_id = t.id
+				AND sh.recorded_at = (
+					SELECT MAX(sh2.recorded_at) FROM score_history sh2
+					WHERE sh2.user_id = sh.user_id AND sh2.team_id = t.id
+				)
+				GROUP BY sh.user_id
+			) latest_score
+		) DESC
+		LIMIT ?
+	`
+
+	rows, err := db.Query(topTeamsQuery, since, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var teamIDs []string
+	var teamNames []string
+	for rows.Next() {
+		var id, name string
+		if err := rows.Scan(&id, &name); err != nil {
+			return nil, err
+		}
+		teamIDs = append(teamIDs, id)
+		teamNames = append(teamNames, name)
+	}
+
+	var result []ScoreEvolutionSeries
+	for i, teamID := range teamIDs {
+		// Get all individual score records for this team, ordered by time
+		historyQuery := `
+			SELECT user_id, recorded_at, score
+			FROM score_history
+			WHERE team_id = ? AND recorded_at >= ?
+			ORDER BY recorded_at ASC
+		`
+		histRows, err := db.Query(historyQuery, teamID, since)
+		if err != nil {
+			return nil, err
+		}
+
+		// Build team total at each event: sum of each member's latest score
+		userLatest := make(map[string]int) // user_id -> latest score
+		var points []ScoreEvolutionPoint
+		for histRows.Next() {
+			var userID string
+			var p ScoreEvolutionPoint
+			if err := histRows.Scan(&userID, &p.RecordedAt, &p.Score); err != nil {
+				histRows.Close()
+				return nil, err
+			}
+			userLatest[userID] = p.Score
+			// Sum all members' latest scores
+			total := 0
+			for _, s := range userLatest {
+				total += s
+			}
+			points = append(points, ScoreEvolutionPoint{RecordedAt: p.RecordedAt, Score: total})
+		}
+		histRows.Close()
+
+		result = append(result, ScoreEvolutionSeries{
+			UserID: teamID,
+			Name:   teamNames[i],
+			Scores: points,
+		})
+	}
+
+	return result, nil
+}
+
+// CleanupScoreHistory removes old records beyond retention period
+func (db *DB) CleanupScoreHistory(retentionDays int) error {
+	query := `DELETE FROM score_history WHERE recorded_at < datetime('now', '-? days')`
+	_, err := db.Exec(query, retentionDays)
+	return err
+}
+
+// GetAdminVisibleInScoreboard returns whether admins should appear in scoreboard
+func (db *DB) GetAdminVisibleInScoreboard() bool {
+	query := `SELECT value FROM site_settings WHERE key = 'admin_visible_in_scoreboard'`
+	var value string
+	err := db.QueryRow(query).Scan(&value)
+	if err != nil {
+		return false // Default to hidden
+	}
+	return value == "1" || value == "true"
+}
+
+// SetAdminVisibleInScoreboard sets whether admins appear in scoreboard
+func (db *DB) SetAdminVisibleInScoreboard(visible bool) error {
+	value := "0"
+	if visible {
+		value = "1"
+	}
+	query := `INSERT INTO site_settings (key, value, updated_at) VALUES ('admin_visible_in_scoreboard', ?, datetime('now'))
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+	_, err := db.Exec(query, value)
+	return err
 }
 
 // Helper function to generate flag mask

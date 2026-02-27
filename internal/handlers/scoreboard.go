@@ -4,16 +4,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
+	"strconv"
+	"time"
 
 	"github.com/yourusername/hctf2/internal/database"
 )
 
 type ScoreboardHandler struct {
-	db *database.DB
+	db       *database.DB
+	recorder ScoreRecorder
 }
 
-func NewScoreboardHandler(db *database.DB) *ScoreboardHandler {
-	return &ScoreboardHandler{db: db}
+// ScoreRecorder interface for the background recorder
+type ScoreRecorder interface {
+	ForceRecord() error
+	RecordUser(userID string)
+}
+
+func NewScoreboardHandler(db *database.DB, recorder ScoreRecorder) *ScoreboardHandler {
+	return &ScoreboardHandler{db: db, recorder: recorder}
 }
 
 // GetScoreboard godoc
@@ -202,4 +212,127 @@ func (h *ScoreboardHandler) CTFtimeExport(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+// GetScoreEvolution godoc
+// @Summary Get score evolution over time for chart
+// @Description Returns time-series score data for top N users. Used by Chart.js.
+// @Tags Scoreboard
+// @Produce json
+// @Param mode query string false "Score mode: individual or team" default(individual)
+// @Param limit query int false "Number of top users to include" default(20)
+// @Success 200 {object} object{intervals=[]string,series=[]object}
+// @Router /api/scoreboard/evolution [get]
+func (h *ScoreboardHandler) GetScoreEvolution(w http.ResponseWriter, r *http.Request) {
+	// Parse params
+	limitStr := r.URL.Query().Get("limit")
+	limit := 20
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 50 {
+			limit = l
+		}
+	}
+
+	mode := r.URL.Query().Get("mode")
+
+	// Get data for last 7 days
+	since := time.Now().Add(-7 * 24 * time.Hour)
+
+	var series []database.ScoreEvolutionSeries
+	var err error
+	if mode == "team" {
+		series, err = h.db.GetTeamScoreEvolution(limit, since)
+	} else {
+		series, err = h.db.GetScoreEvolution(limit, since)
+	}
+	if err != nil {
+		http.Error(w, `{"error":"failed to fetch evolution"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Format response for Chart.js
+	response := formatEvolutionForChart(series)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// ForceScoreRecord godoc
+// @Summary Manually trigger score recording (admin only)
+// @Description Forces the background score recorder to capture a snapshot immediately. Admin only.
+// @Tags Scoreboard
+// @Security CookieAuth
+// @Success 200 {object} object{message=string}
+// @Failure 500 {object} object{error=string}
+// @Router /api/admin/scoreboard/force-record [post]
+func (h *ScoreboardHandler) ForceScoreRecord(w http.ResponseWriter, r *http.Request) {
+	if h.recorder == nil {
+		http.Error(w, `{"error":"score recorder not initialized"}`, http.StatusInternalServerError)
+		return
+	}
+	
+	if err := h.recorder.ForceRecord(); err != nil {
+		http.Error(w, `{"error":"failed to trigger recording"}`, http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Score recording triggered successfully"})
+}
+
+func formatEvolutionForChart(series []database.ScoreEvolutionSeries) map[string]interface{} {
+	// Collect all unique timestamps (second-level granularity)
+	timeMap := make(map[string]bool)
+	for _, s := range series {
+		for _, p := range s.Scores {
+			timeMap[p.RecordedAt.Format("15:04:05")] = true
+		}
+	}
+
+	// Sort timestamps
+	var intervals []string
+	for t := range timeMap {
+		intervals = append(intervals, t)
+	}
+	sort.Strings(intervals)
+
+	// Build series data
+	colors := []string{"#3b82f6", "#22c55e", "#a855f7", "#f97316", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6"}
+
+	var chartSeries []map[string]interface{}
+	for i, s := range series {
+		// Build a map of interval -> latest score for this user
+		scoreAt := make(map[string]int)
+		for _, p := range s.Scores {
+			key := p.RecordedAt.Format("15:04:05")
+			scoreAt[key] = p.Score // last write wins (latest score at that second)
+		}
+
+		scores := make([]int, len(intervals))
+		hasValue := false
+		lastScore := 0
+		for j, interval := range intervals {
+			if val, ok := scoreAt[interval]; ok {
+				scores[j] = val
+				lastScore = val
+				hasValue = true
+			} else if hasValue {
+				// Carry forward previous score
+				scores[j] = lastScore
+			}
+		}
+
+		color := colors[i%len(colors)]
+		chartSeries = append(chartSeries, map[string]interface{}{
+			"id":     s.UserID,
+			"name":   s.Name,
+			"color":  color,
+			"scores": scores,
+		})
+	}
+
+	return map[string]interface{}{
+		"intervals": intervals,
+		"series":    chartSeries,
+	}
 }
