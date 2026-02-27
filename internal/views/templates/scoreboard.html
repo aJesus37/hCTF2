@@ -1,8 +1,9 @@
 {{define "scoreboard-content"}}
-<div x-data="{ 
+<div x-data="{
     mode: 'individual',
     showChart: true,
     chartInstance: null,
+    chartRequestId: 0,
     init() {
         this.$watch('showChart', value => {
             if (value) this.$nextTick(() => this.renderChart())
@@ -16,18 +17,26 @@
         if (!this.showChart) return
         const ctx = document.getElementById('scoreChart')
         if (!ctx) return
-        
+
+        const requestId = ++this.chartRequestId
+
         fetch('/api/scoreboard/evolution?mode=' + this.mode)
             .then(r => r.json())
             .then(data => {
-                if (this.chartInstance) {
-                    this.chartInstance.destroy()
-                }
-                
+                // Ignore stale responses from previous mode switches
+                if (requestId !== this.chartRequestId) return
+
+                // Destroy any existing chart on this canvas
+                const existing = Chart.getChart(ctx)
+                if (existing) existing.destroy()
+                this.chartInstance = null
+
+                if (!data.series || !data.intervals || data.series.length === 0) return
+
                 const isDark = document.documentElement.classList.contains('dark')
                 const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
                 const textColor = isDark ? '#e2e8f0' : '#374151'
-                
+
                 const datasets = data.series.map(s => ({
                     label: s.name,
                     data: s.scores,
