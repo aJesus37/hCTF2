@@ -472,19 +472,24 @@ func (db *DB) CleanupScoreHistory(retentionDays int) error {
 
 // GetAdminVisibleInScoreboard returns whether admins should appear in scoreboard
 func (db *DB) GetAdminVisibleInScoreboard() bool {
-	var visible bool
-	query := `SELECT COALESCE(admin_visible_in_scoreboard, 0) FROM settings LIMIT 1`
-	err := db.QueryRow(query).Scan(&visible)
+	query := `SELECT value FROM site_settings WHERE key = 'admin_visible_in_scoreboard'`
+	var value string
+	err := db.QueryRow(query).Scan(&value)
 	if err != nil {
 		return false // Default to hidden
 	}
-	return visible
+	return value == "1" || value == "true"
 }
 
 // SetAdminVisibleInScoreboard sets whether admins appear in scoreboard
 func (db *DB) SetAdminVisibleInScoreboard(visible bool) error {
-	query := `UPDATE settings SET admin_visible_in_scoreboard = ?`
-	_, err := db.Exec(query, visible)
+	value := "0"
+	if visible {
+		value = "1"
+	}
+	query := `INSERT INTO site_settings (key, value, updated_at) VALUES ('admin_visible_in_scoreboard', ?, datetime('now'))
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+	_, err := db.Exec(query, value)
 	return err
 }
 

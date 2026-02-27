@@ -1,3 +1,2 @@
--- Cannot drop columns in SQLite without table recreation
--- This migration is irreversible without data loss
-SELECT 1;
+-- Remove admin visibility setting
+DELETE FROM site_settings WHERE key = 'admin_visible_in_scoreboard';
