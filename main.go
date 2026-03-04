@@ -817,7 +817,7 @@ func (s *Server) handleCompetitionDetail(w http.ResponseWriter, r *http.Request)
 	}
 	data := map[string]interface{}{
 		"Title":          comp.Name,
-		"Page":           "competitions",
+		"Page":           "competition",
 		"User":           claims,
 		"Competition":    comp,
 		"Challenges":     challenges,
