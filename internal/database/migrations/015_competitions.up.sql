@@ -29,5 +29,3 @@ CREATE TABLE IF NOT EXISTS competition_teams (
 
 CREATE INDEX idx_competition_challenges_challenge ON competition_challenges(challenge_id);
 CREATE INDEX idx_competition_teams_team ON competition_teams(team_id);
-
-PRAGMA foreign_keys = ON;

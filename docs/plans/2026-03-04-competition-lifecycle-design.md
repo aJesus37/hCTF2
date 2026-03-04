@@ -46,7 +46,7 @@ CREATE TABLE competitions (
 ```sql
 CREATE TABLE competition_challenges (
     competition_id INTEGER NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
-    challenge_id   INTEGER NOT NULL REFERENCES challenges(id)   ON DELETE CASCADE,
+    challenge_id   TEXT    NOT NULL REFERENCES challenges(id)   ON DELETE CASCADE,
     PRIMARY KEY (competition_id, challenge_id)
 );
 ```
@@ -56,7 +56,7 @@ CREATE TABLE competition_challenges (
 ```sql
 CREATE TABLE competition_teams (
     competition_id INTEGER NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
-    team_id        INTEGER NOT NULL REFERENCES teams(id)        ON DELETE CASCADE,
+    team_id        TEXT    NOT NULL REFERENCES teams(id)        ON DELETE CASCADE,
     joined_at      DATETIME NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (competition_id, team_id)
 );
@@ -114,7 +114,7 @@ Global site_settings retains `scoreboard_blackout_enabled` for non-competition u
 | `GET /api/competitions/:id` | Competition details |
 | `POST /api/competitions/:id/register` | Register current user's team |
 | `GET /api/competitions/:id/scoreboard` | Competition scoreboard JSON |
-| `GET /api/competitions/:id/scoreboard/evolution` | Score evolution chart data |
+| `GET /api/competitions/:id/scoreboard/evolution` | Score evolution chart data (TODO: not yet implemented) |
 
 ### Admin API
 

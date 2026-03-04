@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -92,7 +93,12 @@ func (h *CompetitionHandler) RegisterTeam(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err := h.db.RegisterTeamForCompetition(id, *user.TeamID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errMsg := err.Error()
+		// Only forward known user-facing messages; hide raw DB errors
+		if errMsg != "registration is closed" && errMsg != "competition has ended" {
+			errMsg = "Failed to register team"
+		}
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -189,7 +195,13 @@ func (h *CompetitionHandler) UpdateCompetition(w http.ResponseWriter, r *http.Re
 	}
 	status := r.FormValue("status")
 	if status == "" {
-		status = models.CompStatusDraft
+		// Preserve existing status rather than defaulting to draft
+		existing, err := h.db.GetCompetitionByID(id)
+		if err != nil {
+			http.Error(w, "Competition not found", http.StatusNotFound)
+			return
+		}
+		status = existing.Status
 	}
 	if err := h.db.UpdateCompetition(
 		id,
@@ -353,7 +365,10 @@ func (h *CompetitionHandler) ForceEnd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed", http.StatusInternalServerError)
 		return
 	}
-	h.db.SetCompetitionFreeze(id, true)
+	if err := h.db.SetCompetitionFreeze(id, true); err != nil {
+		log.Printf("ForceEnd: failed to freeze competition %d: %v", id, err)
+		// Continue — status is already set to ended; freeze failure is logged but non-fatal
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": models.CompStatusEnded})
 }
@@ -401,6 +416,8 @@ func (h *CompetitionHandler) SetBlackout(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"blackout": blackout})
 }
+
+// TODO: GetScoreboardEvolution - per-competition score evolution chart data (not yet implemented)
 
 // parseOptionalTime parses datetime-local input format or RFC3339.
 func parseOptionalTime(s string) *time.Time {
