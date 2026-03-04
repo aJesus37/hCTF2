@@ -2186,3 +2186,349 @@ func (db *DB) DeleteAllChallengeFiles(challengeID string) error {
 	_, err := db.Exec("DELETE FROM challenge_files WHERE challenge_id = ?", challengeID)
 	return err
 }
+
+// ============================================================
+// Competition queries
+// ============================================================
+
+// rowScanner abstracts *sql.Row and *sql.Rows for scanCompetition.
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanCompetition(row rowScanner) (models.Competition, error) {
+	var c models.Competition
+	var startAt, endAt, regStart, regEnd sql.NullString
+	var frozenInt, blackoutInt int
+	err := row.Scan(
+		&c.ID, &c.Name, &c.Description, &c.RulesHTML,
+		&startAt, &endAt, &regStart, &regEnd,
+		&frozenInt, &blackoutInt, &c.Status,
+		&c.CreatedAt, &c.UpdatedAt,
+	)
+	if err != nil {
+		return c, err
+	}
+	c.ScoreboardFrozen = frozenInt != 0
+	c.ScoreboardBlackout = blackoutInt != 0
+	for _, p := range []struct {
+		s sql.NullString
+		t **time.Time
+	}{
+		{startAt, &c.StartAt},
+		{endAt, &c.EndAt},
+		{regStart, &c.RegistrationStart},
+		{regEnd, &c.RegistrationEnd},
+	} {
+		if p.s.Valid && p.s.String != "" {
+			for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02T15:04:05Z"} {
+				if t, err := time.Parse(layout, p.s.String); err == nil {
+					*p.t = &t
+					break
+				}
+			}
+		}
+	}
+	return c, nil
+}
+
+const competitionSelectCols = `
+	SELECT id, name, description, rules_html,
+	       start_at, end_at, registration_start, registration_end,
+	       scoreboard_frozen, scoreboard_blackout, status, created_at, updated_at
+	FROM competitions`
+
+// ListCompetitions returns all competitions ordered by created_at desc.
+func (db *DB) ListCompetitions() ([]models.Competition, error) {
+	rows, err := db.Query(competitionSelectCols + ` ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var comps []models.Competition
+	for rows.Next() {
+		c, err := scanCompetition(rows)
+		if err != nil {
+			return nil, err
+		}
+		comps = append(comps, c)
+	}
+	return comps, nil
+}
+
+// GetCompetitionByID returns a single competition.
+func (db *DB) GetCompetitionByID(id int64) (*models.Competition, error) {
+	row := db.QueryRow(competitionSelectCols+` WHERE id = ?`, id)
+	c, err := scanCompetition(row)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func nullableTimeStr(t *time.Time) interface{} {
+	if t == nil {
+		return nil
+	}
+	return t.UTC().Format(time.RFC3339)
+}
+
+// CreateCompetition inserts a new competition and returns it.
+func (db *DB) CreateCompetition(name, description, rulesHTML string,
+	startAt, endAt, regStart, regEnd *time.Time) (*models.Competition, error) {
+	result, err := db.Exec(`
+		INSERT INTO competitions (name, description, rules_html, start_at, end_at, registration_start, registration_end)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		name, description, rulesHTML,
+		nullableTimeStr(startAt), nullableTimeStr(endAt),
+		nullableTimeStr(regStart), nullableTimeStr(regEnd))
+	if err != nil {
+		return nil, err
+	}
+	id, _ := result.LastInsertId()
+	return db.GetCompetitionByID(id)
+}
+
+// UpdateCompetition updates all mutable fields of a competition.
+func (db *DB) UpdateCompetition(id int64, name, description, rulesHTML string,
+	startAt, endAt, regStart, regEnd *time.Time, status string) error {
+	_, err := db.Exec(`
+		UPDATE competitions
+		SET name=?, description=?, rules_html=?,
+		    start_at=?, end_at=?, registration_start=?, registration_end=?,
+		    status=?, updated_at=datetime('now')
+		WHERE id=?`,
+		name, description, rulesHTML,
+		nullableTimeStr(startAt), nullableTimeStr(endAt),
+		nullableTimeStr(regStart), nullableTimeStr(regEnd),
+		status, id)
+	return err
+}
+
+// DeleteCompetition removes a competition and its join records (cascade).
+func (db *DB) DeleteCompetition(id int64) error {
+	_, err := db.Exec(`DELETE FROM competitions WHERE id=?`, id)
+	return err
+}
+
+// SetCompetitionStatus updates just the status field.
+func (db *DB) SetCompetitionStatus(id int64, status string) error {
+	_, err := db.Exec(`UPDATE competitions SET status=?, updated_at=datetime('now') WHERE id=?`, status, id)
+	return err
+}
+
+// SetCompetitionFreeze sets the scoreboard_frozen flag.
+func (db *DB) SetCompetitionFreeze(id int64, frozen bool) error {
+	v := 0
+	if frozen {
+		v = 1
+	}
+	_, err := db.Exec(`UPDATE competitions SET scoreboard_frozen=?, updated_at=datetime('now') WHERE id=?`, v, id)
+	return err
+}
+
+// SetCompetitionBlackout sets the scoreboard_blackout flag.
+func (db *DB) SetCompetitionBlackout(id int64, blackout bool) error {
+	v := 0
+	if blackout {
+		v = 1
+	}
+	_, err := db.Exec(`UPDATE competitions SET scoreboard_blackout=?, updated_at=datetime('now') WHERE id=?`, v, id)
+	return err
+}
+
+// AddChallengeToCompetition links a challenge to a competition.
+func (db *DB) AddChallengeToCompetition(compID int64, challengeID string) error {
+	_, err := db.Exec(`INSERT OR IGNORE INTO competition_challenges (competition_id, challenge_id) VALUES (?,?)`,
+		compID, challengeID)
+	return err
+}
+
+// RemoveChallengeFromCompetition unlinks a challenge from a competition.
+func (db *DB) RemoveChallengeFromCompetition(compID int64, challengeID string) error {
+	_, err := db.Exec(`DELETE FROM competition_challenges WHERE competition_id=? AND challenge_id=?`, compID, challengeID)
+	return err
+}
+
+// GetCompetitionChallenges returns all challenges linked to a competition.
+func (db *DB) GetCompetitionChallenges(compID int64) ([]models.Challenge, error) {
+	rows, err := db.Query(`
+		SELECT c.id, c.name, c.description, c.category, c.difficulty,
+		       c.tags, c.visible, c.sql_enabled, c.sql_dataset_url, c.sql_schema_hint,
+		       c.dynamic_scoring, c.initial_points, c.minimum_points, c.decay_threshold,
+		       c.file_url, c.created_at, c.updated_at
+		FROM challenges c
+		JOIN competition_challenges cc ON cc.challenge_id = c.id
+		WHERE cc.competition_id = ?
+		ORDER BY c.category, c.name`, compID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var challenges []models.Challenge
+	for rows.Next() {
+		var ch models.Challenge
+		err := rows.Scan(
+			&ch.ID, &ch.Name, &ch.Description, &ch.Category, &ch.Difficulty,
+			&ch.Tags, &ch.Visible, &ch.SQLEnabled, &ch.SQLDatasetURL, &ch.SQLSchemaHint,
+			&ch.DynamicScoring, &ch.InitialPoints, &ch.MinimumPoints, &ch.DecayThreshold,
+			&ch.FileURL, &ch.CreatedAt, &ch.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		challenges = append(challenges, ch)
+	}
+	return challenges, nil
+}
+
+// RegisterTeamForCompetition adds a team to a competition.
+// Returns error if registration window is closed or competition has ended.
+func (db *DB) RegisterTeamForCompetition(compID int64, teamID string) error {
+	comp, err := db.GetCompetitionByID(compID)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	if comp.RegistrationEnd != nil && now.After(*comp.RegistrationEnd) {
+		return fmt.Errorf("registration is closed")
+	}
+	if comp.Status == models.CompStatusEnded {
+		return fmt.Errorf("competition has ended")
+	}
+	_, err = db.Exec(`INSERT OR IGNORE INTO competition_teams (competition_id, team_id) VALUES (?,?)`,
+		compID, teamID)
+	return err
+}
+
+// GetCompetitionTeams returns teams registered for a competition.
+func (db *DB) GetCompetitionTeams(compID int64) ([]models.Team, error) {
+	rows, err := db.Query(`
+		SELECT t.id, t.name, t.description, t.owner_id, t.invite_id, t.invite_permission, t.created_at, t.updated_at
+		FROM teams t
+		JOIN competition_teams ct ON ct.team_id = t.id
+		WHERE ct.competition_id = ?
+		ORDER BY t.name`, compID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var teams []models.Team
+	for rows.Next() {
+		var t models.Team
+		err := rows.Scan(&t.ID, &t.Name, &t.Description, &t.OwnerID, &t.InviteID, &t.InvitePermission, &t.CreatedAt, &t.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		teams = append(teams, t)
+	}
+	return teams, nil
+}
+
+// IsTeamRegistered returns true if the team is registered for the competition.
+func (db *DB) IsTeamRegistered(compID int64, teamID string) bool {
+	var count int
+	db.QueryRow(`SELECT COUNT(*) FROM competition_teams WHERE competition_id=? AND team_id=?`, compID, teamID).Scan(&count)
+	return count > 0
+}
+
+// GetCompetitionScoreboard returns ranked teams for a competition.
+// Only counts first-solve submissions within the competition window, for registered teams, on competition challenges.
+func (db *DB) GetCompetitionScoreboard(compID int64) ([]models.CompetitionScoreboardEntry, error) {
+	comp, err := db.GetCompetitionByID(compID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build args: compID x2 (for JOIN conditions), then optional time bounds, then compID for WHERE
+	var args []interface{}
+	args = append(args, compID, compID)
+
+	startFilter := "1=1"
+	if comp.StartAt != nil {
+		startFilter = "s.created_at >= ?"
+		args = append(args, comp.StartAt.UTC().Format(time.RFC3339))
+	}
+	endFilter := "1=1"
+	if comp.EndAt != nil {
+		endFilter = "s.created_at <= ?"
+		args = append(args, comp.EndAt.UTC().Format(time.RFC3339))
+	}
+	// Append competition_id for the outer WHERE
+	args = append(args, compID)
+
+	query := fmt.Sprintf(`
+		WITH first_solves AS (
+			SELECT s.team_id, s.question_id, MIN(s.created_at) as solved_at, q.points
+			FROM submissions s
+			JOIN questions q ON q.id = s.question_id
+			JOIN challenges c ON c.id = q.challenge_id
+			JOIN competition_challenges cc ON cc.challenge_id = c.id AND cc.competition_id = ?
+			JOIN competition_teams ct ON ct.team_id = s.team_id AND ct.competition_id = ?
+			WHERE s.is_correct = 1 AND %s AND %s
+			GROUP BY s.team_id, s.question_id
+		)
+		SELECT t.id, t.name,
+		       COALESCE(SUM(fs.points), 0) as score,
+		       COUNT(DISTINCT fs.question_id) as solve_count,
+		       MAX(fs.solved_at) as last_solve
+		FROM competition_teams ct
+		JOIN teams t ON t.id = ct.team_id
+		LEFT JOIN first_solves fs ON fs.team_id = t.id
+		WHERE ct.competition_id = ?
+		GROUP BY t.id, t.name
+		ORDER BY score DESC, last_solve ASC NULLS LAST`, startFilter, endFilter)
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []models.CompetitionScoreboardEntry
+	rank := 1
+	for rows.Next() {
+		var e models.CompetitionScoreboardEntry
+		var lastSolveStr sql.NullString
+		if err := rows.Scan(&e.TeamID, &e.TeamName, &e.Score, &e.SolveCount, &lastSolveStr); err != nil {
+			return nil, err
+		}
+		if lastSolveStr.Valid && lastSolveStr.String != "" {
+			for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02T15:04:05Z"} {
+				if t, err := time.Parse(layout, lastSolveStr.String); err == nil {
+					e.LastSolve = &t
+					break
+				}
+			}
+		}
+		e.Rank = rank
+		rank++
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// TickCompetitionLifecycle auto-transitions competitions based on current time.
+// Call from a background goroutine every 60 seconds.
+func (db *DB) TickCompetitionLifecycle() {
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// registration → running when start_at arrives
+	db.Exec(`
+		UPDATE competitions
+		SET status='running', updated_at=datetime('now')
+		WHERE status='registration' AND start_at IS NOT NULL AND start_at <= ?`, now)
+
+	// draft → running when start_at arrives (no explicit registration period)
+	db.Exec(`
+		UPDATE competitions
+		SET status='running', updated_at=datetime('now')
+		WHERE status='draft' AND start_at IS NOT NULL AND start_at <= ?
+		  AND registration_start IS NULL AND registration_end IS NULL`, now)
+
+	// running → ended when end_at arrives; auto-freeze
+	db.Exec(`
+		UPDATE competitions
+		SET status='ended', scoreboard_frozen=1, updated_at=datetime('now')
+		WHERE status='running' AND end_at IS NOT NULL AND end_at <= ?`, now)
+}
