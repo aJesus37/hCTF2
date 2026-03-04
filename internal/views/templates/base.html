@@ -48,7 +48,7 @@
                         <a href="/scoreboard" class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                             Scoreboard
                         </a>
-                        <a href="/competitions" class="inline-flex items-center px-1 pt-1 text-sm font-medium {{if eq .Page "competitions"}}text-purple-500 dark:text-purple-400{{else}}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{{end}} transition-colors">
+                        <a href="/competitions" class="inline-flex items-center px-1 pt-1 text-sm font-medium {{if or (eq .Page "competitions") (eq .Page "competition")}}text-purple-500 dark:text-purple-400{{else}}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{{end}} transition-colors">
                             Competitions
                         </a>
                         {{if .User}}
