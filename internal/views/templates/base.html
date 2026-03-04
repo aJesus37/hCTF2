@@ -48,6 +48,9 @@
                         <a href="/scoreboard" class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                             Scoreboard
                         </a>
+                        <a href="/competitions" class="inline-flex items-center px-1 pt-1 text-sm font-medium {{if eq .Page "competitions"}}text-purple-500 dark:text-purple-400{{else}}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{{end}} transition-colors">
+                            Competitions
+                        </a>
                         {{if .User}}
                         <a href="/teams" class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                             Teams
@@ -131,6 +134,10 @@
             {{template "error-content" .}}
         {{else if eq .Page "docs"}}
             {{template "docs-content" .}}
+        {{else if eq .Page "competitions"}}
+            {{template "competitions-content" .}}
+        {{else if eq .Page "competition"}}
+            {{template "competition-content" .}}
         {{else}}
             {{template "index-content" .}}
         {{end}}
