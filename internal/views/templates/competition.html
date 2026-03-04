@@ -1,0 +1,94 @@
+{{define "content"}}
+{{$comp := .Competition}}
+<div class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <!-- Header -->
+    <div class="flex items-start justify-between">
+        <div>
+            <a href="/competitions" class="text-sm text-purple-500 hover:underline">&larr; All Competitions</a>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-2">{{$comp.Name}}</h1>
+            <div class="flex gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {{if $comp.StartAt}}<span>Start: {{$comp.StartAt.Format "Jan 2, 2006 15:04 UTC"}}</span>{{end}}
+                {{if $comp.EndAt}}<span>End: {{$comp.EndAt.Format "Jan 2, 2006 15:04 UTC"}}</span>{{end}}
+            </div>
+        </div>
+        <div class="flex flex-col items-end gap-2">
+            <span class="text-xs font-semibold px-3 py-1 rounded-full
+                {{if eq $comp.Status "running"}}bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300
+                {{else if eq $comp.Status "ended"}}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400
+                {{else if eq $comp.Status "registration"}}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300
+                {{else}}bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300{{end}}">
+                {{$comp.Status}}
+            </span>
+            {{if .User}}
+                {{if not .TeamRegistered}}
+                    {{if or (eq $comp.Status "registration") (eq $comp.Status "running")}}
+                    <form hx-post="/api/competitions/{{$comp.ID}}/register" hx-swap="outerHTML">
+                        <button class="text-sm bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            Register My Team
+                        </button>
+                    </form>
+                    {{end}}
+                {{else}}
+                <span class="text-sm text-green-500 font-medium">&#10003; Registered</span>
+                {{end}}
+            {{end}}
+        </div>
+    </div>
+
+    <!-- Rules -->
+    {{if $comp.RulesHTML}}
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Rules</h2>
+        <div class="prose prose-sm dark:prose-invert max-w-none">{{$comp.RulesHTML | safeHTML}}</div>
+    </div>
+    {{end}}
+
+    <!-- Challenges -->
+    {{if .Challenges}}
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Challenges ({{len .Challenges}})</h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {{range .Challenges}}
+            <a href="/challenges/{{.ID}}" class="text-sm text-purple-500 hover:underline truncate">{{.Name}}</a>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Scoreboard -->
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Scoreboard
+            {{if $comp.ScoreboardFrozen}}<span class="text-xs ml-2 text-blue-400">(frozen)</span>{{end}}
+            {{if $comp.ScoreboardBlackout}}<span class="text-xs ml-2 text-orange-400">(blackout active)</span>{{end}}
+        </h2>
+        {{if .BlackedOut}}
+        <p class="text-center py-8 text-gray-500 dark:text-gray-400 text-lg">Scores hidden until reveal</p>
+        {{else if not .Entries}}
+        <p class="text-center py-8 text-gray-500 dark:text-gray-400">No scores yet.</p>
+        {{else}}
+        <table class="w-full text-sm">
+            <thead class="border-b border-gray-200 dark:border-dark-border">
+                <tr class="text-left text-xs text-gray-500 dark:text-gray-400 uppercase">
+                    <th class="py-2 pr-4">#</th>
+                    <th class="py-2 pr-4">Team</th>
+                    <th class="py-2 pr-4">Points</th>
+                    <th class="py-2">Solves</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-dark-border">
+                {{range .Entries}}
+                <tr class="text-gray-700 dark:text-gray-300">
+                    <td class="py-2 pr-4 font-bold text-gray-900 dark:text-white">{{.Rank}}</td>
+                    <td class="py-2 pr-4">
+                        <a href="/teams/{{.TeamID}}/profile" class="text-purple-500 hover:underline">{{.TeamName}}</a>
+                    </td>
+                    <td class="py-2 pr-4 font-semibold">{{.Score}}</td>
+                    <td class="py-2">{{.SolveCount}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{end}}
+    </div>
+</div>
+{{end}}
