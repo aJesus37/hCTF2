@@ -217,7 +217,11 @@ func (h *CompetitionHandler) UpdateCompetition(w http.ResponseWriter, r *http.Re
 		http.Error(w, "Failed to update", http.StatusInternalServerError)
 		return
 	}
-	comp, _ := h.db.GetCompetitionByID(id)
+	comp, err := h.db.GetCompetitionByID(id)
+	if err != nil {
+		http.Error(w, "Failed to retrieve updated competition", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(comp)
 }
@@ -253,7 +257,10 @@ func (h *CompetitionHandler) AddChallenge(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-	r.ParseForm()
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
 	challengeID := r.FormValue("challenge_id")
 	if challengeID == "" {
 		http.Error(w, "challenge_id required", http.StatusBadRequest)
@@ -385,7 +392,10 @@ func (h *CompetitionHandler) SetFreeze(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-	r.ParseForm()
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
 	frozen := r.FormValue("frozen") == "1"
 	if err := h.db.SetCompetitionFreeze(id, frozen); err != nil {
 		http.Error(w, "Failed", http.StatusInternalServerError)
@@ -407,7 +417,10 @@ func (h *CompetitionHandler) SetBlackout(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-	r.ParseForm()
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
 	blackout := r.FormValue("blackout") == "1"
 	if err := h.db.SetCompetitionBlackout(id, blackout); err != nil {
 		http.Error(w, "Failed", http.StatusInternalServerError)
