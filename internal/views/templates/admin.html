@@ -1106,6 +1106,19 @@
     </div>
 
     <!-- Competitions Tab -->
+    <script>
+    function compDatesToUTC(evt) {
+        var fields = ['start_at', 'end_at', 'registration_start', 'registration_end', 'freeze_at'];
+        var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+        fields.forEach(function(f) {
+            var v = evt.detail.parameters[f];
+            if (v) {
+                var d = new Date(v);
+                evt.detail.parameters[f] = d.getUTCFullYear() + '-' + pad(d.getUTCMonth()+1) + '-' + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
+            }
+        });
+    }
+    </script>
     <div x-show="tab === 'competitions'" class="space-y-6">
         <div class="flex items-center justify-between">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">Competitions</h2>
@@ -1196,7 +1209,9 @@
                     <div x-show="editing" class="bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg p-4">
                         <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Edit Competition</h4>
                         <form hx-put="/api/admin/competitions/{{.ID}}"
+                              @htmx:config-request="compDatesToUTC($event)"
                               @htmx:after-request="if($event.detail.successful) { editing = false; window.location.reload(); }"
+                              x-init="['registration_start','registration_end','start_at','end_at'].forEach(function(n){var el=$el.querySelector('[name='+n+']');if(el&&el.value){var d=new Date(el.value+'Z');var p=function(x){return x<10?'0'+x:''+x;};el.value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}})"
                               class="space-y-3">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div>
@@ -1215,6 +1230,7 @@
                                 <textarea name="rules_html" rows="3"
                                           class="w-full text-sm bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono">{{.RulesHTML}}</textarea>
                             </div>
+                            <p class="text-xs text-gray-400 dark:text-gray-500">Times shown in your local timezone — saved as UTC automatically.</p>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <div>
                                     <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Registration Opens</label>
@@ -1291,6 +1307,7 @@
             <div class="bg-white dark:bg-dark-card rounded-xl p-6 w-full max-w-lg shadow-xl" @click.outside="show = false">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create Competition</h3>
                 <form hx-post="/api/admin/competitions"
+                      @htmx:config-request="compDatesToUTC($event)"
                       @htmx:after-request="if($event.detail.successful) { show = false; window.location.reload(); }"
                       class="space-y-3">
                     <div>
@@ -1308,6 +1325,7 @@
                         <textarea name="rules_html" rows="2"
                                   class="w-full text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono"></textarea>
                     </div>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">All times are stored in UTC. Enter times in your local timezone — they will be converted automatically.</p>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Registration Opens</label>
