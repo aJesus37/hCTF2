@@ -806,7 +806,7 @@ func (s *Server) handleCompetitionDetail(w http.ResponseWriter, r *http.Request)
 	if claims != nil {
 		user, err := s.db.GetUserByID(claims.UserID)
 		if err == nil && user.TeamID != nil {
-			teamRegistered = s.db.IsTeamRegistered(id, *user.TeamID)
+			teamRegistered, _ = s.db.IsTeamRegistered(id, *user.TeamID)
 		}
 	}
 	challenges, _ := s.db.GetCompetitionChallenges(id)

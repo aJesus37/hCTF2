@@ -164,6 +164,7 @@ type Competition struct {
 	EndAt              *time.Time `json:"end_at,omitempty"`
 	RegistrationStart  *time.Time `json:"registration_start,omitempty"`
 	RegistrationEnd    *time.Time `json:"registration_end,omitempty"`
+	FreezeAt           *time.Time `json:"freeze_at,omitempty"`
 	ScoreboardFrozen   bool       `json:"scoreboard_frozen"`
 	ScoreboardBlackout bool       `json:"scoreboard_blackout"`
 	Status             string     `json:"status"` // draft|registration|running|ended

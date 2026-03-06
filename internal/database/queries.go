@@ -2198,11 +2198,11 @@ type rowScanner interface {
 
 func scanCompetition(row rowScanner) (models.Competition, error) {
 	var c models.Competition
-	var startAt, endAt, regStart, regEnd sql.NullString
+	var startAt, endAt, regStart, regEnd, freezeAt sql.NullString
 	var frozenInt, blackoutInt int
 	err := row.Scan(
 		&c.ID, &c.Name, &c.Description, &c.RulesHTML,
-		&startAt, &endAt, &regStart, &regEnd,
+		&startAt, &endAt, &regStart, &regEnd, &freezeAt,
 		&frozenInt, &blackoutInt, &c.Status,
 		&c.CreatedAt, &c.UpdatedAt,
 	)
@@ -2219,6 +2219,7 @@ func scanCompetition(row rowScanner) (models.Competition, error) {
 		{endAt, &c.EndAt},
 		{regStart, &c.RegistrationStart},
 		{regEnd, &c.RegistrationEnd},
+		{freezeAt, &c.FreezeAt},
 	} {
 		if p.s.Valid && p.s.String != "" {
 			for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02T15:04:05Z"} {
@@ -2234,7 +2235,7 @@ func scanCompetition(row rowScanner) (models.Competition, error) {
 
 const competitionSelectCols = `
 	SELECT id, name, description, rules_html,
-	       start_at, end_at, registration_start, registration_end,
+	       start_at, end_at, registration_start, registration_end, freeze_at,
 	       scoreboard_frozen, scoreboard_blackout, status, created_at, updated_at
 	FROM competitions`
 
@@ -2317,13 +2318,15 @@ func (db *DB) SetCompetitionStatus(id int64, status string) error {
 	return err
 }
 
-// SetCompetitionFreeze sets the scoreboard_frozen flag.
+// SetCompetitionFreeze sets the scoreboard_frozen flag and records the freeze timestamp.
+// When freezing, freeze_at is set to now (used as the scoreboard cutoff).
+// When unfreezing, freeze_at is cleared.
 func (db *DB) SetCompetitionFreeze(id int64, frozen bool) error {
-	v := 0
 	if frozen {
-		v = 1
+		_, err := db.Exec(`UPDATE competitions SET scoreboard_frozen=1, freeze_at=datetime('now'), updated_at=datetime('now') WHERE id=?`, id)
+		return err
 	}
-	_, err := db.Exec(`UPDATE competitions SET scoreboard_frozen=?, updated_at=datetime('now') WHERE id=?`, v, id)
+	_, err := db.Exec(`UPDATE competitions SET scoreboard_frozen=0, freeze_at=NULL, updated_at=datetime('now') WHERE id=?`, id)
 	return err
 }
 
@@ -2426,10 +2429,13 @@ func (db *DB) GetCompetitionTeams(compID int64) ([]models.Team, error) {
 }
 
 // IsTeamRegistered returns true if the team is registered for the competition.
-func (db *DB) IsTeamRegistered(compID int64, teamID string) bool {
+func (db *DB) IsTeamRegistered(compID int64, teamID string) (bool, error) {
 	var count int
-	db.QueryRow(`SELECT COUNT(*) FROM competition_teams WHERE competition_id=? AND team_id=?`, compID, teamID).Scan(&count)
-	return count > 0
+	err := db.QueryRow(`SELECT COUNT(*) FROM competition_teams WHERE competition_id=? AND team_id=?`, compID, teamID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 // GetCompetitionScoreboard returns ranked teams for a competition.
@@ -2450,9 +2456,14 @@ func (db *DB) GetCompetitionScoreboard(compID int64) ([]models.CompetitionScoreb
 		args = append(args, comp.StartAt.UTC().Format(time.RFC3339))
 	}
 	endFilter := "1=1"
-	if comp.EndAt != nil {
+	// Use freeze_at as the cutoff when frozen, otherwise use end_at.
+	endBoundary := comp.EndAt
+	if comp.ScoreboardFrozen && comp.FreezeAt != nil {
+		endBoundary = comp.FreezeAt
+	}
+	if endBoundary != nil {
 		endFilter = "s.created_at <= ?"
-		args = append(args, comp.EndAt.UTC().Format(time.RFC3339))
+		args = append(args, endBoundary.UTC().Format(time.RFC3339))
 	}
 	// Append competition_id for the outer WHERE
 	args = append(args, compID)

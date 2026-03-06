@@ -23,6 +23,7 @@ module.exports = {
         dark: {
           bg: '#0f172a',
           surface: '#1e293b',
+          card: '#1e293b',
           border: '#334155',
         }
       },
