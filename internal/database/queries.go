@@ -1465,7 +1465,6 @@ func (db *DB) GetChallengeCompletionForUser(userID string) (map[string]*Challeng
 		FROM challenges c
 		LEFT JOIN questions q ON c.id = q.challenge_id
 		LEFT JOIN submissions s ON q.id = s.question_id AND s.user_id = ? AND s.is_correct = 1
-		WHERE c.visible = 1
 		GROUP BY c.id
 	`
 
