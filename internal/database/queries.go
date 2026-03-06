@@ -2708,7 +2708,8 @@ func (db *DB) GetCompetitionRecentSubmissions(compID int64, limit int, adminView
 	return results, nil
 }
 
-// GetGlobalRecentSubmissions returns the latest submissions across all competitions.
+// GetGlobalRecentSubmissions returns the latest submissions across all challenges
+// (whether part of a competition or not).
 // Same admin/public visibility rules as GetCompetitionRecentSubmissions.
 func (db *DB) GetGlobalRecentSubmissions(limit int, adminView bool) ([]CompetitionSubmission, error) {
 	whereClause := ""
@@ -2727,8 +2728,6 @@ func (db *DB) GetGlobalRecentSubmissions(limit int, adminView bool) ([]Competiti
 		FROM submissions s
 		JOIN questions q ON q.id = s.question_id
 		JOIN challenges c ON c.id = q.challenge_id
-		JOIN competition_challenges cc ON cc.challenge_id = c.id
-		JOIN competitions comp ON comp.id = cc.competition_id
 		JOIN users u ON u.id = s.user_id
 		LEFT JOIN teams t ON t.id = s.team_id
 		WHERE 1=1 %s
