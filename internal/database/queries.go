@@ -2524,6 +2524,26 @@ func (db *DB) GetCompetitionScoreboard(compID int64) ([]models.CompetitionScoreb
 	return entries, nil
 }
 
+// SetCompetitionStartAtIfUnset sets start_at to now only if it is currently NULL.
+// Called on force-start so the scoreboard lower-bound filter is always populated.
+func (db *DB) SetCompetitionStartAtIfUnset(id int64) {
+	db.Exec(`UPDATE competitions SET start_at=datetime('now'), updated_at=datetime('now') WHERE id=? AND start_at IS NULL`, id)
+}
+
+// IsChallengeLocked returns true if the challenge belongs to at least one competition
+// that has not yet started (status draft or registration). Used to gate flag submissions.
+func (db *DB) IsChallengeLocked(challengeID string) (bool, error) {
+	var count int
+	err := db.QueryRow(`
+		SELECT COUNT(*) FROM competition_challenges cc
+		JOIN competitions c ON c.id = cc.competition_id
+		WHERE cc.challenge_id = ? AND c.status IN ('draft', 'registration')`, challengeID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // TickCompetitionLifecycle auto-transitions competitions based on current time.
 // Call from a background goroutine every 60 seconds.
 func (db *DB) TickCompetitionLifecycle() {
@@ -2542,6 +2562,7 @@ func (db *DB) TickCompetitionLifecycle() {
 		WHERE status='registration' AND start_at IS NOT NULL AND start_at <= ?`, now)
 
 	// draft → running when start_at arrives (no explicit registration period)
+	// start_at is already set in this case (it's the trigger), so no need to backfill.
 	db.Exec(`
 		UPDATE competitions
 		SET status='running', updated_at=datetime('now')

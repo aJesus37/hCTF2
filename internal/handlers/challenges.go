@@ -146,6 +146,18 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Block submission if challenge belongs to a competition that hasn't started yet
+	locked, err := h.db.IsChallengeLocked(question.ChallengeID)
+	if err != nil {
+		w.Write([]byte(`<div class="text-red-400">Database error</div>`))
+		return
+	}
+	if locked {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<div class="p-3 bg-yellow-900/50 border border-yellow-700 rounded text-yellow-300 text-sm">This challenge is part of a competition that has not started yet.</div>`))
+		return
+	}
+
 	// Validate flag
 	submittedFlag := strings.TrimSpace(req.Flag)
 	correctFlag := question.Flag

@@ -43,7 +43,8 @@
     </div>
     {{end}}
 
-    <!-- Challenges -->
+    <!-- Challenges — only visible once competition is running or ended -->
+    {{if or (eq $comp.Status "running") (eq $comp.Status "ended")}}
     {{if .Challenges}}
     <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Challenges ({{len .Challenges}})</h2>
@@ -52,6 +53,12 @@
             <a href="/challenges/{{.ID}}" class="text-sm text-purple-500 hover:underline truncate">{{.Name}}</a>
             {{end}}
         </div>
+    </div>
+    {{end}}
+    {{else if or (eq $comp.Status "draft") (eq $comp.Status "registration")}}
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Challenges</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Challenges will be revealed when the competition starts.</p>
     </div>
     {{end}}
 

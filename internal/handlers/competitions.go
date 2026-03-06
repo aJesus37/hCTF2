@@ -355,6 +355,8 @@ func (h *CompetitionHandler) ForceStart(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Failed", http.StatusInternalServerError)
 		return
 	}
+	// Record start_at if not already set, so the scoreboard lower-bound filter works correctly.
+	h.db.SetCompetitionStartAtIfUnset(id)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": models.CompStatusRunning})
 }
