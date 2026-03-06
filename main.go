@@ -543,6 +543,7 @@ func main() {
 	r.Get("/api/competitions", s.competitionH.ListCompetitions)
 	r.Get("/api/competitions/{id}", s.competitionH.GetCompetition)
 	r.Get("/api/competitions/{id}/scoreboard", s.competitionH.GetScoreboard)
+	r.Get("/api/competitions/{id}/scoreboard/evolution", s.competitionH.GetCompetitionScoreEvolution)
 
 	// 404 handler for unmatched routes
 	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -825,6 +826,11 @@ func (s *Server) handleCompetitionDetail(w http.ResponseWriter, r *http.Request)
 		"Entries":        entries,
 		"TeamRegistered": teamRegistered,
 		"BlackedOut":     comp.ScoreboardBlackout && !isAdmin,
+		"Completions":    make(map[string]*database.ChallengeCompletion),
+	}
+	if claims != nil {
+		completions, _ := s.db.GetChallengeCompletionForUser(claims.UserID)
+		data["Completions"] = completions
 	}
 	s.render(w, "base.html", data)
 }

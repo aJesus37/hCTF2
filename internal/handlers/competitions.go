@@ -435,7 +435,91 @@ func (h *CompetitionHandler) SetBlackout(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(map[string]bool{"blackout": blackout})
 }
 
-// TODO: GetScoreboardEvolution - per-competition score evolution chart data (not yet implemented)
+// GetCompetitionScoreEvolution godoc
+// @Summary Get score evolution for a competition
+// @Description Returns time-series score data per team for the competition chart
+// @Tags Competitions
+// @Produce json
+// @Param id path int true "Competition ID"
+// @Success 200 {object} object{intervals=[]string,series=[]object}
+// @Router /api/competitions/{id}/scoreboard/evolution [get]
+func (h *CompetitionHandler) GetCompetitionScoreEvolution(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
+		return
+	}
+
+	series, err := h.db.GetCompetitionScoreEvolution(id)
+	if err != nil {
+		http.Error(w, `{"error":"failed to fetch evolution"}`, http.StatusInternalServerError)
+		return
+	}
+
+	response := formatCompetitionEvolutionForChart(series)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func formatCompetitionEvolutionForChart(series []database.ScoreEvolutionSeries) map[string]interface{} {
+	colors := []string{"#3b82f6", "#22c55e", "#a855f7", "#f97316", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6"}
+
+	// Collect all unique timestamps
+	timeMap := make(map[string]bool)
+	for _, s := range series {
+		for _, p := range s.Scores {
+			timeMap[p.RecordedAt.Format("01/02 15:04")] = true
+		}
+	}
+	var intervals []string
+	for t := range timeMap {
+		intervals = append(intervals, t)
+	}
+	// Sort chronologically (format MM/DD HH:MM sorts lexicographically)
+	sortStrings(intervals)
+
+	var chartSeries []map[string]interface{}
+	for i, s := range series {
+		scoreAt := make(map[string]int)
+		for _, p := range s.Scores {
+			key := p.RecordedAt.Format("01/02 15:04")
+			scoreAt[key] = p.Score
+		}
+		scores := make([]int, len(intervals))
+		lastScore := 0
+		hasValue := false
+		for j, interval := range intervals {
+			if val, ok := scoreAt[interval]; ok {
+				scores[j] = val
+				lastScore = val
+				hasValue = true
+			} else if hasValue {
+				scores[j] = lastScore
+			}
+		}
+		color := colors[i%len(colors)]
+		chartSeries = append(chartSeries, map[string]interface{}{
+			"id":     s.UserID,
+			"name":   s.Name,
+			"color":  color,
+			"scores": scores,
+		})
+	}
+
+	return map[string]interface{}{
+		"intervals": intervals,
+		"series":    chartSeries,
+	}
+}
+
+func sortStrings(ss []string) {
+	for i := 1; i < len(ss); i++ {
+		for j := i; j > 0 && ss[j] < ss[j-1]; j-- {
+			ss[j], ss[j-1] = ss[j-1], ss[j]
+		}
+	}
+}
 
 // parseOptionalTime parses datetime-local input format or RFC3339.
 func parseOptionalTime(s string) *time.Time {

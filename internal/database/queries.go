@@ -2555,6 +2555,93 @@ func (db *DB) IsChallengeLocked(challengeID string) (bool, error) {
 	return count > 0, nil
 }
 
+// GetCompetitionScoreEvolution returns per-team cumulative score over time for a competition.
+// It derives data directly from submissions (no pre-recorded snapshots needed).
+func (db *DB) GetCompetitionScoreEvolution(compID int64) ([]ScoreEvolutionSeries, error) {
+	comp, err := db.GetCompetitionByID(compID)
+	if err != nil {
+		return nil, err
+	}
+
+	const sqliteLayout = "2006-01-02 15:04:05"
+
+	var args []interface{}
+	args = append(args, compID, compID)
+
+	startFilter := "1=1"
+	if comp.StartAt != nil {
+		startFilter = "s.created_at >= ?"
+		args = append(args, comp.StartAt.UTC().Format(sqliteLayout))
+	}
+	endBoundary := comp.EndAt
+	if comp.ScoreboardFrozen && comp.FreezeAt != nil {
+		endBoundary = comp.FreezeAt
+	}
+	endFilter := "1=1"
+	if endBoundary != nil {
+		endFilter = "s.created_at <= ?"
+		args = append(args, endBoundary.UTC().Format(sqliteLayout))
+	}
+
+	query := fmt.Sprintf(`
+		SELECT t.id, t.name, s.created_at, q.points
+		FROM submissions s
+		JOIN questions q ON q.id = s.question_id
+		JOIN challenges c ON c.id = q.challenge_id
+		JOIN competition_challenges cc ON cc.challenge_id = c.id AND cc.competition_id = ?
+		JOIN competition_teams ct ON ct.team_id = s.team_id AND ct.competition_id = ?
+		JOIN teams t ON t.id = s.team_id
+		WHERE s.is_correct = 1 AND %s AND %s
+		ORDER BY s.created_at ASC`, startFilter, endFilter)
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	type teamData struct {
+		name   string
+		events []ScoreEvolutionPoint
+		total  int
+	}
+	teamsMap := make(map[string]*teamData)
+	var teamOrder []string
+
+	for rows.Next() {
+		var teamID, teamName, createdAt string
+		var points int
+		if err := rows.Scan(&teamID, &teamName, &createdAt, &points); err != nil {
+			return nil, err
+		}
+		td, ok := teamsMap[teamID]
+		if !ok {
+			td = &teamData{name: teamName}
+			teamsMap[teamID] = td
+			teamOrder = append(teamOrder, teamID)
+		}
+		td.total += points
+		var t time.Time
+		for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339} {
+			if t, err = time.Parse(layout, createdAt); err == nil {
+				break
+			}
+		}
+		td.events = append(td.events, ScoreEvolutionPoint{RecordedAt: t, Score: td.total})
+	}
+
+	var result []ScoreEvolutionSeries
+	for _, id := range teamOrder {
+		td := teamsMap[id]
+		result = append(result, ScoreEvolutionSeries{
+			UserID: id,
+			Name:   td.name,
+			Scores: td.events,
+		})
+	}
+	return result, nil
+}
+
 // TickCompetitionLifecycle auto-transitions competitions based on current time.
 // Call from a background goroutine every 60 seconds.
 func (db *DB) TickCompetitionLifecycle() {
