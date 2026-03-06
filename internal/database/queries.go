@@ -2450,10 +2450,15 @@ func (db *DB) GetCompetitionScoreboard(compID int64) ([]models.CompetitionScoreb
 	var args []interface{}
 	args = append(args, compID, compID)
 
+	// SQLite stores created_at as "2006-01-02 15:04:05" (space separator, no timezone).
+	// We must use the same format for comparisons — RFC3339 ("T" separator) fails because
+	// SQLite does lexicographic string comparison and space (0x20) < T (0x54).
+	const sqliteLayout = "2006-01-02 15:04:05"
+
 	startFilter := "1=1"
 	if comp.StartAt != nil {
 		startFilter = "s.created_at >= ?"
-		args = append(args, comp.StartAt.UTC().Format(time.RFC3339))
+		args = append(args, comp.StartAt.UTC().Format(sqliteLayout))
 	}
 	endFilter := "1=1"
 	// Use freeze_at as the cutoff when frozen, otherwise use end_at.
@@ -2463,7 +2468,7 @@ func (db *DB) GetCompetitionScoreboard(compID int64) ([]models.CompetitionScoreb
 	}
 	if endBoundary != nil {
 		endFilter = "s.created_at <= ?"
-		args = append(args, endBoundary.UTC().Format(time.RFC3339))
+		args = append(args, endBoundary.UTC().Format(sqliteLayout))
 	}
 	// Append competition_id for the outer WHERE
 	args = append(args, compID)
