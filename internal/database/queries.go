@@ -2446,7 +2446,8 @@ func (db *DB) GetCompetitionScoreboard(compID int64) ([]models.CompetitionScoreb
 		return nil, err
 	}
 
-	// Build args: compID x2 (for JOIN conditions), then optional time bounds, then compID for WHERE
+	// Build args: compID x2 (for first_solves JOIN conditions), then optional time bounds,
+	// then compID for hint_penalties JOIN, then compID for outer WHERE
 	var args []interface{}
 	args = append(args, compID, compID)
 
@@ -2470,8 +2471,8 @@ func (db *DB) GetCompetitionScoreboard(compID int64) ([]models.CompetitionScoreb
 		endFilter = "s.created_at <= ?"
 		args = append(args, endBoundary.UTC().Format(sqliteLayout))
 	}
-	// Append competition_id for the outer WHERE
-	args = append(args, compID)
+	// Append competition_id for hint_penalties JOIN, then outer WHERE
+	args = append(args, compID, compID)
 
 	query := fmt.Sprintf(`
 		WITH first_solves AS (
@@ -2483,14 +2484,24 @@ func (db *DB) GetCompetitionScoreboard(compID int64) ([]models.CompetitionScoreb
 			JOIN competition_teams ct ON ct.team_id = s.team_id AND ct.competition_id = ?
 			WHERE s.is_correct = 1 AND %s AND %s
 			GROUP BY s.team_id, s.question_id
+		),
+		hint_penalties AS (
+			SELECT hu.team_id, SUM(h.cost) as total_cost
+			FROM hint_unlocks hu
+			JOIN hints h ON h.id = hu.hint_id
+			JOIN questions q ON q.id = h.question_id
+			JOIN competition_challenges cc ON cc.challenge_id = q.challenge_id AND cc.competition_id = ?
+			WHERE hu.team_id IS NOT NULL
+			GROUP BY hu.team_id
 		)
 		SELECT t.id, t.name,
-		       COALESCE(SUM(fs.points), 0) as score,
+		       COALESCE(SUM(fs.points), 0) - COALESCE(hp.total_cost, 0) as score,
 		       COUNT(DISTINCT fs.question_id) as solve_count,
 		       MAX(fs.solved_at) as last_solve
 		FROM competition_teams ct
 		JOIN teams t ON t.id = ct.team_id
 		LEFT JOIN first_solves fs ON fs.team_id = t.id
+		LEFT JOIN hint_penalties hp ON hp.team_id = t.id
 		WHERE ct.competition_id = ?
 		GROUP BY t.id, t.name
 		ORDER BY score DESC, last_solve ASC NULLS LAST`, startFilter, endFilter)
