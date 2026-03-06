@@ -1255,11 +1255,12 @@
                         <form hx-post="/api/admin/competitions/{{.ID}}/challenges"
                               @htmx:after-request="if($event.detail.successful) window.location.reload()"
                               class="flex gap-2">
-                            <select name="challenge_id" class="flex-1 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-2 py-1 text-gray-900 dark:text-white">
-                                <option value="">Select challenge...</option>
-                                {{range $.Challenges}}
-                                <option value="{{.ID}}">{{.Name}}</option>
-                                {{end}}
+                            <select name="challenge_id"
+                                    hx-get="/api/challenges-dropdown"
+                                    hx-trigger="revealed"
+                                    hx-swap="innerHTML"
+                                    class="flex-1 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-2 py-1 text-gray-900 dark:text-white">
+                                <option value="">Loading...</option>
                             </select>
                             <button type="submit" class="text-xs bg-purple-600 text-white px-3 py-1 rounded-lg">Add</button>
                         </form>
