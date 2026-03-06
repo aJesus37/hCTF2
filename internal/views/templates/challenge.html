@@ -84,7 +84,6 @@
             <form hx-post="/api/questions/{{.ID}}/submit"
                   hx-target="#result-{{.ID}}"
                   hx-swap="innerHTML"
-                  hx-on:htmx:before-request="document.getElementById('result-{{.ID}}').innerHTML=''"
                   class="flex gap-2">
                 <input type="text"
                        id="flag-input-{{.ID}}"
