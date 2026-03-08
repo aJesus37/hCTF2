@@ -1,0 +1,44 @@
+{{define "submissions-content"}}
+{{$isAdmin := and .User .User.IsAdmin}}
+<div class="max-w-5xl mx-auto w-full space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Live Submissions</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {{if $isAdmin}}All attempts across all challenges · refreshes every 10s{{else}}Recent solves across all challenges · refreshes every 10s{{end}}
+            </p>
+        </div>
+        {{if .Competitions}}
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+            Filter by competition:
+            <select id="comp-filter" class="ml-2 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded px-2 py-1 text-sm text-gray-900 dark:text-white"
+                    onchange="updateFeed(this.value)">
+                <option value="">All</option>
+                {{range .Competitions}}
+                <option value="{{.ID}}">{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+        {{end}}
+    </div>
+
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <div id="global-feed"
+             hx-get="/api/competitions/submissions"
+             hx-trigger="load, every 10s"
+             hx-swap="innerHTML">
+            <p class="text-center py-6 text-gray-400 text-sm">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateFeed(compId) {
+    const feed = document.getElementById('global-feed');
+    if (!feed) return;
+    const url = compId ? '/api/competitions/' + compId + '/submissions' : '/api/competitions/submissions';
+    feed.setAttribute('hx-get', url);
+    htmx.trigger(feed, 'load');
+}
+</script>
+{{end}}

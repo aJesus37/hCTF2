@@ -37,7 +37,7 @@ hctf2/
 ├── internal/            # Private application code
 │   ├── auth/           # Authentication & middleware
 │   ├── database/       # Database layer with embedded migrations
-│   │   └── migrations/ # SQL migrations (001-006)
+│   │   └── migrations/ # SQL migrations (001-017)
 │   ├── handlers/       # HTTP handlers (auth, challenges, teams, hints, etc.)
 │   ├── models/         # Data structures
 │   ├── utils/          # Utility functions (markdown rendering)
@@ -133,6 +133,9 @@ Follow this order:
 - Changes require **rebuild**: `task clean && task build`
 - Use Go's `html/template` syntax (auto-escapes HTML)
 - Keep logic minimal in templates
+- **Named blocks**: each template must define a unique block, e.g. `{{define "competitions-content"}}`. `base.html` dispatches via `{{if eq .Page "pagename"}}{{template "pagename-content" .}}{{end}}` — NOT a generic `{{define "content"}}` block
+- **Raw HTML rendering**: use `{{.Field | safeHTML}}` — `safeHTML` is registered in `main.go`'s template FuncMap (alongside `markdown`)
+- **Admin HTMX events**: admin.html uses Alpine.js syntax `@htmx:after-request="if($event.detail.successful) window.location.reload()"`, NOT native `hx-on::after-request`
 
 ## Code Style
 
@@ -289,7 +292,7 @@ Follow Semantic Versioning: `MAJOR.MINOR.PATCH`
 - **MINOR**: New features (backwards compatible)
 - **PATCH**: Bug fixes (backwards compatible)
 
-Current version: **v0.5.0** (User Management, Challenge Completion Indicators, SQL Playground per challenge, Profile Links, and Theme Toggle)
+Current version: **v0.6.0** (Competition Lifecycle Management: time-bounded events, per-competition scoreboards, scoreboard blackout, auto-transitions)
 
 ### When to Bump
 
@@ -398,12 +401,19 @@ func (h *Handler) FunctionName(w http.ResponseWriter, r *http.Request) {
 4. Rebuild: `task clean && task build`
 5. Test migration by running server
 
+**Schema notes:**
+- `challenges.id` and `teams.id` are `TEXT` (UUIDv7) — use `TEXT` for FK columns referencing them
+- `submissions.is_correct` is the boolean column (not `correct`)
+- `submissions` has no unique constraint on `(question_id, user_id)` — multiple wrong attempts are allowed; uniqueness is enforced in code (blocked after correct solve)
+- `PRAGMA foreign_keys = ON` is set at DB connection open in `internal/database/db.go` — do NOT add it to migration files (connection-level pragma, not persistent)
+
 ### Adding a New Page
 
 1. Create template in `internal/views/templates/pagename.html`
-2. Define "content" block (see existing templates)
-3. Add route handler in `main.go`
-4. Render with `s.render(w, "base.html", data)`
+2. Define a **unique named block**: `{{define "pagename-content"}}` (not `"content"`)
+3. Add the page to `base.html`'s dispatch chain: `{{else if eq .Page "pagename"}}{{template "pagename-content" .}}{{end}}`
+4. Add route handler in `main.go` with `"Page": "pagename"` in the data map
+5. Render with `s.render(w, "base.html", data)`
 
 ## What NOT to Do
 
@@ -467,6 +477,10 @@ The following features have been implemented:
 18. ✅ **CTFtime.org Export** - JSON format for CTFtime integration
 19. ✅ **Rate Limiting** - Per-user flag submission limits
 20. ✅ **Challenge Import/Export** - JSON format for backup and sharing
+21. ✅ **Competition Lifecycle Management** - Time-bounded events with registered teams, per-competition scoreboards, scoreboard blackout, and auto-transitions (draft→registration→running→ended)
+22. ✅ **Live Submission Feed** - Per-competition and global `/submissions` page; public shows correct solves, admin sees all attempts with submitted flag text; polls every 10s
+23. ✅ **Multi-attempt Wrong Answers** - Removed unique constraint on submissions so users can submit multiple wrong flags without errors
+24. ✅ **Question Anchor Links** - Each question card has a `#question-{id}` anchor; hover the title to copy a direct link; live feed and profile activity link directly to the anchored question
 
 ### Planned Features
 
@@ -501,6 +515,7 @@ Handlers are organized by domain in `internal/handlers/`:
 | UserHandler | `settings.go` | User management (admin panel for users) |
 | ChallengeFileHandler | `challengefiles.go` | File upload/download for challenges |
 | ImportExportHandler | `import_export.go` | Challenge import/export in JSON format |
+| CompetitionHandler | `competitions.go` | Competition CRUD, lifecycle, scoreboards, submission feed, score evolution API |
 
 Page handlers (in `main.go`) route to templates; API handlers return JSON or HTMX fragments.
 

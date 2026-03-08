@@ -38,7 +38,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -56,6 +58,9 @@ import (
 	"github.com/yourusername/hctf2/internal/telemetry"
 	"github.com/yourusername/hctf2/internal/utils"
 )
+
+// version is set at build time via -ldflags "-X main.version=vX.Y.Z"
+var version = "dev"
 
 //go:embed internal/views/templates/*
 var templatesFS embed.FS
@@ -100,6 +105,7 @@ type Server struct {
 	profileH         *handlers.ProfileHandler
 	settingsH        *handlers.SettingsHandler
 	importExportH    *handlers.ImportExportHandler
+	competitionH     *handlers.CompetitionHandler
 	motd             string
 	submitLimiter    *ratelimit.Limiter
 	storage          storage.Storage
@@ -190,8 +196,23 @@ func main() {
 		corsOrigins      = flag.String("cors-origins", getEnv("CORS_ORIGINS", ""), "Comma-separated list of allowed CORS origins (empty = same-origin only)")
 		submissionRateLimit = flag.Int("submission-rate-limit", 5, "Max flag submissions per minute per user (0 = unlimited)")
 		uploadDir           = flag.String("upload-dir", "./uploads", "Directory for file uploads")
+		showVersion         = flag.Bool("version", false, "Print version and exit")
+		showInfo            = flag.Bool("info", false, "Print build info and exit")
 	)
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		os.Exit(0)
+	}
+
+	if *showInfo {
+		fmt.Printf("hCTF2 %s\n", version)
+		fmt.Printf("  go:      %s\n", runtime.Version())
+		fmt.Printf("  os/arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("  cpus:    %d\n", runtime.NumCPU())
+		os.Exit(0)
+	}
 
 	// Check if development mode is enabled via --dev flag
 	devMode := *dev
@@ -309,6 +330,7 @@ func main() {
 		profileH:         handlers.NewProfileHandler(db),
 		settingsH:        handlers.NewSettingsHandler(db),
 		importExportH:    handlers.NewImportExportHandler(db),
+		competitionH:     handlers.NewCompetitionHandler(db),
 		scoreRecorder:    recorder,
 		motd:             *motd,
 		storage:          stor,
@@ -321,6 +343,16 @@ func main() {
 	}
 
 	s.scoreRecorder.Start()
+
+	// Competition lifecycle watcher
+	go func() {
+		db.TickCompetitionLifecycle() // run immediately on startup
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			db.TickCompetitionLifecycle()
+		}
+	}()
 
 	// Parse CORS origins from CLI flag
 	var allowedOrigins []string
@@ -375,6 +407,9 @@ func main() {
 	r.Get("/challenges", s.handleChallenges)
 	r.Get("/challenges/{id}", s.handleChallengeDetail)
 	r.Get("/scoreboard", s.handleScoreboard)
+	r.Get("/competitions", s.handleCompetitionList)
+	r.Get("/competitions/{id}", s.handleCompetitionDetail)
+	r.Get("/submissions", s.handleSubmissionsPage)
 	r.Get("/sql", s.handleSQL)
 	r.Get("/login", s.handleLoginPage)
 	r.Get("/register", s.handleRegisterPage)
@@ -434,6 +469,7 @@ func main() {
 
 	r.Group(func(r chi.Router) {
 		r.Use(auth.RequireAuth)
+		r.Post("/api/competitions/{id}/register", s.competitionH.RegisterTeam)
 		r.Post("/api/teams", s.teamH.CreateTeam)
 		r.Post("/api/teams/join/{invite_id}", s.teamH.JoinTeam)
 		r.Post("/api/teams/leave", s.teamH.LeaveTeam)
@@ -495,6 +531,16 @@ func main() {
 		r.Get("/api/admin/export", s.importExportH.ExportChallenges)
 		r.Post("/api/admin/import", s.importExportH.ImportChallenges)
 		r.Post("/api/admin/scoreboard/force-record", s.scoreboardH.ForceScoreRecord)
+		r.Post("/api/admin/competitions", s.competitionH.CreateCompetition)
+		r.Put("/api/admin/competitions/{id}", s.competitionH.UpdateCompetition)
+		r.Delete("/api/admin/competitions/{id}", s.competitionH.DeleteCompetition)
+		r.Post("/api/admin/competitions/{id}/challenges", s.competitionH.AddChallenge)
+		r.Delete("/api/admin/competitions/{id}/challenges/{cid}", s.competitionH.RemoveChallenge)
+		r.Get("/api/admin/competitions/{id}/teams", s.competitionH.ListTeams)
+		r.Post("/api/admin/competitions/{id}/force-start", s.competitionH.ForceStart)
+		r.Post("/api/admin/competitions/{id}/force-end", s.competitionH.ForceEnd)
+		r.Post("/api/admin/competitions/{id}/freeze", s.competitionH.SetFreeze)
+		r.Post("/api/admin/competitions/{id}/blackout", s.competitionH.SetBlackout)
 		r.Get("/api/categories-checkboxes", s.handleCategoriesCheckboxes)
 		r.Get("/api/difficulties-dropdown", s.handleDifficultiesDropdown)
 	})
@@ -512,6 +558,14 @@ func main() {
 	r.Get("/api/scoreboard", s.scoreboardH.GetScoreboard)
 	r.Get("/api/scoreboard/evolution", s.scoreboardH.GetScoreEvolution)
 	r.Get("/api/ctftime", s.scoreboardH.CTFtimeExport)
+
+	// API routes - Competitions (public read)
+	r.Get("/api/competitions", s.competitionH.ListCompetitions)
+	r.Get("/api/competitions/{id}", s.competitionH.GetCompetition)
+	r.Get("/api/competitions/{id}/scoreboard", s.competitionH.GetScoreboard)
+	r.Get("/api/competitions/{id}/scoreboard/evolution", s.competitionH.GetCompetitionScoreEvolution)
+	r.Get("/api/competitions/submissions", s.competitionH.GetGlobalSubmissionFeed)
+	r.Get("/api/competitions/{id}/submissions", s.competitionH.GetSubmissionFeed)
 
 	// 404 handler for unmatched routes
 	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -745,6 +799,76 @@ func (s *Server) handleScoreboard(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "base.html", data)
 }
 
+func (s *Server) handleCompetitionList(w http.ResponseWriter, r *http.Request) {
+	comps, err := s.db.ListCompetitions()
+	if err != nil {
+		comps = []models.Competition{}
+	}
+	data := map[string]interface{}{
+		"Title":        "Competitions",
+		"Page":         "competitions",
+		"User":         auth.GetUserFromContext(r.Context()),
+		"Competitions": comps,
+	}
+	s.render(w, "base.html", data)
+}
+
+func (s *Server) handleCompetitionDetail(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+	comp, err := s.db.GetCompetitionByID(id)
+	if err != nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+	claims := auth.GetUserFromContext(r.Context())
+	var teamRegistered bool
+	if claims != nil {
+		user, err := s.db.GetUserByID(claims.UserID)
+		if err == nil && user.TeamID != nil {
+			teamRegistered, _ = s.db.IsTeamRegistered(id, *user.TeamID)
+		}
+	}
+	challenges, _ := s.db.GetCompetitionChallenges(id)
+	isAdmin := claims != nil && claims.IsAdmin
+	var entries []models.CompetitionScoreboardEntry
+	if !comp.ScoreboardBlackout || isAdmin {
+		entries, _ = s.db.GetCompetitionScoreboard(id)
+	}
+	data := map[string]interface{}{
+		"Title":          comp.Name,
+		"Page":           "competition",
+		"User":           claims,
+		"Competition":    comp,
+		"Challenges":     challenges,
+		"Entries":        entries,
+		"TeamRegistered": teamRegistered,
+		"BlackedOut":     comp.ScoreboardBlackout && !isAdmin,
+		"Completions":    make(map[string]*database.ChallengeCompletion),
+	}
+	if claims != nil {
+		completions, _ := s.db.GetChallengeCompletionForUser(claims.UserID)
+		data["Completions"] = completions
+	}
+	s.render(w, "base.html", data)
+}
+
+func (s *Server) handleSubmissionsPage(w http.ResponseWriter, r *http.Request) {
+	claims := auth.GetUserFromContext(r.Context())
+	competitions, _ := s.db.ListCompetitions()
+	data := map[string]interface{}{
+		"Title":        "Live Submissions",
+		"Page":         "submissions",
+		"User":         claims,
+		"Competitions": competitions,
+	}
+	s.render(w, "base.html", data)
+}
+
 func (s *Server) handleTeams(w http.ResponseWriter, r *http.Request) {
 	claims := auth.GetUserFromContext(r.Context())
 	if claims == nil {
@@ -921,6 +1045,7 @@ func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 	categories, _ := s.db.GetAllCategories()
 	difficulties, _ := s.db.GetAllDifficulties()
 	users, _ := s.db.GetAllUsers()
+	competitions, _ := s.db.ListCompetitions()
 
 	customCode, _ := s.db.GetCustomCode("admin")
 
@@ -947,6 +1072,7 @@ func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		"Frozen":                  s.db.IsFrozen(),
 		"FreezeAt":                freezeAtStr,
 		"AdminVisibleInScoreboard": adminVisible,
+		"Competitions":             competitions,
 		"BaseURL":       func() string {
 			scheme := "http"
 			if r.TLS != nil {

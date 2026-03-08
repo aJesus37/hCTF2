@@ -81,6 +81,7 @@ definitions:
       dynamic_scoring:
         type: boolean
       file_url:
+        description: 'Deprecated: use ChallengeFiles'
         type: string
       id:
         type: string
@@ -102,6 +103,51 @@ definitions:
         type: string
       visible:
         type: boolean
+    type: object
+  models.Competition:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      end_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      registration_end:
+        type: string
+      registration_start:
+        type: string
+      rules_html:
+        type: string
+      scoreboard_blackout:
+        type: boolean
+      scoreboard_frozen:
+        type: boolean
+      start_at:
+        type: string
+      status:
+        description: draft|registration|running|ended
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.CompetitionScoreboardEntry:
+    properties:
+      last_solve:
+        type: string
+      rank:
+        type: integer
+      score:
+        type: integer
+      solve_count:
+        type: integer
+      team_id:
+        type: string
+      team_name:
+        type: string
     type: object
   models.Hint:
     properties:
@@ -1005,6 +1051,255 @@ paths:
       summary: Toggle admin status for a user (admin only)
       tags:
       - Admin
+  /api/admin/competitions:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Competition'
+      security:
+      - CookieAuth: []
+      summary: Create a competition (admin only)
+      tags:
+      - Competitions
+  /api/admin/competitions/{id}:
+    delete:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses: {}
+      security:
+      - CookieAuth: []
+      summary: Delete a competition (admin only)
+      tags:
+      - Competitions
+    put:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses: {}
+      security:
+      - CookieAuth: []
+      summary: Update a competition (admin only)
+      tags:
+      - Competitions
+  /api/admin/competitions/{id}/blackout:
+    post:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses: {}
+      security:
+      - CookieAuth: []
+      summary: Toggle competition scoreboard blackout (admin only)
+      tags:
+      - Competitions
+  /api/admin/competitions/{id}/challenges:
+    post:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses: {}
+      security:
+      - CookieAuth: []
+      summary: Add challenge to competition (admin only)
+      tags:
+      - Competitions
+  /api/admin/competitions/{id}/challenges/{cid}:
+    delete:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Challenge ID
+        in: path
+        name: cid
+        required: true
+        type: string
+      responses: {}
+      security:
+      - CookieAuth: []
+      summary: Remove challenge from competition (admin only)
+      tags:
+      - Competitions
+  /api/admin/competitions/{id}/force-end:
+    post:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses: {}
+      security:
+      - CookieAuth: []
+      summary: Force-end a competition (admin only)
+      tags:
+      - Competitions
+  /api/admin/competitions/{id}/force-start:
+    post:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses: {}
+      security:
+      - CookieAuth: []
+      summary: Force-start a competition (admin only)
+      tags:
+      - Competitions
+  /api/admin/competitions/{id}/freeze:
+    post:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses: {}
+      security:
+      - CookieAuth: []
+      summary: Toggle competition scoreboard freeze (admin only)
+      tags:
+      - Competitions
+  /api/admin/competitions/{id}/teams:
+    get:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses: {}
+      security:
+      - CookieAuth: []
+      summary: List teams registered for competition
+      tags:
+      - Competitions
+  /api/admin/scoreboard/force-record:
+    post:
+      description: Forces the background score recorder to capture a snapshot immediately.
+        Admin only.
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Manually trigger score recording (admin only)
+      tags:
+      - Scoreboard
+  /api/competitions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Competition'
+            type: array
+      summary: List all competitions
+      tags:
+      - Competitions
+  /api/competitions/{id}:
+    get:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Competition'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get competition by ID
+      tags:
+      - Competitions
+  /api/competitions/{id}/register:
+    post:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Register current user's team for a competition
+      tags:
+      - Competitions
+  /api/competitions/{id}/scoreboard:
+    get:
+      parameters:
+      - description: Competition ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.CompetitionScoreboardEntry'
+            type: array
+      summary: Get competition scoreboard
+      tags:
+      - Competitions
   /api/ctftime:
     get:
       description: Returns team standings in the format expected by CTFtime.org. No
@@ -1037,6 +1332,39 @@ paths:
           schema:
             type: string
       summary: Export scoreboard in CTFtime.org JSON format
+      tags:
+      - Scoreboard
+  /api/scoreboard/evolution:
+    get:
+      description: Returns time-series score data for top N users. Used by Chart.js.
+      parameters:
+      - default: individual
+        description: 'Score mode: individual or team'
+        in: query
+        name: mode
+        type: string
+      - default: 20
+        description: Number of top users to include
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              intervals:
+                items:
+                  type: string
+                type: array
+              series:
+                items:
+                  type: object
+                type: array
+            type: object
+      summary: Get score evolution over time for chart
       tags:
       - Scoreboard
   /auth/forgot-password:

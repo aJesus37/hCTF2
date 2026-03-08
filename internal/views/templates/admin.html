@@ -1,6 +1,6 @@
 {{define "admin-content"}}
 <!-- Hidden element to ensure Tailwind generates classes used in main.go -->
-<div class="hidden bg-white dark:bg-dark-bg border-gray-300 dark:border-dark-border text-gray-900 dark:text-white bg-white dark:bg-dark-surface border-gray-200 dark:border-dark-border text-gray-700 dark:text-gray-300"></div>
+<div class="hidden bg-white dark:bg-dark-bg border-gray-300 dark:border-dark-border text-gray-900 dark:text-white bg-white dark:bg-dark-surface dark:bg-dark-card border-gray-200 dark:border-dark-border text-gray-700 dark:text-gray-300"></div>
 <div class="mb-8">
     <h1 class="text-4xl font-bold text-purple-400 mb-4">Admin Dashboard</h1>
     <p class="text-gray-600 dark:text-gray-300">Manage challenges and questions for the CTF</p>
@@ -54,6 +54,12 @@
                 :class="tab === 'users' ? 'border-b-2 border-purple-500 text-purple-500 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
                 class="pb-3 font-medium transition">
                 Users
+            </button>
+            <button
+                @click="tab = 'competitions'"
+                :class="tab === 'competitions' ? 'border-b-2 border-purple-500 text-purple-500 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
+                class="pb-3 px-1 text-sm font-medium transition-colors whitespace-nowrap">
+                Competitions
             </button>
         </div>
     </div>
@@ -1095,6 +1101,258 @@
             <!-- Users loaded via HTMX -->
             <div class="text-center py-8 text-gray-500 dark:text-gray-400">
                 <p>Loading users...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Competitions Tab -->
+    <script>
+    function compDatesToUTC(evt) {
+        var fields = ['start_at', 'end_at', 'registration_start', 'registration_end', 'freeze_at'];
+        var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+        fields.forEach(function(f) {
+            var v = evt.detail.parameters[f];
+            if (v) {
+                var d = new Date(v);
+                evt.detail.parameters[f] = d.getUTCFullYear() + '-' + pad(d.getUTCMonth()+1) + '-' + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
+            }
+        });
+    }
+    </script>
+    <div x-show="tab === 'competitions'" class="space-y-6">
+        <div class="flex items-center justify-between">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Competitions</h2>
+            <button
+                @click="$dispatch('open-create-comp')"
+                class="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
+                + New Competition
+            </button>
+        </div>
+
+        <!-- Competition list -->
+        {{if not .Competitions}}
+        <p class="text-gray-500 dark:text-gray-400 text-sm">No competitions yet. Create one above.</p>
+        {{else}}
+        <div class="space-y-3">
+            {{range .Competitions}}
+            <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-4"
+                 x-data="{ open: false, editing: false }">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <h3 class="font-semibold text-gray-900 dark:text-white">{{.Name}}</h3>
+                            <span class="text-xs px-2 py-0.5 rounded-full font-medium
+                                {{if eq .Status "running"}}bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300
+                                {{else if eq .Status "ended"}}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400
+                                {{else if eq .Status "registration"}}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300
+                                {{else}}bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300{{end}}">
+                                {{.Status}}
+                            </span>
+                            {{if .ScoreboardFrozen}}<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Frozen</span>{{end}}
+                            {{if .ScoreboardBlackout}}<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">Blackout</span>{{end}}
+                        </div>
+                        {{if .StartAt}}<div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Start: {{.StartAt.Format "Jan 2 15:04 UTC"}}</div>{{end}}
+                        {{if .EndAt}}<div class="text-xs text-gray-500 dark:text-gray-400">End: {{.EndAt.Format "Jan 2 15:04 UTC"}}</div>{{end}}
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        {{if or (eq .Status "draft") (eq .Status "registration")}}
+                        <button
+                            hx-post="/api/admin/competitions/{{.ID}}/force-start"
+                            hx-confirm="Force start this competition?"
+                            @htmx:after-request="if($event.detail.successful) window.location.reload()"
+                            class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg">
+                            Force Start
+                        </button>
+                        {{end}}
+                        {{if eq .Status "running"}}
+                        <button
+                            hx-post="/api/admin/competitions/{{.ID}}/force-end"
+                            hx-confirm="Force end this competition? This will freeze the scoreboard."
+                            @htmx:after-request="if($event.detail.successful) window.location.reload()"
+                            class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg">
+                            Force End
+                        </button>
+                        <form hx-post="/api/admin/competitions/{{.ID}}/freeze"
+                              @htmx:after-request="if($event.detail.successful) window.location.reload()">
+                            <input type="hidden" name="frozen" value="{{if .ScoreboardFrozen}}0{{else}}1{{end}}">
+                            <button type="submit" class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg">
+                                {{if .ScoreboardFrozen}}Unfreeze{{else}}Freeze{{end}}
+                            </button>
+                        </form>
+                        <form hx-post="/api/admin/competitions/{{.ID}}/blackout"
+                              @htmx:after-request="if($event.detail.successful) window.location.reload()">
+                            <input type="hidden" name="blackout" value="{{if .ScoreboardBlackout}}0{{else}}1{{end}}">
+                            <button type="submit" class="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded-lg">
+                                {{if .ScoreboardBlackout}}End Blackout{{else}}Blackout{{end}}
+                            </button>
+                        </form>
+                        {{end}}
+                        <button @click="editing = !editing; open = true" class="text-xs text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-2 py-1.5">
+                            Edit
+                        </button>
+                        <button @click="open = !open" class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1.5">
+                            <span x-text="open ? '&#9650; Less' : '&#9660; More'"></span>
+                        </button>
+                        <button
+                            hx-delete="/api/admin/competitions/{{.ID}}"
+                            hx-confirm="Delete this competition? This cannot be undone."
+                            @htmx:after-request="if($event.detail.successful) window.location.reload()"
+                            class="text-xs text-red-500 hover:text-red-700 px-2 py-1.5">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Expandable section -->
+                <div x-show="open" x-cloak class="mt-4 border-t border-gray-100 dark:border-dark-border pt-4 space-y-4">
+                    <!-- Edit form -->
+                    <div x-show="editing" class="bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg p-4">
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Edit Competition</h4>
+                        <form hx-put="/api/admin/competitions/{{.ID}}"
+                              @htmx:config-request="compDatesToUTC($event)"
+                              @htmx:after-request="if($event.detail.successful) { editing = false; window.location.reload(); }"
+                              x-init="['registration_start','registration_end','start_at','end_at'].forEach(function(n){var el=$el.querySelector('[name='+n+']');if(el&&el.value){var d=new Date(el.value+'Z');var p=function(x){return x<10?'0'+x:''+x;};el.value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}})"
+                              class="space-y-3">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Name *</label>
+                                    <input type="text" name="name" required value="{{.Name}}"
+                                           class="w-full text-sm bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Description</label>
+                                    <input type="text" name="description" value="{{.Description}}"
+                                           class="w-full text-sm bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Rules (HTML)</label>
+                                <textarea name="rules_html" rows="3"
+                                          class="w-full text-sm bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono">{{.RulesHTML}}</textarea>
+                            </div>
+                            <p class="text-xs text-gray-400 dark:text-gray-500">Times shown in your local timezone — saved as UTC automatically.</p>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div>
+                                    <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Registration Opens</label>
+                                    <input type="datetime-local" name="registration_start"
+                                           {{if .RegistrationStart}}value="{{.RegistrationStart.Format "2006-01-02T15:04"}}"{{end}}
+                                           class="w-full text-xs bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg px-2 py-1.5 text-gray-900 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Registration Closes</label>
+                                    <input type="datetime-local" name="registration_end"
+                                           {{if .RegistrationEnd}}value="{{.RegistrationEnd.Format "2006-01-02T15:04"}}"{{end}}
+                                           class="w-full text-xs bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg px-2 py-1.5 text-gray-900 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Competition Start</label>
+                                    <input type="datetime-local" name="start_at"
+                                           {{if .StartAt}}value="{{.StartAt.Format "2006-01-02T15:04"}}"{{end}}
+                                           class="w-full text-xs bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg px-2 py-1.5 text-gray-900 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Competition End</label>
+                                    <input type="datetime-local" name="end_at"
+                                           {{if .EndAt}}value="{{.EndAt.Format "2006-01-02T15:04"}}"{{end}}
+                                           class="w-full text-xs bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg px-2 py-1.5 text-gray-900 dark:text-white">
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="submit" class="text-xs bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg">Save</button>
+                                <button type="button" @click="editing = false" class="text-xs bg-gray-200 dark:bg-dark-border hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- Challenge picker and teams -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Challenge picker -->
+                    <div>
+                        <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Add Challenge</h4>
+                        <form hx-post="/api/admin/competitions/{{.ID}}/challenges"
+                              @htmx:after-request="if($event.detail.successful && $event.detail.requestConfig.verb === 'post') window.location.reload()"
+                              class="flex gap-2">
+                            <select name="challenge_id"
+                                    hx-get="/api/challenges-dropdown"
+                                    hx-trigger="revealed"
+                                    hx-swap="innerHTML"
+                                    class="flex-1 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-2 py-1 text-gray-900 dark:text-white">
+                                <option value="">Loading...</option>
+                            </select>
+                            <button type="submit" class="text-xs bg-purple-600 text-white px-3 py-1 rounded-lg">Add</button>
+                        </form>
+                        <p class="text-xs text-gray-400 mt-2">
+                            <a href="/competitions/{{.ID}}" class="text-purple-400 hover:underline" target="_blank">View competition page ↗</a>
+                        </p>
+                    </div>
+                    <!-- Registered teams -->
+                    <div>
+                        <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Registered Teams</h4>
+                        <div hx-get="/api/admin/competitions/{{.ID}}/teams"
+                             hx-trigger="revealed"
+                             hx-swap="innerHTML"
+                             class="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
+                    </div>
+                    </div><!-- end grid -->
+                </div><!-- end expandable -->
+            </div><!-- end card -->
+            {{end}}
+        </div>
+        {{end}}
+
+        <!-- Create Competition Modal -->
+        <div x-data="{ show: false }"
+             @open-create-comp.window="show = true"
+             x-show="show" x-cloak
+             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white dark:bg-dark-card rounded-xl p-6 w-full max-w-lg shadow-xl" @click.outside="show = false">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create Competition</h3>
+                <form hx-post="/api/admin/competitions"
+                      @htmx:config-request="compDatesToUTC($event)"
+                      @htmx:after-request="if($event.detail.successful) { show = false; window.location.reload(); }"
+                      class="space-y-3">
+                    <div>
+                        <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Name *</label>
+                        <input type="text" name="name" required
+                               class="w-full text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Description</label>
+                        <input type="text" name="description"
+                               class="w-full text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Rules (HTML)</label>
+                        <textarea name="rules_html" rows="2"
+                                  class="w-full text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono"></textarea>
+                    </div>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">All times are stored in UTC. Enter times in your local timezone — they will be converted automatically.</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Registration Opens</label>
+                            <input type="datetime-local" name="registration_start"
+                                   class="w-full text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Registration Closes</label>
+                            <input type="datetime-local" name="registration_end"
+                                   class="w-full text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Competition Start</label>
+                            <input type="datetime-local" name="start_at"
+                                   class="w-full text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Competition End</label>
+                            <input type="datetime-local" name="end_at"
+                                   class="w-full text-sm bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                        </div>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-sm py-2 rounded-lg">Create</button>
+                        <button type="button" @click="show = false" class="flex-1 bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-gray-300 text-sm py-2 rounded-lg">Cancel</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

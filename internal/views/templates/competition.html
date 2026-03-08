@@ -1,0 +1,213 @@
+{{define "competition-content"}}
+{{$comp := .Competition}}
+<div x-data="{
+    showChart: true,
+    chartInstance: null,
+    init() {
+        this.$watch('showChart', v => { if (v) this.$nextTick(() => this.renderChart()) })
+        this.$nextTick(() => this.renderChart())
+    },
+    renderChart() {
+        if (!this.showChart) return
+        const ctx = document.getElementById('compScoreChart')
+        if (!ctx) return
+        const existing = Chart.getChart(ctx)
+        if (existing) existing.destroy()
+        this.chartInstance = null
+        fetch('/api/competitions/{{$comp.ID}}/scoreboard/evolution')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.series || data.series.length === 0) { this.showChart = false; return }
+                const isDark = document.documentElement.classList.contains('dark')
+                const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+                const textColor = isDark ? '#e2e8f0' : '#374151'
+                this.chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.intervals,
+                        datasets: data.series.map(s => ({
+                            label: s.name,
+                            data: s.scores,
+                            borderColor: s.color,
+                            backgroundColor: s.color + '20',
+                            tension: 0.4,
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        }))
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { intersect: false, mode: 'index' },
+                        plugins: {
+                            legend: { position: 'top', labels: { color: textColor, usePointStyle: true, boxWidth: 8 } },
+                            tooltip: { backgroundColor: isDark ? '#1e293b' : '#ffffff', titleColor: textColor, bodyColor: textColor, borderColor: gridColor, borderWidth: 1 }
+                        },
+                        scales: {
+                            x: { grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: 10 } },
+                            y: { grid: { color: gridColor }, ticks: { color: textColor }, beginAtZero: true }
+                        }
+                    }
+                })
+            })
+            .catch(err => console.error('Failed to load chart:', err))
+    }
+}" class="space-y-8">
+    <!-- Header -->
+    <div class="flex items-start justify-between">
+        <div>
+            <a href="/competitions" class="text-sm text-purple-500 hover:underline">&larr; All Competitions</a>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-2">{{$comp.Name}}</h1>
+            <div class="flex gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {{if $comp.StartAt}}<span>Start: {{$comp.StartAt.Format "Jan 2, 2006 15:04 UTC"}}</span>{{end}}
+                {{if $comp.EndAt}}<span>End: {{$comp.EndAt.Format "Jan 2, 2006 15:04 UTC"}}</span>{{end}}
+            </div>
+        </div>
+        <div class="flex flex-col items-end gap-2">
+            <span class="text-xs font-semibold px-3 py-1 rounded-full
+                {{if eq $comp.Status "running"}}bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300
+                {{else if eq $comp.Status "ended"}}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400
+                {{else if eq $comp.Status "registration"}}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300
+                {{else}}bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300{{end}}">
+                {{$comp.Status}}
+            </span>
+            {{if .User}}
+                {{if not .TeamRegistered}}
+                    {{if or (eq $comp.Status "registration") (eq $comp.Status "running")}}
+                    <form hx-post="/api/competitions/{{$comp.ID}}/register" hx-swap="outerHTML">
+                        <button class="text-sm bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            Register My Team
+                        </button>
+                    </form>
+                    {{end}}
+                {{else}}
+                <span class="text-sm text-green-500 font-medium">&#10003; Registered</span>
+                {{end}}
+            {{end}}
+        </div>
+    </div>
+
+    <!-- Rules -->
+    {{if $comp.RulesHTML}}
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Rules</h2>
+        <div class="prose prose-sm dark:prose-invert max-w-none">{{$comp.RulesHTML | safeHTML}}</div>
+    </div>
+    {{end}}
+
+    <!-- Challenges — only visible once competition is running or ended -->
+    {{if or (eq $comp.Status "running") (eq $comp.Status "ended")}}
+    {{if .Challenges}}
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Challenges ({{len .Challenges}})</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {{range .Challenges}}
+            {{$completion := index $.Completions .ID}}
+            {{$solved := 0}}
+            {{$total := 0}}
+            {{$completed := false}}
+            {{if $completion}}
+                {{$solved = $completion.SolvedQuestions}}
+                {{$total = $completion.TotalQuestions}}
+                {{$completed = $completion.IsComplete}}
+            {{end}}
+            <a href="/challenges/{{.ID}}" class="block bg-gray-50 dark:bg-dark-surface border rounded-lg p-4 hover:border-purple-500 transition {{if $completed}}border-green-500{{else}}border-gray-200 dark:border-dark-border{{end}}">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-semibold text-sm {{if $completed}}text-green-600 dark:text-green-400{{else}}text-gray-900 dark:text-white{{end}} truncate mr-2">
+                        {{if $completed}}<span class="mr-1">✓</span>{{end}}{{.Name}}
+                    </h3>
+                    <span class="text-xs px-2 py-0.5 rounded shrink-0 {{difficultyBadge .Difficulty}}">{{.Difficulty}}</span>
+                </div>
+                <p class="text-xs text-purple-500 mb-3">{{.Category}}</p>
+                {{if $.User}}
+                <div>
+                    <div class="w-full bg-gray-200 dark:bg-dark-bg rounded-full h-1.5">
+                        <div class="{{if $completed}}bg-green-500{{else}}bg-purple-500{{end}} h-1.5 rounded-full"
+                             style="width: {{if gt $total 0}}{{div (mul $solved 100) $total}}{{else}}0{{end}}%"></div>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{$solved}}/{{$total}} questions</p>
+                </div>
+                {{end}}
+            </a>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+    {{else if or (eq $comp.Status "draft") (eq $comp.Status "registration")}}
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Challenges</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Challenges will be revealed when the competition starts.</p>
+    </div>
+    {{end}}
+
+    <!-- Scoreboard -->
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Scoreboard
+                {{if $comp.ScoreboardFrozen}}<span class="text-xs ml-2 text-blue-400">(frozen)</span>{{end}}
+                {{if $comp.ScoreboardBlackout}}<span class="text-xs ml-2 text-orange-400">(blackout active)</span>{{end}}
+            </h2>
+            {{if and (not .BlackedOut) .Entries}}
+            <button @click="showChart = !showChart" class="text-sm text-purple-500 hover:underline">
+                <span x-text="showChart ? 'Hide Chart' : 'Show Chart'"></span>
+            </button>
+            {{end}}
+        </div>
+        {{if .BlackedOut}}
+        <p class="text-center py-8 text-gray-500 dark:text-gray-400 text-lg">Scores hidden until reveal</p>
+        {{else}}
+        <!-- Score evolution chart -->
+        {{if .Entries}}
+        <div x-show="showChart" class="mb-6 relative" style="height: 300px;">
+            <canvas id="compScoreChart"></canvas>
+        </div>
+        {{end}}
+        {{if not .Entries}}
+        <p class="text-center py-8 text-gray-500 dark:text-gray-400">No scores yet.</p>
+        {{else}}
+        <table class="w-full text-sm">
+            <thead class="border-b border-gray-200 dark:border-dark-border">
+                <tr class="text-left text-xs text-gray-500 dark:text-gray-400 uppercase">
+                    <th class="py-2 pr-4">#</th>
+                    <th class="py-2 pr-4">Team</th>
+                    <th class="py-2 pr-4">Points</th>
+                    <th class="py-2">Solves</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-dark-border">
+                {{range .Entries}}
+                <tr class="text-gray-700 dark:text-gray-300">
+                    <td class="py-2 pr-4 font-bold text-gray-900 dark:text-white">{{.Rank}}</td>
+                    <td class="py-2 pr-4">
+                        <a href="/teams/{{.TeamID}}/profile" class="text-purple-500 hover:underline">{{.TeamName}}</a>
+                    </td>
+                    <td class="py-2 pr-4 font-semibold">{{.Score}}</td>
+                    <td class="py-2">{{.SolveCount}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{end}}
+        {{end}}
+    </div>
+
+    <!-- Live Submission Feed -->
+    {{if or (eq $comp.Status "running") (eq $comp.Status "ended")}}
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{if .User}}{{if .User.IsAdmin}}All Submissions{{else}}Recent Solves{{end}}{{else}}Recent Solves{{end}}
+            </h2>
+            <span class="text-xs text-gray-400">live · refreshes every 10s</span>
+        </div>
+        <div id="comp-submission-feed"
+             hx-get="/api/competitions/{{$comp.ID}}/submissions"
+             hx-trigger="load, every 10s"
+             hx-swap="innerHTML">
+            <p class="text-center py-6 text-gray-400 text-sm">Loading...</p>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{end}}

@@ -153,3 +153,39 @@ type CustomCode struct {
 	HeadHTML    string `json:"head_html"`
 	BodyEndHTML string `json:"body_end_html"`
 }
+
+// Competition represents a time-bounded CTF event
+type Competition struct {
+	ID                 int64      `json:"id"`
+	Name               string     `json:"name"`
+	Description        string     `json:"description"`
+	RulesHTML          string     `json:"rules_html"`
+	StartAt            *time.Time `json:"start_at,omitempty"`
+	EndAt              *time.Time `json:"end_at,omitempty"`
+	RegistrationStart  *time.Time `json:"registration_start,omitempty"`
+	RegistrationEnd    *time.Time `json:"registration_end,omitempty"`
+	FreezeAt           *time.Time `json:"freeze_at,omitempty"`
+	ScoreboardFrozen   bool       `json:"scoreboard_frozen"`
+	ScoreboardBlackout bool       `json:"scoreboard_blackout"`
+	Status             string     `json:"status"` // draft|registration|running|ended
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
+// CompetitionStatus constants
+const (
+	CompStatusDraft        = "draft"
+	CompStatusRegistration = "registration"
+	CompStatusRunning      = "running"
+	CompStatusEnded        = "ended"
+)
+
+// CompetitionScoreboardEntry is one row in a competition scoreboard
+type CompetitionScoreboardEntry struct {
+	Rank       int        `json:"rank"`
+	TeamID     string     `json:"team_id"`
+	TeamName   string     `json:"team_name"`
+	Score      int        `json:"score"`
+	SolveCount int        `json:"solve_count"`
+	LastSolve  *time.Time `json:"last_solve,omitempty"`
+}
