@@ -15,10 +15,8 @@ Thank you for your interest in contributing to hCTF2! This document provides gui
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.24 or later
 - Task (task runner) - [installation guide](https://taskfile.dev/installation/)
-- SQLite3 (for database operations)
-- Node.js 18+ (optional, for Tailwind development)
 
 ### Initial Setup
 
@@ -30,21 +28,13 @@ cd hctf2
 # Install dependencies
 task deps
 
-# Copy example configuration
-cp config.example.yaml config.yaml
-
-# Run database migrations
-task migrate
-
-# Start development server
+# Start development server (migrations run automatically on startup)
 task run
 ```
 
-The server will be available at http://localhost:8080
+The server will be available at http://localhost:8090
 
-Default admin credentials:
-- Email: `admin@hctf2.local`
-- Password: `admin123`
+Pass `--admin-email` and `--admin-password` flags (or use `task run` which sets defaults).
 
 ## Making Changes
 

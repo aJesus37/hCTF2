@@ -10,3 +10,11 @@
     background-color: #a855f7; /* purple-500 — slightly lighter for dark bg */
     color: #ffffff;
 }
+
+/* Calendar/time picker icons — invert in dark mode for visibility */
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.7);
+    cursor: pointer;
+}

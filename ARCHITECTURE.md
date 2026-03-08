@@ -222,7 +222,7 @@ HTMX swaps new table into DOM
 2. **Migration**: Create SQL in `migrations/XXX_feature.up.sql`
 3. **Queries**: Add database methods in `internal/database/queries.go`
 4. **Handler**: Implement HTTP handler in `internal/handlers/`
-5. **Route**: Register route in `cmd/server/main.go`
+5. **Route**: Register route in `main.go`
 6. **Template**: Create HTML in `internal/views/templates/`
 7. **Test**: Write tests in `*_test.go` files
 
@@ -266,17 +266,19 @@ Future: Prometheus metrics endpoint
 ## Code Organization
 
 ```
-cmd/server/           # Application entry point
+main.go              # Application entry point (router, middleware, server setup)
 internal/
   auth/              # Authentication & middleware
   database/          # Database layer
-    migrations/      # SQL migration files
-  handlers/          # HTTP handlers
+    migrations/      # SQL migration files (001–017)
+  handlers/          # HTTP handlers (auth, challenges, teams, competitions, etc.)
   models/            # Data structures
+  utils/             # Utility functions (markdown rendering)
   views/             # Templates & static files
     templates/       # HTML templates
-    static/          # CSS, JS, images
-migrations/          # Top-level migrations (legacy)
+    static/          # CSS, JS, images, DuckDB WASM files
+Taskfile.yml         # Build automation (not Makefile)
+handlers_test.go     # HTTP handler tests
 ```
 
 ## Design Decisions
@@ -297,19 +299,10 @@ migrations/          # Top-level migrations (legacy)
 ### Why No Framework?
 - **Lightweight**: Minimal dependencies
 - **Control**: Full control over behavior
-- **Learning**: Better understanding of HTTP
 - **Simplicity**: Less magic, easier debugging
 
-## Future Architecture
+## Future Work
 
-### Phase 2
-- Team management system
-- File upload service (S3-compatible)
-- WebSocket for live updates
-- Markdown renderer for challenges
-
-### Phase 3
-- Plugin system for custom validators
-- gRPC API for external integrations
-- GraphQL for flexible queries
-- Real-time collaboration features
+- **Real-time Notifications** — WebSocket-based solve notifications
+- **Challenge Docker Integration** — Per-challenge container spawning
+- **S3 Storage Backend** — Alternative to local file storage

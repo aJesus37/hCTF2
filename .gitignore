@@ -18,6 +18,9 @@ hctf2-*
 *.db-wal
 data/
 
+# User uploads (runtime file storage)
+uploads/
+
 # Go workspace file
 go.work
 
@@ -39,7 +42,7 @@ Thumbs.db
 config.yaml
 config.yml
 
-# Validation screenshots from Kimi
+# Validation screenshots
 docs/validation/*.png
 
 .task.worktrees/
