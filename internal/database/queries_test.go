@@ -3,7 +3,7 @@ package database
 import (
 	"testing"
 
-	"github.com/yourusername/hctf2/internal/models"
+	"github.com/ajesus37/hCTF2/internal/models"
 )
 
 func TestCalculateRanks(t *testing.T) {

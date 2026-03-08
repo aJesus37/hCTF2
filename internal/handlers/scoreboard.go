@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/yourusername/hctf2/internal/database"
+	"github.com/ajesus37/hCTF2/internal/database"
 )
 
 type ScoreboardHandler struct {

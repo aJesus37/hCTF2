@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourusername/hctf2/internal/ratelimit"
+	"github.com/ajesus37/hCTF2/internal/ratelimit"
 )
 
 func TestLimiter_AllowsUnderLimit(t *testing.T) {

@@ -2,8 +2,8 @@
 
 ![hCTF2 logo](internal/views/static/logo.svg)
 
-[![CI](https://github.com/zxxlang/hctf2/actions/workflows/ci.yml/badge.svg)](https://github.com/zxxlang/hctf2/actions/workflows/ci.yml)
-[![Release](https://github.com/zxxlang/hctf2/actions/workflows/release.yml/badge.svg)](https://github.com/zxxlang/hctf2/actions/workflows/release.yml)
+[![CI](https://github.com/ajesus37/hCTF2/actions/workflows/ci.yml/badge.svg)](https://github.com/ajesus37/hCTF2/actions/workflows/ci.yml)
+[![Release](https://github.com/ajesus37/hCTF2/actions/workflows/release.yml/badge.svg)](https://github.com/ajesus37/hCTF2/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](./LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://go.dev)
 
@@ -45,7 +45,7 @@ Open http://localhost:8090 — default credentials: `admin@hctf.local` / `change
 ```yaml
 services:
   hctf2:
-    image: ghcr.io/yourusername/hctf2:latest
+    image: ghcr.io/ajesus37/hCTF2:latest
     ports:
       - "8090:8090"
     volumes:
@@ -66,10 +66,10 @@ services:
 
 ### Option 1: Binary (fastest)
 
-Download the latest binary from [Releases](https://github.com/yourusername/hctf2/releases):
+Download the latest binary from [Releases](https://github.com/ajesus37/hCTF2/releases):
 
 ```bash
-curl -L https://github.com/yourusername/hctf2/releases/latest/download/hctf2-linux-amd64 -o hctf2
+curl -L https://github.com/ajesus37/hCTF2/releases/latest/download/hctf2-linux-amd64 -o hctf2
 chmod +x hctf2
 ./hctf2 --admin-email admin@example.com --admin-password yourpassword
 ```
@@ -79,7 +79,7 @@ chmod +x hctf2
 Requires Go 1.24+ and [Task](https://taskfile.dev):
 
 ```bash
-git clone https://github.com/yourusername/hctf2.git
+git clone https://github.com/ajesus37/hCTF2.git
 cd hctf2
 ./setup.sh   # checks requirements and downloads dependencies
 task build
@@ -109,7 +109,7 @@ All options are set via CLI flags. See [CONFIGURATION.md](CONFIGURATION.md) for 
 The only persistent data is the SQLite database file:
 
 ```bash
-docker run -v ./data:/data -e DATABASE_PATH=/data/hctf2.db ghcr.io/yourusername/hctf2
+docker run -v ./data:/data -e DATABASE_PATH=/data/hctf2.db ghcr.io/ajesus37/hCTF2
 ```
 
 ### Reverse Proxy (Caddy)

@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/yourusername/hctf2/internal/auth"
-	"github.com/yourusername/hctf2/internal/database"
-	"github.com/yourusername/hctf2/internal/models"
+	"github.com/ajesus37/hCTF2/internal/auth"
+	"github.com/ajesus37/hCTF2/internal/database"
+	"github.com/ajesus37/hCTF2/internal/models"
 )
 
 type TeamHandler struct {

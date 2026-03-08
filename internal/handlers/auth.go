@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/hctf2/internal/auth"
-	"github.com/yourusername/hctf2/internal/database"
-	"github.com/yourusername/hctf2/internal/email"
+	"github.com/ajesus37/hCTF2/internal/auth"
+	"github.com/ajesus37/hCTF2/internal/database"
+	"github.com/ajesus37/hCTF2/internal/email"
 )
 
 type AuthHandler struct {

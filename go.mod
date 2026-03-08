@@ -1,4 +1,4 @@
-module github.com/yourusername/hctf2
+module github.com/ajesus37/hCTF2
 
 go 1.24.0
 

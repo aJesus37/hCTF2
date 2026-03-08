@@ -22,7 +22,7 @@ Thank you for your interest in contributing to hCTF2! This document provides gui
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/hctf2.git
+git clone https://github.com/ajesus37/hCTF2.git
 cd hctf2
 
 # Install dependencies
