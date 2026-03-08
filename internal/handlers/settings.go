@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"strconv"
 	"html"
 	"net/http"
 	"strings"
@@ -129,7 +130,7 @@ func (h *SettingsHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 
 	sortOrder := 0
 	if s := r.FormValue("sort_order"); s != "" {
-		fmt.Sscanf(s, "%d", &sortOrder)
+		if v, err := strconv.Atoi(s); err == nil { sortOrder = v }
 	}
 
 	cat, err := h.db.CreateCategory(name, sortOrder)
@@ -170,7 +171,7 @@ func (h *SettingsHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 
 	sortOrder := 0
 	if s := r.FormValue("sort_order"); s != "" {
-		fmt.Sscanf(s, "%d", &sortOrder)
+		if v, err := strconv.Atoi(s); err == nil { sortOrder = v }
 	}
 
 	cat, err := h.db.UpdateCategory(id, name, sortOrder)
@@ -240,7 +241,7 @@ func (h *SettingsHandler) CreateDifficulty(w http.ResponseWriter, r *http.Reques
 
 	sortOrder := 0
 	if s := r.FormValue("sort_order"); s != "" {
-		fmt.Sscanf(s, "%d", &sortOrder)
+		if v, err := strconv.Atoi(s); err == nil { sortOrder = v }
 	}
 
 	diff, err := h.db.CreateDifficulty(name, color, textColor, sortOrder)
@@ -293,7 +294,7 @@ func (h *SettingsHandler) UpdateDifficulty(w http.ResponseWriter, r *http.Reques
 
 	sortOrder := 0
 	if s := r.FormValue("sort_order"); s != "" {
-		fmt.Sscanf(s, "%d", &sortOrder)
+		if v, err := strconv.Atoi(s); err == nil { sortOrder = v }
 	}
 
 	diff, err := h.db.UpdateDifficulty(id, name, color, textColor, sortOrder)

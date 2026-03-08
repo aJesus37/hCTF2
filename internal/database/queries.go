@@ -2551,7 +2551,7 @@ func (db *DB) GetCompetitionScoreboard(compID int64) ([]models.CompetitionScoreb
 // SetCompetitionStartAtIfUnset sets start_at to now only if it is currently NULL.
 // Called on force-start so the scoreboard lower-bound filter is always populated.
 func (db *DB) SetCompetitionStartAtIfUnset(id int64) {
-	db.Exec(`UPDATE competitions SET start_at=datetime('now'), updated_at=datetime('now') WHERE id=? AND start_at IS NULL`, id)
+	db.Exec(`UPDATE competitions SET start_at=datetime('now'), updated_at=datetime('now') WHERE id=? AND start_at IS NULL`, id) //nolint:errcheck
 }
 
 // IsChallengeLocked returns true if the challenge belongs to at least one competition
@@ -2789,28 +2789,15 @@ func (db *DB) TickCompetitionLifecycle() {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	// draft → registration when registration_start arrives
-	db.Exec(`
-		UPDATE competitions
-		SET status='registration', updated_at=datetime('now')
-		WHERE status='draft' AND registration_start IS NOT NULL AND registration_start <= ?`, now)
+	db.Exec(`UPDATE competitions SET status='registration', updated_at=datetime('now') WHERE status='draft' AND registration_start IS NOT NULL AND registration_start <= ?`, now) //nolint:errcheck
 
 	// registration → running when start_at arrives
-	db.Exec(`
-		UPDATE competitions
-		SET status='running', updated_at=datetime('now')
-		WHERE status='registration' AND start_at IS NOT NULL AND start_at <= ?`, now)
+	db.Exec(`UPDATE competitions SET status='running', updated_at=datetime('now') WHERE status='registration' AND start_at IS NOT NULL AND start_at <= ?`, now) //nolint:errcheck
 
 	// draft → running when start_at arrives (no explicit registration period)
 	// start_at is already set in this case (it's the trigger), so no need to backfill.
-	db.Exec(`
-		UPDATE competitions
-		SET status='running', updated_at=datetime('now')
-		WHERE status='draft' AND start_at IS NOT NULL AND start_at <= ?
-		  AND registration_start IS NULL AND registration_end IS NULL`, now)
+	db.Exec(`UPDATE competitions SET status='running', updated_at=datetime('now') WHERE status='draft' AND start_at IS NOT NULL AND start_at <= ? AND registration_start IS NULL AND registration_end IS NULL`, now) //nolint:errcheck
 
 	// running → ended when end_at arrives; auto-freeze
-	db.Exec(`
-		UPDATE competitions
-		SET status='ended', scoreboard_frozen=1, updated_at=datetime('now')
-		WHERE status='running' AND end_at IS NOT NULL AND end_at <= ?`, now)
+	db.Exec(`UPDATE competitions SET status='ended', scoreboard_frozen=1, updated_at=datetime('now') WHERE status='running' AND end_at IS NOT NULL AND end_at <= ?`, now) //nolint:errcheck
 }
