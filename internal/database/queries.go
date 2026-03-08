@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -2062,10 +2063,14 @@ func (db *DB) ImportBundle(categories, difficulties []string, challenges []model
 
 	// Ensure categories exist
 	for _, cat := range categories {
-		db.Exec(`INSERT OR IGNORE INTO categories (id, name, sort_order, created_at) VALUES (?, ?, 0, CURRENT_TIMESTAMP)`, GenerateID(), cat)
+		if _, err := db.Exec(`INSERT OR IGNORE INTO categories (id, name, sort_order, created_at) VALUES (?, ?, 0, CURRENT_TIMESTAMP)`, GenerateID(), cat); err != nil {
+			log.Printf("warning: failed to insert category %q: %v", cat, err)
+		}
 	}
 	for _, diff := range difficulties {
-		db.Exec(`INSERT OR IGNORE INTO difficulties (id, name, color, text_color, sort_order, created_at) VALUES (?, ?, 'bg-gray-600', 'text-white', 0, CURRENT_TIMESTAMP)`, GenerateID(), diff)
+		if _, err := db.Exec(`INSERT OR IGNORE INTO difficulties (id, name, color, text_color, sort_order, created_at) VALUES (?, ?, 'bg-gray-600', 'text-white', 0, CURRENT_TIMESTAMP)`, GenerateID(), diff); err != nil {
+			log.Printf("warning: failed to insert difficulty %q: %v", diff, err)
+		}
 	}
 
 	for _, ec := range challenges {
@@ -2073,7 +2078,9 @@ func (db *DB) ImportBundle(categories, difficulties []string, challenges []model
 		name := ec.Name
 		for i := 2; ; i++ {
 			var count int
-			db.QueryRow(`SELECT COUNT(*) FROM challenges WHERE name = ?`, name).Scan(&count)
+			if err := db.QueryRow(`SELECT COUNT(*) FROM challenges WHERE name = ?`, name).Scan(&count); err != nil {
+				break
+			}
 			if count == 0 {
 				break
 			}
@@ -2105,16 +2112,21 @@ func (db *DB) ImportBundle(categories, difficulties []string, challenges []model
 			if eq.FileURL != "" {
 				qFileURL = eq.FileURL
 			}
-			db.Exec(`
+			if _, err := db.Exec(`
 				INSERT INTO questions (id, challenge_id, name, description, flag, flag_mask, case_sensitive, points, file_url, created_at, updated_at)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-				qID, cID, eq.Name, eq.Description, eq.Flag, eq.FlagMask, eq.CaseSensitive, eq.Points, qFileURL)
+				qID, cID, eq.Name, eq.Description, eq.Flag, eq.FlagMask, eq.CaseSensitive, eq.Points, qFileURL); err != nil {
+				log.Printf("warning: failed to import question %q: %v", eq.Name, err)
+				continue
+			}
 
 			for _, eh := range eq.Hints {
-				db.Exec(`
+				if _, err := db.Exec(`
 					INSERT INTO hints (id, question_id, content, cost, "order", created_at)
 					VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-					GenerateID(), qID, eh.Content, eh.Cost, eh.Order)
+					GenerateID(), qID, eh.Content, eh.Cost, eh.Order); err != nil {
+					log.Printf("warning: failed to import hint for question %q: %v", eq.Name, err)
+				}
 			}
 		}
 		result.Imported++
