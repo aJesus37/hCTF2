@@ -38,6 +38,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -195,8 +196,23 @@ func main() {
 		corsOrigins      = flag.String("cors-origins", getEnv("CORS_ORIGINS", ""), "Comma-separated list of allowed CORS origins (empty = same-origin only)")
 		submissionRateLimit = flag.Int("submission-rate-limit", 5, "Max flag submissions per minute per user (0 = unlimited)")
 		uploadDir           = flag.String("upload-dir", "./uploads", "Directory for file uploads")
+		showVersion         = flag.Bool("version", false, "Print version and exit")
+		showInfo            = flag.Bool("info", false, "Print build info and exit")
 	)
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		os.Exit(0)
+	}
+
+	if *showInfo {
+		fmt.Printf("hCTF2 %s\n", version)
+		fmt.Printf("  go:      %s\n", runtime.Version())
+		fmt.Printf("  os/arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("  cpus:    %d\n", runtime.NumCPU())
+		os.Exit(0)
+	}
 
 	// Check if development mode is enabled via --dev flag
 	devMode := *dev
