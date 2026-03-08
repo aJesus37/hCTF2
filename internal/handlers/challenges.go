@@ -402,7 +402,9 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 					file.Close()
 					if err == nil {
 						sizeBytes := header.Size
-						h.db.CreateChallengeFile(challenge.ID, header.Filename, "local", url, &sizeBytes)
+						if _, dbErr := h.db.CreateChallengeFile(challenge.ID, header.Filename, "local", url, &sizeBytes); dbErr != nil {
+						log.Printf("warning: failed to save file record for %s: %v", header.Filename, dbErr)
+					}
 					}
 				}
 			} else if source == "external" {
@@ -414,7 +416,9 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 					if filename == "" {
 						filename = "external-file"
 					}
-					h.db.CreateChallengeFile(challenge.ID, filename, "external", externalURL, nil)
+					if _, dbErr := h.db.CreateChallengeFile(challenge.ID, filename, "external", externalURL, nil); dbErr != nil {
+						log.Printf("warning: failed to save external file record for %s: %v", filename, dbErr)
+					}
 				}
 			}
 		}
@@ -1224,7 +1228,9 @@ func (h *ChallengeHandler) DeleteChallengeFile(w http.ResponseWriter, r *http.Re
 	}
 
 	if challenge.FileURL != nil && *challenge.FileURL != "" {
-		h.storage.Delete(r.Context(), *challenge.FileURL)
+		if err := h.storage.Delete(r.Context(), *challenge.FileURL); err != nil {
+		log.Printf("warning: failed to delete file from storage %s: %v", *challenge.FileURL, err)
+	}
 	}
 
 	if err := h.db.SetChallengeFileURL(challengeID, ""); err != nil {
