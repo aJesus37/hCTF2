@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 
@@ -46,7 +47,9 @@ func (h *ChallengeFileHandler) UploadFile(w http.ResponseWriter, r *http.Request
 	sizeBytes := header.Size
 	_, err = h.db.CreateChallengeFile(challengeID, header.Filename, "local", url, &sizeBytes)
 	if err != nil {
-		h.storage.Delete(r.Context(), url)
+		if delErr := h.storage.Delete(r.Context(), url); delErr != nil {
+			log.Printf("warning: failed to clean up uploaded file %s after db error: %v", url, delErr)
+		}
 		http.Error(w, "Failed to save file record", http.StatusInternalServerError)
 		return
 	}
@@ -103,7 +106,9 @@ func (h *ChallengeFileHandler) DeleteFile(w http.ResponseWriter, r *http.Request
 
 	// Delete from storage if local
 	if file.StorageType == "local" {
-		h.storage.Delete(r.Context(), file.StoragePath)
+		if err := h.storage.Delete(r.Context(), file.StoragePath); err != nil {
+			log.Printf("warning: failed to delete file from storage %s: %v", file.StoragePath, err)
+		}
 	}
 
 	// Delete from database
@@ -187,7 +192,9 @@ func (h *ChallengeFileHandler) BatchUpload(w http.ResponseWriter, r *http.Reques
 				file.Close()
 				if uploadErr == nil {
 					sizeBytes := header.Size
-					h.db.CreateChallengeFile(challengeID, header.Filename, "local", url, &sizeBytes)
+					if _, err := h.db.CreateChallengeFile(challengeID, header.Filename, "local", url, &sizeBytes); err != nil {
+						log.Printf("warning: failed to save file record for %s: %v", header.Filename, err)
+					}
 				}
 			}
 		} else if source == "external" {
@@ -199,7 +206,9 @@ func (h *ChallengeFileHandler) BatchUpload(w http.ResponseWriter, r *http.Reques
 				if filename == "" {
 					filename = "external-file"
 				}
-				h.db.CreateChallengeFile(challengeID, filename, "external", externalURL, nil)
+				if _, err := h.db.CreateChallengeFile(challengeID, filename, "external", externalURL, nil); err != nil {
+					log.Printf("warning: failed to save external file record for %s: %v", filename, err)
+				}
 			}
 		}
 	}

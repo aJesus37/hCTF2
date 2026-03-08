@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/ajesus37/hCTF2/internal/auth"
 	"github.com/ajesus37/hCTF2/internal/database"
-	"github.com/ajesus37/hCTF2/internal/models"
 )
 
 type TeamHandler struct {
@@ -596,18 +595,3 @@ func (h *TeamHandler) UpdateInvitePermission(w http.ResponseWriter, r *http.Requ
 	w.Write([]byte(`{"message":"Permission updated successfully"}`))
 }
 
-// canUserSeeInviteCode checks if user should see the invite code
-func canUserSeeInviteCode(user *auth.Claims, team *models.Team, userTeamID *string) bool {
-	if user == nil {
-		return false
-	}
-	// Owner always sees it
-	if team.OwnerID == user.UserID {
-		return true
-	}
-	// Members see it if permission is all_members
-	if userTeamID != nil && *userTeamID == team.ID && team.InvitePermission == "all_members" {
-		return true
-	}
-	return false
-}
