@@ -576,13 +576,16 @@ func renderSubmissionFeed(w http.ResponseWriter, subs []database.CompetitionSubm
 			actor = html.EscapeString(s.TeamName) + " (" + html.EscapeString(s.UserName) + ")"
 		}
 		timeStr := s.SubmittedAt.UTC().Format("Jan 02 15:04:05")
-		chall := html.EscapeString(s.ChallengeName) + " / " + html.EscapeString(s.QuestionName)
+		challLink := `/challenges/` + html.EscapeString(s.ChallengeID) + `#question-` + html.EscapeString(s.QuestionID)
+		challLabel := html.EscapeString(s.ChallengeName) + ` / ` + html.EscapeString(s.QuestionName)
+		challHTML := `<a href="` + challLink + `" class="text-purple-500 hover:underline">` + challLabel + `</a>`
+		challHTMLMuted := `<a href="` + challLink + `" class="text-purple-400 hover:underline">` + challLabel + `</a>`
 
 		if s.IsCorrect {
 			w.Write([]byte(`<div class="flex items-start gap-3 py-2 px-1">`))
 			w.Write([]byte(`<span class="text-green-500 font-bold text-sm mt-0.5">✓</span>`))
 			w.Write([]byte(`<div class="flex-1 min-w-0">`))
-			w.Write([]byte(`<p class="text-sm text-gray-900 dark:text-white"><span class="font-semibold">` + actor + `</span> solved <span class="text-purple-500">` + chall + `</span></p>`))
+			w.Write([]byte(`<p class="text-sm text-gray-900 dark:text-white"><span class="font-semibold">` + actor + `</span> solved ` + challHTML + `</p>`))
 			if isAdmin {
 				w.Write([]byte(`<p class="text-xs text-green-600 dark:text-green-400 font-mono mt-0.5">` + html.EscapeString(s.SubmittedFlag) + `</p>`))
 			}
@@ -592,7 +595,7 @@ func renderSubmissionFeed(w http.ResponseWriter, subs []database.CompetitionSubm
 			w.Write([]byte(`<div class="flex items-start gap-3 py-2 px-1">`))
 			w.Write([]byte(`<span class="text-red-500 font-bold text-sm mt-0.5">✗</span>`))
 			w.Write([]byte(`<div class="flex-1 min-w-0">`))
-			w.Write([]byte(`<p class="text-sm text-gray-600 dark:text-gray-400"><span class="font-semibold text-gray-800 dark:text-gray-200">` + actor + `</span> wrong attempt on <span class="text-purple-400">` + chall + `</span></p>`))
+			w.Write([]byte(`<p class="text-sm text-gray-600 dark:text-gray-400"><span class="font-semibold text-gray-800 dark:text-gray-200">` + actor + `</span> wrong attempt on ` + challHTMLMuted + `</p>`))
 			w.Write([]byte(`<p class="text-xs text-red-500 font-mono mt-0.5">` + html.EscapeString(s.SubmittedFlag) + `</p>`))
 			w.Write([]byte(`<p class="text-xs text-gray-400 mt-0.5">` + timeStr + `</p>`))
 			w.Write([]byte(`</div></div>`))

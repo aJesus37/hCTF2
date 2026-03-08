@@ -1362,6 +1362,7 @@ type SubmissionHistory struct {
 	ID            string
 	CreatedAt     time.Time
 	IsCorrect     bool
+	QuestionID    string
 	QuestionName  string
 	Points        int
 	ChallengeName string
@@ -1375,6 +1376,7 @@ func (db *DB) GetUserRecentSubmissions(userID string, limit int) ([]SubmissionHi
 			s.id,
 			s.created_at,
 			s.is_correct,
+			q.id as question_id,
 			q.name as question_name,
 			q.points - COALESCE(hint_costs.cost, 0) as points,
 			c.name as challenge_name,
@@ -1403,7 +1405,7 @@ func (db *DB) GetUserRecentSubmissions(userID string, limit int) ([]SubmissionHi
 	var submissions []SubmissionHistory
 	for rows.Next() {
 		var sub SubmissionHistory
-		if err := rows.Scan(&sub.ID, &sub.CreatedAt, &sub.IsCorrect, &sub.QuestionName,
+		if err := rows.Scan(&sub.ID, &sub.CreatedAt, &sub.IsCorrect, &sub.QuestionID, &sub.QuestionName,
 			&sub.Points, &sub.ChallengeName, &sub.ChallengeID, &sub.Category); err != nil {
 			return nil, err
 		}
@@ -2643,6 +2645,8 @@ func (db *DB) GetCompetitionScoreEvolution(compID int64) ([]ScoreEvolutionSeries
 
 // CompetitionSubmission represents a single submission event for the live feed.
 type CompetitionSubmission struct {
+	ChallengeID   string
+	QuestionID    string
 	TeamName      string
 	UserName      string
 	ChallengeName string
@@ -2662,6 +2666,8 @@ func (db *DB) GetCompetitionRecentSubmissions(compID int64, limit int, adminView
 	}
 	query := fmt.Sprintf(`
 		SELECT
+			c.id as challenge_id,
+			q.id as question_id,
 			COALESCE(t.name, '') as team_name,
 			u.name as user_name,
 			c.name as challenge_name,
@@ -2693,7 +2699,7 @@ func (db *DB) GetCompetitionRecentSubmissions(compID int64, limit int, adminView
 	for rows.Next() {
 		var sub CompetitionSubmission
 		var createdAt string
-		if err := rows.Scan(&sub.TeamName, &sub.UserName, &sub.ChallengeName,
+		if err := rows.Scan(&sub.ChallengeID, &sub.QuestionID, &sub.TeamName, &sub.UserName, &sub.ChallengeName,
 			&sub.QuestionName, &sub.IsCorrect, &sub.SubmittedFlag, &createdAt); err != nil {
 			return nil, err
 		}
@@ -2718,6 +2724,8 @@ func (db *DB) GetGlobalRecentSubmissions(limit int, adminView bool) ([]Competiti
 	}
 	query := fmt.Sprintf(`
 		SELECT
+			c.id as challenge_id,
+			q.id as question_id,
 			COALESCE(t.name, '') as team_name,
 			u.name as user_name,
 			c.name as challenge_name,
@@ -2748,7 +2756,7 @@ func (db *DB) GetGlobalRecentSubmissions(limit int, adminView bool) ([]Competiti
 	for rows.Next() {
 		var sub CompetitionSubmission
 		var createdAt string
-		if err := rows.Scan(&sub.TeamName, &sub.UserName, &sub.ChallengeName,
+		if err := rows.Scan(&sub.ChallengeID, &sub.QuestionID, &sub.TeamName, &sub.UserName, &sub.ChallengeName,
 			&sub.QuestionName, &sub.IsCorrect, &sub.SubmittedFlag, &createdAt); err != nil {
 			return nil, err
 		}
