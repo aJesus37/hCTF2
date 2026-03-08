@@ -3,7 +3,9 @@ version: '3'
 vars:
   BINARY_NAME: hctf2
   MAIN_PATH: main.go
-  BUILD_FLAGS: -ldflags="-s -w"
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  BUILD_FLAGS: -ldflags="-s -w -X main.version={{.VERSION}}"
 
 tasks:
   default:

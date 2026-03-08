@@ -58,6 +58,9 @@ import (
 	"github.com/yourusername/hctf2/internal/utils"
 )
 
+// version is set at build time via -ldflags "-X main.version=vX.Y.Z"
+var version = "dev"
+
 //go:embed internal/views/templates/*
 var templatesFS embed.FS
 

@@ -81,7 +81,7 @@ Requires Go 1.24+ and [Task](https://taskfile.dev):
 ```bash
 git clone https://github.com/yourusername/hctf2.git
 cd hctf2
-task deps
+./setup.sh   # checks requirements and downloads dependencies
 task build
 ./hctf2 --admin-email admin@example.com --admin-password yourpassword
 ```
