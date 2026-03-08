@@ -1,0 +1,21 @@
+linters:
+  enable:
+    - errcheck
+    - unused
+    - govet
+    - staticcheck
+
+linters-settings:
+  errcheck:
+    # Don't require checking errors for well-known safe patterns in HTTP handlers.
+    # w.Write and json.Encoder.Encode failures indicate a broken connection —
+    # there is nothing useful the handler can do at that point.
+    exclude-functions:
+      - (net/http.ResponseWriter).Write
+      - (*encoding/json.Encoder).Encode
+
+issues:
+  exclude-rules:
+    # Ignore errcheck on fmt.Fprintf to http.ResponseWriter — same rationale as above.
+    - linters: [errcheck]
+      text: "Error return value of `fmt.Fprintf` is not checked"

@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -290,17 +292,23 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		req.SQLEnabled = r.FormValue("sql_enabled") == "on"
 		req.DynamicScoring = r.FormValue("dynamic_scoring") == "on"
 		if initialPoints := r.FormValue("initial_points"); initialPoints != "" {
-			fmt.Sscanf(initialPoints, "%d", &req.InitialPoints)
+			if v, err := strconv.Atoi(initialPoints); err == nil {
+				req.InitialPoints = v
+			}
 		} else {
 			req.InitialPoints = 1000
 		}
 		if minimumPoints := r.FormValue("minimum_points"); minimumPoints != "" {
-			fmt.Sscanf(minimumPoints, "%d", &req.MinimumPoints)
+			if v, err := strconv.Atoi(minimumPoints); err == nil {
+				req.MinimumPoints = v
+			}
 		} else {
 			req.MinimumPoints = 100
 		}
 		if decayThreshold := r.FormValue("decay_threshold"); decayThreshold != "" {
-			fmt.Sscanf(decayThreshold, "%d", &req.DecayThreshold)
+			if v, err := strconv.Atoi(decayThreshold); err == nil {
+				req.DecayThreshold = v
+			}
 		} else {
 			req.DecayThreshold = 100
 		}
@@ -332,17 +340,23 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 		req.SQLEnabled = r.FormValue("sql_enabled") == "on"
 		req.DynamicScoring = r.FormValue("dynamic_scoring") == "on"
 		if initialPoints := r.FormValue("initial_points"); initialPoints != "" {
-			fmt.Sscanf(initialPoints, "%d", &req.InitialPoints)
+			if v, err := strconv.Atoi(initialPoints); err == nil {
+				req.InitialPoints = v
+			}
 		} else {
 			req.InitialPoints = 1000
 		}
 		if minimumPoints := r.FormValue("minimum_points"); minimumPoints != "" {
-			fmt.Sscanf(minimumPoints, "%d", &req.MinimumPoints)
+			if v, err := strconv.Atoi(minimumPoints); err == nil {
+				req.MinimumPoints = v
+			}
 		} else {
 			req.MinimumPoints = 100
 		}
 		if decayThreshold := r.FormValue("decay_threshold"); decayThreshold != "" {
-			fmt.Sscanf(decayThreshold, "%d", &req.DecayThreshold)
+			if v, err := strconv.Atoi(decayThreshold); err == nil {
+				req.DecayThreshold = v
+			}
 		} else {
 			req.DecayThreshold = 100
 		}
@@ -388,7 +402,9 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 					file.Close()
 					if err == nil {
 						sizeBytes := header.Size
-						h.db.CreateChallengeFile(challenge.ID, header.Filename, "local", url, &sizeBytes)
+						if _, dbErr := h.db.CreateChallengeFile(challenge.ID, header.Filename, "local", url, &sizeBytes); dbErr != nil {
+						log.Printf("warning: failed to save file record for %s: %v", header.Filename, dbErr)
+					}
 					}
 				}
 			} else if source == "external" {
@@ -400,7 +416,9 @@ func (h *ChallengeHandler) CreateChallenge(w http.ResponseWriter, r *http.Reques
 					if filename == "" {
 						filename = "external-file"
 					}
-					h.db.CreateChallengeFile(challenge.ID, filename, "external", externalURL, nil)
+					if _, dbErr := h.db.CreateChallengeFile(challenge.ID, filename, "external", externalURL, nil); dbErr != nil {
+						log.Printf("warning: failed to save external file record for %s: %v", filename, dbErr)
+					}
 				}
 			}
 		}
@@ -501,17 +519,23 @@ func (h *ChallengeHandler) UpdateChallenge(w http.ResponseWriter, r *http.Reques
 		req.SQLEnabled = r.FormValue("sql_enabled") == "on"
 		req.DynamicScoring = r.FormValue("dynamic_scoring") == "on"
 		if initialPoints := r.FormValue("initial_points"); initialPoints != "" {
-			fmt.Sscanf(initialPoints, "%d", &req.InitialPoints)
+			if v, err := strconv.Atoi(initialPoints); err == nil {
+				req.InitialPoints = v
+			}
 		} else {
 			req.InitialPoints = 1000
 		}
 		if minimumPoints := r.FormValue("minimum_points"); minimumPoints != "" {
-			fmt.Sscanf(minimumPoints, "%d", &req.MinimumPoints)
+			if v, err := strconv.Atoi(minimumPoints); err == nil {
+				req.MinimumPoints = v
+			}
 		} else {
 			req.MinimumPoints = 100
 		}
 		if decayThreshold := r.FormValue("decay_threshold"); decayThreshold != "" {
-			fmt.Sscanf(decayThreshold, "%d", &req.DecayThreshold)
+			if v, err := strconv.Atoi(decayThreshold); err == nil {
+				req.DecayThreshold = v
+			}
 		} else {
 			req.DecayThreshold = 100
 		}
@@ -658,7 +682,9 @@ func (h *ChallengeHandler) CreateQuestion(w http.ResponseWriter, r *http.Request
 		req.CaseSensitive = r.FormValue("case_sensitive") == "on"
 		points := 100
 		if p := r.FormValue("points"); p != "" {
-			fmt.Sscanf(p, "%d", &points)
+			if v, err := strconv.Atoi(p); err == nil {
+				points = v
+			}
 		}
 		req.Points = points
 	}
@@ -762,7 +788,9 @@ func (h *ChallengeHandler) UpdateQuestion(w http.ResponseWriter, r *http.Request
 		req.CaseSensitive = r.FormValue("case_sensitive") == "on"
 		points := 100
 		if p := r.FormValue("points"); p != "" {
-			fmt.Sscanf(p, "%d", &points)
+			if v, err := strconv.Atoi(p); err == nil {
+				points = v
+			}
 		}
 		req.Points = points
 	}
@@ -890,10 +918,14 @@ func (h *ChallengeHandler) CreateHint(w http.ResponseWriter, r *http.Request) {
 		req.QuestionID = r.FormValue("question_id")
 		req.Content = r.FormValue("content")
 		if cost := r.FormValue("cost"); cost != "" {
-			fmt.Sscanf(cost, "%d", &req.Cost)
+			if v, err := strconv.Atoi(cost); err == nil {
+				req.Cost = v
+			}
 		}
 		if order := r.FormValue("order"); order != "" {
-			fmt.Sscanf(order, "%d", &req.Order)
+			if v, err := strconv.Atoi(order); err == nil {
+				req.Order = v
+			}
 		}
 	}
 
@@ -986,10 +1018,14 @@ func (h *ChallengeHandler) UpdateHint(w http.ResponseWriter, r *http.Request) {
 		}
 		req.Content = r.FormValue("content")
 		if cost := r.FormValue("cost"); cost != "" {
-			fmt.Sscanf(cost, "%d", &req.Cost)
+			if v, err := strconv.Atoi(cost); err == nil {
+				req.Cost = v
+			}
 		}
 		if order := r.FormValue("order"); order != "" {
-			fmt.Sscanf(order, "%d", &req.Order)
+			if v, err := strconv.Atoi(order); err == nil {
+				req.Order = v
+			}
 		}
 	}
 
@@ -1159,7 +1195,9 @@ func (h *ChallengeHandler) UploadChallengeFile(w http.ResponseWriter, r *http.Re
 	}
 
 	if err := h.db.SetChallengeFileURL(challengeID, url); err != nil {
-		h.storage.Delete(r.Context(), url)
+		if delErr := h.storage.Delete(r.Context(), url); delErr != nil {
+			log.Printf("warning: failed to clean up uploaded file %s after db error: %v", url, delErr)
+		}
 		http.Error(w, "Failed to save", http.StatusInternalServerError)
 		return
 	}
@@ -1190,7 +1228,9 @@ func (h *ChallengeHandler) DeleteChallengeFile(w http.ResponseWriter, r *http.Re
 	}
 
 	if challenge.FileURL != nil && *challenge.FileURL != "" {
-		h.storage.Delete(r.Context(), *challenge.FileURL)
+		if err := h.storage.Delete(r.Context(), *challenge.FileURL); err != nil {
+		log.Printf("warning: failed to delete file from storage %s: %v", *challenge.FileURL, err)
+	}
 	}
 
 	if err := h.db.SetChallengeFileURL(challengeID, ""); err != nil {

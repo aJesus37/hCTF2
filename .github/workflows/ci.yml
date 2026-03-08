@@ -57,6 +57,16 @@ jobs:
     - name: Build
       run: task build
 
+    - name: Start server
+      run: |
+        ./hctf2 --port 8090 --dev --db /tmp/smoke-test.db \
+          --admin-email admin@test.com --admin-password testpass123 &
+        # Wait for server to be ready
+        for i in $(seq 1 20); do
+          curl -sf http://localhost:8090/healthz && break
+          sleep 1
+        done
+
     - name: Run smoke tests
       run: |
         chmod +x scripts/smoke-test.sh

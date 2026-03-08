@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,9 @@ type LocalStorage struct {
 
 // NewLocal creates a LocalStorage writing to dir, serving at prefix.
 func NewLocal(dir, prefix string) *LocalStorage {
-	os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.Printf("warning: failed to create upload directory %s: %v", dir, err)
+	}
 	return &LocalStorage{dir: dir, prefix: prefix}
 }
 
