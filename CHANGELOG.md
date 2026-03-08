@@ -7,18 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-08
+
 ### Added
+- Competition Lifecycle Management — time-bounded competitions with draft→registration→running→ended auto-transitions, registered teams, per-competition scoreboards, and scoreboard blackout
+- Live Submission Feed — per-competition and global `/submissions` page polling every 10s; public view shows correct solves, admin view shows all attempts with submitted flag text
+- Competition score evolution chart — Chart.js line chart on competition page derived directly from submissions
+- Challenge cards on competition page — difficulty badge, category, progress bar, solved/total question count
+- Question anchor links — each question card has `#question-{id}` anchor; hover-to-copy `#` button on title; live feed and profile activity link directly to the question
 - Score evolution chart on scoreboard — visual timeline showing top 20 competitors' scores over time using Chart.js
 - Background score recorder — captures score snapshots every 15 minutes for historical tracking
 - Admin visibility toggle — control whether admins appear in scoreboard and chart (default: hidden)
 - Configurable JWT secret via --jwt-secret flag, JWT_SECRET env var, or config file
 - SQLite WAL mode for improved concurrent performance
 - Configurable CORS origins (default: same-origin only)
-- GitHub Actions CI/CD pipeline
-- GitHub issue templates for bug reports and feature requests
-- Pull request template
 - SECURITY.md with vulnerability reporting process
 - CONTRIBUTING.md with development workflow
+
+### Fixed
+- Multiple wrong submissions now allowed per user per question (removed `UNIQUE(question_id, user_id)` constraint via migration 017)
+- Wrong-answer feedback no longer flickers between sequential submissions
+- Live submission feed now covers all challenges, not just competition-scoped ones
+- Competition challenge cards showed 0/0 questions for hidden challenges (removed `visible=1` filter)
+- Blank Chart.js canvas when no score data (canvas hidden instead of empty render)
 
 ### Security
 - JWT secret is now required in production mode

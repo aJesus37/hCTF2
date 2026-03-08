@@ -37,7 +37,7 @@ hctf2/
 ├── internal/            # Private application code
 │   ├── auth/           # Authentication & middleware
 │   ├── database/       # Database layer with embedded migrations
-│   │   └── migrations/ # SQL migrations (001-006)
+│   │   └── migrations/ # SQL migrations (001-017)
 │   ├── handlers/       # HTTP handlers (auth, challenges, teams, hints, etc.)
 │   ├── models/         # Data structures
 │   ├── utils/          # Utility functions (markdown rendering)
@@ -404,6 +404,7 @@ func (h *Handler) FunctionName(w http.ResponseWriter, r *http.Request) {
 **Schema notes:**
 - `challenges.id` and `teams.id` are `TEXT` (UUIDv7) — use `TEXT` for FK columns referencing them
 - `submissions.is_correct` is the boolean column (not `correct`)
+- `submissions` has no unique constraint on `(question_id, user_id)` — multiple wrong attempts are allowed; uniqueness is enforced in code (blocked after correct solve)
 - `PRAGMA foreign_keys = ON` is set at DB connection open in `internal/database/db.go` — do NOT add it to migration files (connection-level pragma, not persistent)
 
 ### Adding a New Page
@@ -477,6 +478,9 @@ The following features have been implemented:
 19. ✅ **Rate Limiting** - Per-user flag submission limits
 20. ✅ **Challenge Import/Export** - JSON format for backup and sharing
 21. ✅ **Competition Lifecycle Management** - Time-bounded events with registered teams, per-competition scoreboards, scoreboard blackout, and auto-transitions (draft→registration→running→ended)
+22. ✅ **Live Submission Feed** - Per-competition and global `/submissions` page; public shows correct solves, admin sees all attempts with submitted flag text; polls every 10s
+23. ✅ **Multi-attempt Wrong Answers** - Removed unique constraint on submissions so users can submit multiple wrong flags without errors
+24. ✅ **Question Anchor Links** - Each question card has a `#question-{id}` anchor; hover the title to copy a direct link; live feed and profile activity link directly to the anchored question
 
 ### Planned Features
 
@@ -511,6 +515,7 @@ Handlers are organized by domain in `internal/handlers/`:
 | UserHandler | `settings.go` | User management (admin panel for users) |
 | ChallengeFileHandler | `challengefiles.go` | File upload/download for challenges |
 | ImportExportHandler | `import_export.go` | Challenge import/export in JSON format |
+| CompetitionHandler | `competitions.go` | Competition CRUD, lifecycle, scoreboards, submission feed, score evolution API |
 
 Page handlers (in `main.go`) route to templates; API handlers return JSON or HTMX fragments.
 

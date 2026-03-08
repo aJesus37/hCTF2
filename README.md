@@ -15,12 +15,18 @@ A self-hosted CTF (Capture The Flag) platform. Single binary, no dependencies, r
 
 - **Single binary** — embeds all assets, templates, and migrations; copy one file and run
 - **Auto-migrations** — schema upgrades apply automatically on startup, no data loss
-- **Challenge management** — categories, difficulties, flag masking, point hints
+- **Challenge management** — categories, difficulties, flag masking, point hints, file attachments
 - **Team play** — create teams, invite-link based joining, team scoreboard
-- **SQL Playground** — per-challenge DuckDB WASM sandbox for SQL-style CTF challenges
+- **Competition lifecycle** — time-bounded competitions with draft→registration→running→ended transitions, per-competition scoreboards, scoreboard blackout
+- **Live submission feed** — global `/submissions` page and per-competition feed; admin sees all attempts with flag text
+- **Dynamic scoring** — points decay based on solve count
 - **Score evolution chart** — visual timeline of top competitors' scores using Chart.js
+- **SQL Playground** — per-challenge DuckDB WASM sandbox for SQL-style CTF challenges
 - **Dark/light theme** — persistent toggle, no flash of unstyled content
-- **Admin panel** — full CRUD for challenges, questions, hints, categories, users
+- **Admin panel** — full CRUD for challenges, questions, hints, categories, users, competitions
+- **Import/Export** — JSON backup and restore for challenges
+- **Rate limiting** — per-user flag submission throttling
+- **CTFtime export** — scoreboard in CTFtime.org JSON format
 - **OpenAPI docs** — browsable Swagger UI at `/api/openapi`
 
 ---
@@ -84,7 +90,7 @@ task build
 
 ## Configuration
 
-All options are set via CLI flags. See [`config.example.yaml`](config.example.yaml) for a fully annotated reference.
+All options are set via CLI flags. See [CONFIGURATION.md](CONFIGURATION.md) for a fully annotated reference.
 
 | Option | Flag | Default |
 |--------|------|---------|
