@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
 	"html"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -423,6 +424,13 @@ func (h *SettingsHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.db.GetAllUsers()
 	if err != nil {
 		http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+		return
+	}
+
+	// Content negotiation: return JSON for API clients, HTML for HTMX
+	if strings.Contains(r.Header.Get("Accept"), "application/json") {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
 		return
 	}
 

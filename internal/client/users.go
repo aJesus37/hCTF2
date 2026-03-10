@@ -15,6 +15,7 @@ type User struct {
 
 func (c *Client) ListUsers() ([]User, error) {
 	req, _ := http.NewRequest("GET", c.ServerURL+"/api/admin/users", nil)
+	req.Header.Set("Accept", "application/json")
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
