@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   release:
+    name: Build & Publish Release
     runs-on: ubuntu-latest
 
     steps:
@@ -18,16 +19,9 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
+    - uses: actions/setup-go@v5
       with:
         go-version: '1.24'
-
-    - name: Install Task
-      run: go install github.com/go-task/task/v3/cmd/task@latest
-
-    - name: Run tests
-      run: task test
 
     - name: Build binaries
       run: |
@@ -52,6 +46,7 @@ jobs:
         prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
 
   docker:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
 
     steps:
