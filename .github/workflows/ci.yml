@@ -9,13 +9,16 @@ on:
 jobs:
   lint:
     name: Lint
+    # Only on PRs — lint already passed before anything lands in main
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version-file: go.mod
+        cache: true
 
     - name: Run linter
       uses: golangci/golangci-lint-action@v6
@@ -31,10 +34,8 @@ jobs:
 
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
-
-    - name: Install dependencies
-      run: go mod download
+        go-version-file: go.mod
+        cache: true
 
     - name: Run tests
       run: go test ./...
@@ -42,13 +43,19 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [ lint, test ]
+    # lint is skipped on main push (result = 'skipped'), which is fine — treat as success
+    if: |
+      always() &&
+      needs.test.result == 'success' &&
+      (needs.lint.result == 'success' || needs.lint.result == 'skipped')
     steps:
     - uses: actions/checkout@v4
 
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version-file: go.mod
+        cache: true
 
     - name: Build
       run: CGO_ENABLED=0 go build -ldflags="-s -w" -o hctf2 .
