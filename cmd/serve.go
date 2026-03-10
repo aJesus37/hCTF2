@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -98,18 +97,6 @@ func init() {
 	f.StringVar(&serveUploadDir, "upload-dir", "./uploads", "Directory for file uploads")
 
 	rootCmd.AddCommand(serveCmd)
-
-	// Also add a version info subcommand
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "info",
-		Short: "Print build info and exit",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("hCTF2 %s\n", rootCmd.Version)
-			fmt.Printf("  go:      %s\n", runtime.Version())
-			fmt.Printf("  os/arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
-			fmt.Printf("  cpus:    %d\n", runtime.NumCPU())
-		},
-	})
 }
 
 // getEnv returns an env var or a fallback value.
