@@ -3,53 +3,34 @@
 # Build stage
 FROM golang:1.24-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache git
-
-# Set working directory
 WORKDIR /app
-
-# Copy go mod files
 COPY go.mod go.sum ./
-
-# Download dependencies
 RUN go mod download
-
-# Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o hctf2 main.go
+ARG VERSION=dev
+# Fully static binary — no libc dependency, suitable for scratch
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w -extldflags=-static -X main.version=${VERSION}" \
+    -o hctf2 main.go
 
-# Runtime stage
-FROM alpine:latest
-
-# Install ca-certificates for HTTPS
+# Grab CA certs for HTTPS support (SMTP, OTLP, etc.)
+FROM alpine:3.21 AS certs
 RUN apk --no-cache add ca-certificates
 
-# Create non-root user
-RUN addgroup -g 1000 hctf && \
-    adduser -D -u 1000 -G hctf hctf
+# Runtime stage — scratch (zero OS overhead, minimal attack surface)
+FROM scratch
 
-# Set working directory
-WORKDIR /app
+# CA certificates for outbound HTTPS
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Copy binary from builder
-COPY --from=builder /app/hctf2 .
+# Static binary
+COPY --from=builder /app/hctf2 /hctf2
 
-# Create directory for database with correct permissions
-RUN mkdir -p /app/data && chown -R hctf:hctf /app
-
-# Switch to non-root user
-USER hctf
-
-# Expose port
 EXPOSE 8090
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8090/healthz || exit 1
+# Run as non-root uid (no /etc/passwd needed when using numeric uid)
+USER 1000
 
-# Run the application
-ENTRYPOINT ["./hctf2"]
-CMD ["--port", "8090", "--db", "/app/data/hctf2.db"]
+ENTRYPOINT ["/hctf2"]
+CMD ["--port", "8090", "--db", "/data/hctf2.db"]
