@@ -29,7 +29,7 @@ var (
 
 func init() {
 	rootCmd.AddCommand(challengeCmd)
-	challengeCmd.AddCommand(challengeListCmd, challengeGetCmd, challengeCreateCmd, challengeDeleteCmd)
+	challengeCmd.AddCommand(challengeListCmd, challengeGetCmd, challengeCreateCmd, challengeDeleteCmd, challengeBrowseCmd)
 	challengeCreateCmd.Flags().StringVar(&createTitle, "title", "", "Challenge title")
 	challengeCreateCmd.Flags().StringVar(&createCategory, "category", "", "Category")
 	challengeCreateCmd.Flags().StringVar(&createDifficulty, "difficulty", "", "Difficulty")
@@ -139,4 +139,42 @@ func runChallengeDelete(_ *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stdout, "Deleted %s\n", args[0])
 	}
 	return nil
+}
+
+var challengeBrowseCmd = &cobra.Command{
+	Use:   "browse",
+	Short: "Interactively browse and select challenges",
+	RunE:  runChallengeBrowse,
+}
+
+func runChallengeBrowse(_ *cobra.Command, _ []string) error {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return fmt.Errorf("browse requires an interactive terminal")
+	}
+	c, err := newClient()
+	if err != nil {
+		return err
+	}
+	challenges, err := c.ListChallenges()
+	if err != nil {
+		return err
+	}
+	var tuiChallenges []tui.Challenge
+	for _, ch := range challenges {
+		tuiChallenges = append(tuiChallenges, tui.Challenge{
+			ID:       ch.ID,
+			Title:    ch.Title,
+			Category: ch.Category,
+			Points:   ch.Points,
+			Solved:   ch.Solved,
+		})
+	}
+	id, err := tui.RunBrowser(tuiChallenges)
+	if err != nil {
+		return err
+	}
+	if id == "" {
+		return nil
+	}
+	return runChallengeGet(nil, []string{id})
 }
