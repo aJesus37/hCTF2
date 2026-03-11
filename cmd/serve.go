@@ -503,6 +503,8 @@ func runServe(_ *cobra.Command, _ []string) error {
 	r.Get("/api/sql/snapshot", s.SQLH.GetSnapshot)
 	r.Get("/api/openapi.yaml", s.HandleOpenAPISpec)
 	r.Get("/docs", s.HandleDocsPage)
+	r.Get("/api/categories", s.SettingsH.ListCategories)
+	r.Get("/api/difficulties", s.SettingsH.ListDifficulties)
 	r.Get("/api/scoreboard", s.ScoreboardH.GetScoreboard)
 	r.Get("/api/scoreboard/evolution", s.ScoreboardH.GetScoreEvolution)
 	r.Get("/api/ctftime", s.ScoreboardH.CTFtimeExport)

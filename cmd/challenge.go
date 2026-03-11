@@ -92,6 +92,8 @@ func runChallengeGet(_ *cobra.Command, args []string) error {
 	return nil
 }
 
+const customSentinel = "__custom__"
+
 func runChallengeCreate(_ *cobra.Command, _ []string) error {
 	c, err := newClient()
 	if err != nil {
@@ -99,14 +101,80 @@ func runChallengeCreate(_ *cobra.Command, _ []string) error {
 	}
 	if term.IsTerminal(int(os.Stdin.Fd())) && (createTitle == "" || createCategory == "") {
 		pointsStr := strconv.Itoa(createPoints)
-		if err := huh.NewForm(huh.NewGroup(
+
+		// Fetch categories and difficulties for the pickers (best-effort).
+		cats, _ := c.ListCategories()
+		diffs, _ := c.ListDifficulties()
+
+		fields := []huh.Field{
 			huh.NewInput().Title("Title").Value(&createTitle),
-			huh.NewInput().Title("Category").Value(&createCategory),
-			huh.NewInput().Title("Difficulty").Value(&createDifficulty),
+		}
+
+		// Category: select from existing + custom option, or plain input if none configured.
+		var catSelection string
+		if len(cats) > 0 {
+			opts := make([]huh.Option[string], len(cats)+1)
+			for i, cat := range cats {
+				opts[i] = huh.NewOption(cat.Name, cat.Name)
+			}
+			opts[len(cats)] = huh.NewOption("Other (type custom)…", customSentinel)
+			fields = append(fields,
+				huh.NewSelect[string]().Title("Category").Options(opts...).Value(&catSelection),
+			)
+		} else {
+			fields = append(fields, huh.NewInput().Title("Category").Value(&createCategory))
+		}
+
+		// Difficulty: select from existing + custom option, or plain input if none configured.
+		var diffSelection string
+		if len(diffs) > 0 {
+			opts := make([]huh.Option[string], len(diffs)+1)
+			for i, d := range diffs {
+				opts[i] = huh.NewOption(d.Name, d.Name)
+			}
+			opts[len(diffs)] = huh.NewOption("Other (type custom)…", customSentinel)
+			fields = append(fields,
+				huh.NewSelect[string]().Title("Difficulty").Options(opts...).Value(&diffSelection),
+			)
+		} else {
+			fields = append(fields, huh.NewInput().Title("Difficulty").Value(&createDifficulty))
+		}
+
+		fields = append(fields,
 			huh.NewInput().Title("Points").Value(&pointsStr),
-		)).Run(); err != nil {
+			huh.NewText().Title("Description (markdown)").Value(&createDescription),
+		)
+
+		if err := huh.NewForm(huh.NewGroup(fields...)).Run(); err != nil {
 			return err
 		}
+
+		// Resolve category.
+		if len(cats) > 0 {
+			if catSelection == customSentinel {
+				if err := huh.NewForm(huh.NewGroup(
+					huh.NewInput().Title("Custom category").Value(&createCategory),
+				)).Run(); err != nil {
+					return err
+				}
+			} else {
+				createCategory = catSelection
+			}
+		}
+
+		// Resolve difficulty.
+		if len(diffs) > 0 {
+			if diffSelection == customSentinel {
+				if err := huh.NewForm(huh.NewGroup(
+					huh.NewInput().Title("Custom difficulty").Value(&createDifficulty),
+				)).Run(); err != nil {
+					return err
+				}
+			} else {
+				createDifficulty = diffSelection
+			}
+		}
+
 		if p, err := strconv.Atoi(pointsStr); err == nil {
 			createPoints = p
 		}

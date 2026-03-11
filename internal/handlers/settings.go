@@ -105,6 +105,38 @@ func renderDifficultyHTML(diff *models.DifficultyOption) string {
 </div>`, diff.ID, eTextColor, eName, diff.SortOrder, eColor, diff.ID, diff.ID, eName, diff.ID, diff.ID, eName, diff.SortOrder, eColor, eTextColor)
 }
 
+// ListCategories godoc
+// @Summary List all challenge categories
+// @Tags Settings
+// @Produce json
+// @Success 200 {array} models.CategoryOption
+// @Router /categories [get]
+func (h *SettingsHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
+	cats, err := h.db.GetAllCategories()
+	if err != nil {
+		http.Error(w, "failed to fetch categories", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cats)
+}
+
+// ListDifficulties godoc
+// @Summary List all challenge difficulties
+// @Tags Settings
+// @Produce json
+// @Success 200 {array} models.DifficultyOption
+// @Router /difficulties [get]
+func (h *SettingsHandler) ListDifficulties(w http.ResponseWriter, r *http.Request) {
+	diffs, err := h.db.GetAllDifficulties()
+	if err != nil {
+		http.Error(w, "failed to fetch difficulties", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(diffs)
+}
+
 // CreateCategory godoc
 // @Summary Create a new challenge category (admin only)
 // @Tags Admin
