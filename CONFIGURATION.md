@@ -11,9 +11,11 @@ The precedence order is: CLI flags > environment variables > defaults.
 
 ## Command-Line Flags
 
-Run `./hctf2 --help` to see all available flags:
+All server flags live under the `serve` subcommand. Run `./hctf2 serve --help` to see all available flags:
 
 ```
+./hctf2 serve [flags]
+
 --port PORT                    Server port (default: 8090)
 --db PATH                      SQLite database path (default: ./hctf2.db)
 --admin-email EMAIL            Initial admin email (required for first setup)
@@ -32,16 +34,18 @@ Run `./hctf2 --help` to see all available flags:
 --dev                          Enable development mode (allows default JWT secret)
 ```
 
+Run `./hctf2 --help` to see the full command tree including CLI subcommands.
+
 ### Examples
 
 **Local Development:**
 ```bash
-./hctf2 --port 3000 --admin-email admin@test.com --admin-password testpass123
+./hctf2 serve --port 3000 --admin-email admin@test.com --admin-password testpass123
 ```
 
 **Production:**
 ```bash
-./hctf2 \
+./hctf2 serve \
   --port 8080 \
   --db /var/lib/hctf2/hctf2.db \
   --jwt-secret $(openssl rand -base64 32) \
@@ -62,7 +66,7 @@ export JWT_SECRET=$(openssl rand -base64 32)
 
 Then run:
 ```bash
-./hctf2
+./hctf2 serve
 ```
 
 ## Server Configuration
@@ -75,12 +79,12 @@ Then run:
 
 Local only (development):
 ```bash
-./hctf2 --port 3000
+./hctf2 serve --port 3000
 ```
 
 All interfaces (production):
 ```bash
-./hctf2 --port 8080
+./hctf2 serve --port 8080
 ```
 
 **Note:** The server listens on all interfaces (0.0.0.0) by default. Use a firewall to restrict access if needed.
@@ -130,17 +134,17 @@ For most deployments, leave this empty as the web UI is served from the same ori
 
 Same-origin only (default, secure):
 ```bash
-./hctf2
+./hctf2 serve
 ```
 
 Allow specific origins:
 ```bash
-./hctf2 --cors-origins "https://app.example.com,https://admin.example.com"
+./hctf2 serve --cors-origins "https://app.example.com,https://admin.example.com"
 ```
 
 Allow all origins (NOT recommended for production):
 ```bash
-./hctf2 --cors-origins "*"
+./hctf2 serve --cors-origins "*"
 ```
 
 ## Database Configuration
@@ -159,17 +163,17 @@ Allow all origins (NOT recommended for production):
 
 Local development:
 ```bash
-./hctf2 --db data/hctf2.db
+./hctf2 serve --db data/hctf2.db
 ```
 
 Production:
 ```bash
-./hctf2 --db /var/lib/hctf2/hctf2.db
+./hctf2 serve --db /var/lib/hctf2/hctf2.db
 ```
 
 Docker:
 ```bash
-./hctf2 --db /data/hctf2.db
+./hctf2 serve --db /data/hctf2.db
 ```
 
 ### Database Location Setup
@@ -184,7 +188,7 @@ sudo chmod 750 /var/lib/hctf2
 
 Then run as the `ctf2` user:
 ```bash
-sudo -u ctf2 ./hctf2 --db /var/lib/hctf2/hctf2.db
+sudo -u ctf2 ./hctf2 serve --db /var/lib/hctf2/hctf2.db
 ```
 
 ### Backup Configuration
@@ -206,18 +210,18 @@ The JWT secret is **required** for production deployments. The server will refus
 
 1. **Command-Line Flag:**
    ```bash
-   ./hctf2 --jwt-secret "$(openssl rand -base64 32)"
+   ./hctf2 serve --jwt-secret "$(openssl rand -base64 32)"
    ```
 
 2. **Environment Variable:**
    ```bash
    export JWT_SECRET="$(openssl rand -base64 32)"
-   ./hctf2
+   ./hctf2 serve
    ```
 
 3. **Development Mode** (insecure, for local development only):
    ```bash
-   ./hctf2 --dev
+   ./hctf2 serve --dev
    ```
 
 **Security Requirements:**
@@ -248,8 +252,8 @@ cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
 
 | Mode | Command | Behavior |
 |------|---------|----------|
-| Production (default) | `./hctf2 --jwt-secret <secret>` | Requires valid JWT secret |
-| Development | `./hctf2 --dev` | Allows default insecure secret with warning |
+| Production (default) | `./hctf2 serve --jwt-secret <secret>` | Requires valid JWT secret |
+| Development | `./hctf2 serve --dev` | Allows default insecure secret with warning |
 
 **Failure Modes:**
 
@@ -276,7 +280,7 @@ ERROR: Invalid JWT secret: JWT secret must be at least 32 characters
 
 **Required on First Run:**
 ```bash
-./hctf2 \
+./hctf2 serve \
   --admin-email admin@example.com \
   --admin-password "securepassword123"
 ```
@@ -419,7 +423,7 @@ docker run -d \
 lsof -i :8080
 
 # Use a different port
-./hctf2 --port 3000
+./hctf2 serve --port 3000
 ```
 
 ### Database File Permissions
@@ -466,7 +470,7 @@ If users get "invalid token" errors after restart:
 
 Using Gmail SMTP:
 ```bash
-./hctf2 \
+./hctf2 serve \
   --smtp-host smtp.gmail.com \
   --smtp-port 587 \
   --smtp-from noreply@yourdomain.com \
@@ -483,7 +487,7 @@ export SMTP_USER=apikey
 export SMTP_PASSWORD="your-sendgrid-api-key"
 export BASE_URL=https://ctf.yourdomain.com
 
-./hctf2
+./hctf2 serve
 ```
 
 **Development Mode:**
@@ -507,7 +511,7 @@ The `/metrics` endpoint serves metrics in Prometheus format, including:
 
 **Example:**
 ```bash
-./hctf2 --metrics --port 8090
+./hctf2 serve --metrics --port 8090
 curl http://localhost:8090/metrics
 ```
 
@@ -531,7 +535,7 @@ docker run -d --name jaeger \
   jaegertracing/all-in-one:latest
 
 # Run hCTF2 with OTLP export
-./hctf2 --otel-otlp-endpoint localhost:4318
+./hctf2 serve --otel-otlp-endpoint localhost:4318
 ```
 
 ### Stdout Exporter (Debug)
@@ -617,7 +621,7 @@ cp /backups/hctf2-latest.db hctf2.db
 ### Minimal Development Setup
 
 ```bash
-./hctf2 \
+./hctf2 serve \
   --port 3000 \
   --admin-email dev@example.com \
   --admin-password devpass123
@@ -626,7 +630,7 @@ cp /backups/hctf2-latest.db hctf2.db
 ### Standard Production Setup
 
 ```bash
-./hctf2 \
+./hctf2 serve \
   --port 8080 \
   --host 0.0.0.0 \
   --database-path /var/lib/hctf2/hctf2.db \

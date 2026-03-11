@@ -14,6 +14,7 @@ A self-hosted CTF (Capture The Flag) platform. Single binary, no dependencies, r
 ## Features
 
 - **Single binary** — embeds all assets, templates, and migrations; copy one file and run
+- **Full CLI** — cobra subcommands for admins and participants; charmbracelet TUI with tables, markdown, interactive browser
 - **Auto-migrations** — schema upgrades apply automatically on startup, no data loss
 - **Challenge management** — categories, difficulties, flag masking, point hints, file attachments
 - **Team play** — create teams, invite-link based joining, team scoreboard
@@ -71,7 +72,7 @@ Download the latest binary from [Releases](https://github.com/ajesus37/hCTF2/rel
 ```bash
 curl -L https://github.com/ajesus37/hCTF2/releases/latest/download/hctf2-linux-amd64 -o hctf2
 chmod +x hctf2
-./hctf2 --admin-email admin@example.com --admin-password yourpassword
+./hctf2 serve --admin-email admin@example.com --admin-password yourpassword
 ```
 
 ### Option 2: Build from source
@@ -83,14 +84,14 @@ git clone https://github.com/ajesus37/hCTF2.git
 cd hctf2
 ./setup.sh   # checks requirements and downloads dependencies
 task build
-./hctf2 --admin-email admin@example.com --admin-password yourpassword
+./hctf2 serve --admin-email admin@example.com --admin-password yourpassword
 ```
 
 ---
 
 ## Configuration
 
-All options are set via CLI flags. See [CONFIGURATION.md](CONFIGURATION.md) for a fully annotated reference.
+All server options are set via flags on `hctf2 serve`. See [CONFIGURATION.md](CONFIGURATION.md) for a fully annotated reference.
 
 | Option | Flag | Default |
 |--------|------|---------|
@@ -99,6 +100,33 @@ All options are set via CLI flags. See [CONFIGURATION.md](CONFIGURATION.md) for 
 | Admin email | `--admin-email` | — |
 | Admin password | `--admin-password` | — |
 | Message of the Day | `--motd` | — |
+
+### CLI
+
+The binary doubles as a CLI client for a running server:
+
+```bash
+# Authenticate
+hctf2 login --server http://localhost:8090 --email admin@example.com --password yourpassword
+
+# Browse challenges interactively
+hctf2 challenge browse
+
+# Submit a flag
+hctf2 flag submit <question-id> FLAG{...}
+
+# Admin: create a challenge
+hctf2 challenge create --title "My Challenge" --category Web --points 200
+
+# Admin: manage users
+hctf2 user list
+hctf2 user promote <user-id>
+
+# JSON output for scripting
+hctf2 --json challenge list | jq '.[] | .title'
+```
+
+Run `hctf2 --help` for the full command tree.
 
 ---
 

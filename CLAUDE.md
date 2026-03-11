@@ -33,18 +33,30 @@ This file provides guidance for Claude (or other AI assistants) when working on 
 
 ```
 hctf2/
-├── main.go              # Application entry point (router, middleware, handlers)
+├── main.go              # Entry point — calls cmd.Execute(version)
+├── cmd/                 # Cobra command tree
+│   ├── root.go         # Root command, global flags (--server, --json, --quiet)
+│   ├── serve.go        # Server subcommand (all server startup + routes)
+│   ├── auth.go         # login / logout / status
+│   ├── challenge.go    # challenge list/get/create/delete/browse
+│   ├── flag.go         # flag submit
+│   ├── team.go         # team list/get/create/join
+│   ├── competition.go  # competition list/create/start/end
+│   ├── user.go         # user list/promote/demote/delete (admin)
+│   └── client.go       # shared newClient() helper
 ├── internal/            # Private application code
 │   ├── auth/           # Authentication & middleware
+│   ├── client/         # HTTP client for CLI (wraps REST API)
+│   ├── config/         # CLI config file (~/.config/hctf2/config.yaml)
 │   ├── database/       # Database layer with embedded migrations
 │   │   └── migrations/ # SQL migrations (001-017)
 │   ├── handlers/       # HTTP handlers (auth, challenges, teams, hints, etc.)
 │   ├── models/         # Data structures
+│   ├── tui/            # Charmbracelet TUI (table, theme, browse)
 │   ├── utils/          # Utility functions (markdown rendering)
 │   └── views/          # Templates & static files (embedded)
 │       ├── templates/  # HTML templates
 │       └── static/     # CSS, JS, images, DuckDB WASM files
-├── migrations/         # SQL migrations (legacy, kept for reference)
 ├── Taskfile.yml        # Build automation (NOT Makefile)
 ├── go.mod              # Go dependencies
 ├── handlers_test.go    # HTTP handler tests
@@ -72,7 +84,7 @@ For browser-based projects like hCTF2, always validate UI changes using `npx age
 task rebuild
 
 # 2. Start server (background)
-./hctf2 --port 8092 --dev --db /tmp/hctf2_test.db \
+./hctf2 serve --port 8092 --dev --db /tmp/hctf2_test.db \
   --admin-email admin@test.com --admin-password testpass123 &
 
 # 3. Login and navigate in one chained call
@@ -538,7 +550,7 @@ If something breaks:
 
 1. **Database corruption**: `task db-reset` (WARNING: deletes all data)
 2. **Build errors**: `task clean && task deps && task build`
-3. **Port conflicts**: Change port: `./hctf2 --port 3000` or `task run-dev -- --port 3000`
+3. **Port conflicts**: Change port: `./hctf2 serve --port 3000` or `task run-dev -- --port 3000`
 4. **Template errors**: Check embed paths, rebuild binary: `task clean && task build`
 5. **DuckDB WASM not loading**: Run `task setup-sql` to download WASM files
 6. **Migration failures**: Check `internal/database/migrations/` for syntax errors
