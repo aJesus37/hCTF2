@@ -25,6 +25,7 @@ type Question struct {
 	Name     string `json:"name"`
 	FlagMask string `json:"flag_mask"`
 	Points   int    `json:"points"`
+	Solved   bool   `json:"solved"`
 }
 
 type SubmitResult struct {

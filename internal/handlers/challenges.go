@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/ajesus37/hCTF2/internal/auth"
 	"github.com/ajesus37/hCTF2/internal/database"
+	"github.com/ajesus37/hCTF2/internal/models"
 	"github.com/ajesus37/hCTF2/internal/ratelimit"
 	"github.com/ajesus37/hCTF2/internal/storage"
 )
@@ -73,18 +74,28 @@ func (h *ChallengeHandler) GetChallenge(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Remove flag from questions for non-admin users
+	// Remove flag from questions for non-admin users; annotate solved status.
 	claims := auth.GetUserFromContext(r.Context())
-	if claims == nil || !claims.IsAdmin {
-		for i := range questions {
+	type questionWithSolved struct {
+		*models.Question
+		Solved bool `json:"solved"`
+	}
+	questionsOut := make([]questionWithSolved, len(questions))
+	for i := range questions {
+		if claims == nil || !claims.IsAdmin {
 			questions[i].Flag = ""
 		}
+		solved := false
+		if claims != nil {
+			solved, _ = h.db.HasUserSolved(questions[i].ID, claims.UserID)
+		}
+		questionsOut[i] = questionWithSolved{Question: &questions[i], Solved: solved}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"challenge": challenge,
-		"questions": questions,
+		"questions": questionsOut,
 	})
 }
 
