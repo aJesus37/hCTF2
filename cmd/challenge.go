@@ -197,10 +197,15 @@ func runSubmitLoop(c *client.Client, challengeID string) error {
 		// Pick a question (skip picker if only one).
 		questionID := questions[0].ID
 		questionName := questions[0].Name
+		questionSolved := questions[0].Solved
 		if len(questions) > 1 {
 			opts := make([]huh.Option[string], len(questions))
 			for i, q := range questions {
-				label := fmt.Sprintf("%s  (%s, %d pts)", q.Name, q.FlagMask, q.Points)
+				prefix := "  "
+				if q.Solved {
+					prefix = "✓ "
+				}
+				label := fmt.Sprintf("%s%s  (%s, %d pts)", prefix, q.Name, q.FlagMask, q.Points)
 				opts[i] = huh.NewOption(label, q.ID)
 			}
 			if err := huh.NewForm(huh.NewGroup(
@@ -214,16 +219,21 @@ func runSubmitLoop(c *client.Client, challengeID string) error {
 			for _, q := range questions {
 				if q.ID == questionID {
 					questionName = q.Name
+					questionSolved = q.Solved
 					break
 				}
 			}
 		}
 
 		// Prompt for flag.
+		title := fmt.Sprintf("Flag for %q", questionName)
+		if questionSolved {
+			title += " (already solved)"
+		}
 		var flag string
 		if err := huh.NewForm(huh.NewGroup(
 			huh.NewInput().
-				Title(fmt.Sprintf("Flag for %q", questionName)).
+				Title(title).
 				Placeholder("flag{...}").
 				Value(&flag),
 		)).Run(); err != nil {
