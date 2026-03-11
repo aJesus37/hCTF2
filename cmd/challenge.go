@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/ajesus37/hCTF2/internal/client"
 	"github.com/ajesus37/hCTF2/internal/tui"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/huh"
@@ -170,5 +171,87 @@ func runChallengeBrowse(_ *cobra.Command, _ []string) error {
 	if id == "" {
 		return nil
 	}
-	return runChallengeGet(nil, []string{id})
+	if err := runChallengeGet(nil, []string{id}); err != nil {
+		return err
+	}
+	return runSubmitLoop(c, id)
+}
+
+// runSubmitLoop prompts the user to pick a question and submit a flag,
+// looping until they decline. Silently returns if stdin is not a TTY.
+func runSubmitLoop(c *client.Client, challengeID string) error {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return nil
+	}
+
+	_, questions, err := c.GetChallengeWithQuestions(challengeID)
+	if err != nil {
+		return err
+	}
+	if len(questions) == 0 {
+		fmt.Fprintln(os.Stdout, tui.MutedStyle.Render("No questions available."))
+		return nil
+	}
+
+	for {
+		// Pick a question (skip picker if only one).
+		questionID := questions[0].ID
+		questionName := questions[0].Name
+		if len(questions) > 1 {
+			opts := make([]huh.Option[string], len(questions))
+			for i, q := range questions {
+				label := fmt.Sprintf("%s  (%s, %d pts)", q.Name, q.FlagMask, q.Points)
+				opts[i] = huh.NewOption(label, q.ID)
+			}
+			if err := huh.NewForm(huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Which question?").
+					Options(opts...).
+					Value(&questionID),
+			)).Run(); err != nil {
+				return err
+			}
+			for _, q := range questions {
+				if q.ID == questionID {
+					questionName = q.Name
+					break
+				}
+			}
+		}
+
+		// Prompt for flag.
+		var flag string
+		if err := huh.NewForm(huh.NewGroup(
+			huh.NewInput().
+				Title(fmt.Sprintf("Flag for %q", questionName)).
+				Placeholder("flag{...}").
+				Value(&flag),
+		)).Run(); err != nil {
+			return err
+		}
+
+		if flag == "" {
+			return nil
+		}
+
+		// Submit.
+		result, err := c.SubmitFlag(questionID, flag)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, tui.ErrorStyle.Render(fmt.Sprintf("Submit error: %v", err)))
+		} else if result.Correct {
+			fmt.Fprintln(os.Stdout, tui.SuccessStyle.Render("✓ Correct!"))
+		} else {
+			fmt.Fprintln(os.Stdout, tui.ErrorStyle.Render("✗ Incorrect, try again"))
+		}
+
+		// Ask to continue.
+		var again bool
+		if err := huh.NewForm(huh.NewGroup(
+			huh.NewConfirm().
+				Title("Submit another flag?").
+				Value(&again),
+		)).Run(); err != nil || !again {
+			return err
+		}
+	}
 }
