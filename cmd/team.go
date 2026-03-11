@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/ajesus37/hCTF2/internal/tui"
 	"github.com/spf13/cobra"
@@ -34,18 +33,12 @@ func runTeamList(_ *cobra.Command, _ []string) error {
 		return json.NewEncoder(os.Stdout).Encode(teams)
 	}
 	cols := []tui.Column{
-		{Header: "ID", Width: 10},
+		{Header: "ID", Width: 38},
 		{Header: "NAME", Width: 25},
-		{Header: "SCORE", Width: 8},
-		{Header: "MEMBERS", Width: 9},
 	}
 	var rows [][]string
 	for _, t := range teams {
-		id := t.ID
-		if len(id) > 8 {
-			id = id[:8] + "..."
-		}
-		rows = append(rows, []string{id, t.Name, strconv.Itoa(t.Score), strconv.Itoa(t.MemberCount)})
+		rows = append(rows, []string{t.ID, t.Name})
 	}
 	tui.PrintTable(os.Stdout, cols, rows)
 	return nil
@@ -63,10 +56,9 @@ func runTeamGet(_ *cobra.Command, args []string) error {
 	if jsonOutput {
 		return json.NewEncoder(os.Stdout).Encode(t)
 	}
-	fmt.Fprintf(os.Stdout, "Name:    %s\nID:      %s\nScore:   %d\nMembers: %d\n",
-		t.Name, t.ID, t.Score, t.MemberCount)
-	if t.InviteCode != "" {
-		fmt.Fprintf(os.Stdout, "Invite:  %s\n", t.InviteCode)
+	fmt.Fprintf(os.Stdout, "Name:  %s\nID:    %s\n", t.Name, t.ID)
+	if t.InviteID != "" {
+		fmt.Fprintf(os.Stdout, "Invite code: %s\n", t.InviteID)
 	}
 	return nil
 }

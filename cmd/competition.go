@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/ajesus37/hCTF2/internal/tui"
 	"github.com/spf13/cobra"
@@ -33,17 +34,13 @@ func runCompList(_ *cobra.Command, _ []string) error {
 		return json.NewEncoder(os.Stdout).Encode(comps)
 	}
 	cols := []tui.Column{
-		{Header: "ID", Width: 10},
+		{Header: "ID", Width: 6},
 		{Header: "NAME", Width: 30},
 		{Header: "STATUS", Width: 12},
 	}
 	var rows [][]string
 	for _, co := range comps {
-		id := co.ID
-		if len(id) > 8 {
-			id = id[:8] + "..."
-		}
-		rows = append(rows, []string{id, co.Name, co.Status})
+		rows = append(rows, []string{strconv.FormatInt(co.ID, 10), co.Name, co.Status})
 	}
 	tui.PrintTable(os.Stdout, cols, rows)
 	return nil
@@ -62,34 +59,42 @@ func runCompCreate(_ *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stdout, co.ID)
 		return nil
 	}
-	fmt.Fprintf(os.Stdout, "Created competition %q (%s)\n", co.Name, co.ID)
+	fmt.Fprintf(os.Stdout, "Created competition %q (id: %d)\n", co.Name, co.ID)
 	return nil
 }
 
 func runCompStart(_ *cobra.Command, args []string) error {
+	id, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid competition id: %s", args[0])
+	}
 	c, err := newClient()
 	if err != nil {
 		return err
 	}
-	if err := c.ForceStartCompetition(args[0]); err != nil {
+	if err := c.ForceStartCompetition(id); err != nil {
 		return err
 	}
 	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Started competition %s\n", args[0])
+		fmt.Fprintf(os.Stdout, "Started competition %d\n", id)
 	}
 	return nil
 }
 
 func runCompEnd(_ *cobra.Command, args []string) error {
+	id, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid competition id: %s", args[0])
+	}
 	c, err := newClient()
 	if err != nil {
 		return err
 	}
-	if err := c.ForceEndCompetition(args[0]); err != nil {
+	if err := c.ForceEndCompetition(id); err != nil {
 		return err
 	}
 	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Ended competition %s\n", args[0])
+		fmt.Fprintf(os.Stdout, "Ended competition %d\n", id)
 	}
 	return nil
 }

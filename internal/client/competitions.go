@@ -1,14 +1,14 @@
 package client
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 type Competition struct {
-	ID     string `json:"id"`
+	ID     int64  `json:"id"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
 }
@@ -24,9 +24,9 @@ func (c *Client) ListCompetitions() ([]Competition, error) {
 }
 
 func (c *Client) CreateCompetition(name string) (*Competition, error) {
-	body, _ := json.Marshal(map[string]string{"name": name})
-	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/competitions", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	body := strings.NewReader(url.Values{"name": {name}}.Encode())
+	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/competitions", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
@@ -35,8 +35,8 @@ func (c *Client) CreateCompetition(name string) (*Competition, error) {
 	return &out, decodeJSON(resp, &out)
 }
 
-func (c *Client) ForceStartCompetition(id string) error {
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/admin/competitions/%s/force-start", c.ServerURL, id), nil)
+func (c *Client) ForceStartCompetition(id int64) error {
+	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/admin/competitions/%d/force-start", c.ServerURL, id), nil)
 	resp, err := c.Do(req)
 	if err != nil {
 		return err
@@ -48,8 +48,8 @@ func (c *Client) ForceStartCompetition(id string) error {
 	return nil
 }
 
-func (c *Client) ForceEndCompetition(id string) error {
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/admin/competitions/%s/force-end", c.ServerURL, id), nil)
+func (c *Client) ForceEndCompetition(id int64) error {
+	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/admin/competitions/%d/force-end", c.ServerURL, id), nil)
 	resp, err := c.Do(req)
 	if err != nil {
 		return err

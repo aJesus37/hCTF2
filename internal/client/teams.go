@@ -8,11 +8,10 @@ import (
 )
 
 type Team struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Score       int    `json:"score"`
-	MemberCount int    `json:"member_count"`
-	InviteCode  string `json:"invite_code,omitempty"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	InviteID   string `json:"invite_id,omitempty"`
+	OwnerID    string `json:"owner_id,omitempty"`
 }
 
 func (c *Client) ListTeams() ([]Team, error) {

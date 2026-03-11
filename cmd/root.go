@@ -15,9 +15,10 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "hctf2",
-	Short: "hCTF2 — self-hosted CTF platform",
-	Long:  "hCTF2 is a self-hosted CTF platform. Run 'hctf2 serve' to start the server.",
+	Use:               "hctf2",
+	Short:             "hCTF2 — self-hosted CTF platform",
+	Long:              "hCTF2 is a self-hosted CTF platform. Run 'hctf2 serve' to start the server.",
+	CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 }
 
 // Execute runs the root command with the given version string.

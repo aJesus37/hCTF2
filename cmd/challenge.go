@@ -55,19 +55,14 @@ func runChallengeList(_ *cobra.Command, _ []string) error {
 		{Header: "CATEGORY", Width: 15},
 		{Header: "DIFF", Width: 12},
 		{Header: "PTS", Width: 6},
-		{Header: "SOLVED", Width: 7},
 	}
 	var rows [][]string
 	for _, ch := range challenges {
-		solved := ""
-		if ch.Solved {
-			solved = tui.SolvedStyle.Render("✓")
-		}
 		id := ch.ID
 		if len(id) > 8 {
 			id = id[:8] + "..."
 		}
-		rows = append(rows, []string{id, ch.Title, ch.Category, ch.Difficulty, strconv.Itoa(ch.Points), solved})
+		rows = append(rows, []string{id, ch.Title, ch.Category, ch.Difficulty, strconv.Itoa(ch.InitialPoints)})
 	}
 	tui.PrintTable(os.Stdout, cols, rows)
 	return nil
@@ -87,7 +82,7 @@ func runChallengeGet(_ *cobra.Command, args []string) error {
 	}
 	fmt.Fprintf(os.Stdout, "%s  %s  [%s / %s]  %d pts\n\n",
 		tui.HeaderStyle.Render(ch.Title), tui.MutedStyle.Render(ch.ID),
-		ch.Category, ch.Difficulty, ch.Points)
+		ch.Category, ch.Difficulty, ch.InitialPoints)
 	if ch.Description != "" {
 		r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle())
 		out, _ := r.Render(ch.Description)
@@ -165,8 +160,7 @@ func runChallengeBrowse(_ *cobra.Command, _ []string) error {
 			ID:       ch.ID,
 			Title:    ch.Title,
 			Category: ch.Category,
-			Points:   ch.Points,
-			Solved:   ch.Solved,
+			Points:   ch.InitialPoints,
 		})
 	}
 	id, err := tui.RunBrowser(tuiChallenges)

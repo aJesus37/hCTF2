@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 type Challenge struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Category    string `json:"category"`
-	Difficulty  string `json:"difficulty"`
-	Points      int    `json:"points"`
-	Description string `json:"description"`
-	Solved      bool   `json:"solved"`
+	ID             string `json:"id"`
+	Title          string `json:"name"`      // server field is "name"
+	Category       string `json:"category"`
+	Difficulty     string `json:"difficulty"`
+	InitialPoints  int    `json:"initial_points"` // server field is "initial_points"
+	Description    string `json:"description"`
+	Visible        bool   `json:"visible"`
 }
 
 type SubmitResult struct {
@@ -44,21 +47,30 @@ func (c *Client) GetChallenge(id string) (*Challenge, error) {
 }
 
 func (c *Client) SubmitFlag(questionID, flag string) (*SubmitResult, error) {
-	body, _ := json.Marshal(map[string]string{"flag": flag})
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/questions/%s/submit", c.ServerURL, questionID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	form := url.Values{"flag": {flag}}
+	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/questions/%s/submit", c.ServerURL, questionID), strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	var out SubmitResult
-	return &out, decodeJSON(resp, &out)
+	defer resp.Body.Close()
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		return nil, fmt.Errorf("unauthorized")
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	body := string(bodyBytes)
+	correct := strings.Contains(body, "Correct")
+	return &SubmitResult{Correct: correct}, nil
 }
 
 func (c *Client) CreateChallenge(title, category, difficulty, description string, points int) (*Challenge, error) {
 	body, _ := json.Marshal(map[string]any{
-		"title": title, "category": category, "difficulty": difficulty,
-		"description": description, "points": points,
+		"name": title, "category": category, "difficulty": difficulty,
+		"description": description, "initial_points": points,
 	})
 	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/challenges", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

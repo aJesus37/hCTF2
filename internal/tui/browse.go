@@ -14,7 +14,6 @@ type Challenge struct {
 	Title    string
 	Category string
 	Points   int
-	Solved   bool
 }
 
 type BrowseModel struct {
@@ -100,15 +99,11 @@ func (m BrowseModel) View() string {
 		if i == m.cursor {
 			cursor = "> "
 		}
-		solved := ""
-		if ch.Solved {
-			solved = SolvedStyle.Render(" ✓")
-		}
 		title := ch.Title
 		if len(title) > 28 {
 			title = title[:25] + "..."
 		}
-		line := fmt.Sprintf("%s%-28s %-14s %4dpts%s", cursor, title, ch.Category, ch.Points, solved)
+		line := fmt.Sprintf("%s%-28s %-14s %4dpts", cursor, title, ch.Category, ch.Points)
 		if i == m.cursor {
 			sb.WriteString(lipgloss.NewStyle().Bold(true).Render(line) + "\n")
 		} else {
