@@ -154,7 +154,7 @@ func jwtExpiry(token string) time.Time {
 	return time.Unix(claims.Exp, 0)
 }
 
-// jwtSubject extracts sub claim (email) from a JWT without verifying.
+// jwtSubject extracts the email claim from a JWT without verifying.
 func jwtSubject(token string) string {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
@@ -165,8 +165,12 @@ func jwtSubject(token string) string {
 		return "unknown"
 	}
 	var claims struct {
-		Sub string `json:"sub"`
+		Email string `json:"email"`
+		Sub   string `json:"sub"`
 	}
 	_ = json.Unmarshal(payload, &claims)
+	if claims.Email != "" {
+		return claims.Email
+	}
 	return claims.Sub
 }

@@ -58,6 +58,9 @@ func (c *Client) SubmitFlag(questionID, flag string) (*SubmitResult, error) {
 	if resp.StatusCode == 401 || resp.StatusCode == 403 {
 		return nil, fmt.Errorf("unauthorized")
 	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("server returned %d", resp.StatusCode)
+	}
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err

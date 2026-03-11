@@ -30,8 +30,14 @@ func (c *Client) GetTeam(id string) (*Team, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out Team
-	return &out, decodeJSON(resp, &out)
+	// The endpoint wraps the response: {"team": {...}, "members": [...]}.
+	var envelope struct {
+		Team Team `json:"team"`
+	}
+	if err := decodeJSON(resp, &envelope); err != nil {
+		return nil, err
+	}
+	return &envelope.Team, nil
 }
 
 func (c *Client) CreateTeam(name string) (*Team, error) {

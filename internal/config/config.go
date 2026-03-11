@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	Server       string    `yaml:"server"`
-	Token        string    `yaml:"token,omitempty"`
-	TokenExpires time.Time `yaml:"token_expires,omitempty"`
+	Server       string    `yaml:"server" json:"server"`
+	Token        string    `yaml:"token,omitempty" json:"token,omitempty"`
+	TokenExpires time.Time `yaml:"token_expires,omitempty" json:"token_expires,omitempty"`
 }
 
 func path() string {
