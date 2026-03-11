@@ -42,8 +42,14 @@ func (c *Client) GetChallenge(id string) (*Challenge, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out Challenge
-	return &out, decodeJSON(resp, &out)
+	// The endpoint wraps the response: {"challenge": {...}, "questions": [...]}.
+	var envelope struct {
+		Challenge Challenge `json:"challenge"`
+	}
+	if err := decodeJSON(resp, &envelope); err != nil {
+		return nil, err
+	}
+	return &envelope.Challenge, nil
 }
 
 func (c *Client) SubmitFlag(questionID, flag string) (*SubmitResult, error) {

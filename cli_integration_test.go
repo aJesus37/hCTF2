@@ -485,6 +485,9 @@ func TestCLIChallengeGet(t *testing.T) {
 
 	stdout, stderr, code := runCLI(t, "challenge", "get", id)
 	assertSuccess(t, stdout, stderr, code)
+	// Must show [category / difficulty]  N pts — not [ / ] 0 pts.
+	assertContains(t, stdout, "pts")
+	assertNotContains(t, stdout, "[ / ]")
 }
 
 func TestCLIChallengeGetJSON(t *testing.T) {
