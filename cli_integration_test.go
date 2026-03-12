@@ -735,10 +735,11 @@ func TestCLITeamGetJSON(t *testing.T) {
 	id := strings.TrimSpace(stdout)
 	defer leaveTeam(t)
 
-	var team map[string]any
-	runCLIJSON(t, &team, "team", "get", id, "--json")
-	if team["id"] == nil {
-		t.Error("JSON team get missing 'id' field")
+	var envelope map[string]any
+	runCLIJSON(t, &envelope, "team", "get", id, "--json")
+	teamObj, ok := envelope["team"].(map[string]any)
+	if !ok || teamObj["id"] == nil {
+		t.Error("JSON team get missing 'team.id' field")
 	}
 }
 

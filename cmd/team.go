@@ -18,10 +18,21 @@ var teamCreateCmd = &cobra.Command{Use: "create <name>", Short: "Create a team",
 var teamJoinCmd = &cobra.Command{Use: "join <invite-code>", Short: "Join a team by invite code", Args: cobra.ExactArgs(1), RunE: runTeamJoin}
 var teamLeaveCmd = &cobra.Command{Use: "leave", Short: "Leave your current team", RunE: runTeamLeave}
 var teamDisbandCmd = &cobra.Command{Use: "disband", Short: "Disband your team (owner only)", RunE: runTeamDisband}
+var teamTransferCmd = &cobra.Command{
+	Use:   "transfer <member-id>",
+	Short: "Transfer team ownership to a member",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runTeamTransfer,
+}
+var teamInviteRegenCmd = &cobra.Command{
+	Use:   "invite-regen",
+	Short: "Regenerate your team's invite code",
+	RunE:  runTeamInviteRegen,
+}
 
 func init() {
 	rootCmd.AddCommand(teamCmd)
-	teamCmd.AddCommand(teamListCmd, teamGetCmd, teamCreateCmd, teamJoinCmd, teamLeaveCmd, teamDisbandCmd)
+	teamCmd.AddCommand(teamListCmd, teamGetCmd, teamCreateCmd, teamJoinCmd, teamLeaveCmd, teamDisbandCmd, teamTransferCmd, teamInviteRegenCmd)
 }
 
 func runTeamList(_ *cobra.Command, _ []string) error {
@@ -53,16 +64,33 @@ func runTeamGet(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	t, err := c.GetTeam(args[0])
+	t, members, err := c.GetTeam(args[0])
 	if err != nil {
 		return err
 	}
 	if jsonOutput {
-		return json.NewEncoder(os.Stdout).Encode(t)
+		return json.NewEncoder(os.Stdout).Encode(map[string]interface{}{"team": t, "members": members})
 	}
 	fmt.Fprintf(os.Stdout, "Name:  %s\nID:    %s\n", t.Name, t.ID)
 	if t.InviteID != "" {
 		fmt.Fprintf(os.Stdout, "Invite code: %s\n", t.InviteID)
+	}
+	if len(members) > 0 {
+		fmt.Fprintln(os.Stdout, "\nMembers:")
+		cols := []tui.Column{
+			{Header: "ID", Width: 38},
+			{Header: "NAME", Width: 25},
+			{Header: "EMAIL", Width: 30},
+		}
+		var rows [][]string
+		for _, m := range members {
+			name := m.Name
+			if t.OwnerID != "" && m.ID == t.OwnerID {
+				name += " (owner)"
+			}
+			rows = append(rows, []string{m.ID, name, m.Email})
+		}
+		tui.PrintTable(os.Stdout, cols, rows)
 	}
 	return nil
 }
@@ -134,5 +162,43 @@ func runTeamDisband(_ *cobra.Command, _ []string) error {
 	if !quietOutput {
 		fmt.Fprintln(os.Stdout, "Team disbanded.")
 	}
+	return nil
+}
+
+func runTeamTransfer(_ *cobra.Command, args []string) error {
+	c, err := newClient()
+	if err != nil {
+		return err
+	}
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		var confirm bool
+		if err := huh.NewForm(huh.NewGroup(
+			huh.NewConfirm().Title(fmt.Sprintf("Transfer ownership to member %s?", args[0])).Value(&confirm),
+		)).Run(); err != nil {
+			return err
+		}
+		if !confirm {
+			return nil
+		}
+	}
+	if err := c.TransferOwnership(args[0]); err != nil {
+		return err
+	}
+	if !quietOutput {
+		fmt.Fprintln(os.Stdout, "Ownership transferred.")
+	}
+	return nil
+}
+
+func runTeamInviteRegen(_ *cobra.Command, _ []string) error {
+	c, err := newClient()
+	if err != nil {
+		return err
+	}
+	code, err := c.RegenerateInvite()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stdout, code)
 	return nil
 }
