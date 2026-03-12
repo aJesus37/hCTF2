@@ -119,46 +119,52 @@ func runChallengeCreate(_ *cobra.Command, _ []string) error {
 		cats, _ := c.ListCategories()
 		diffs, _ := c.ListDifficulties()
 
-		fields := []huh.Field{
+		// Group 1: Title alone so it always fits on screen.
+		if err := huh.NewForm(huh.NewGroup(
 			huh.NewInput().Title("Title").Value(&createTitle),
+		)).Run(); err != nil {
+			return err
 		}
 
-		// Category: select from existing + custom option, or plain input if none configured.
+		// Group 2: Category, Difficulty, Points, Description.
 		var catSelection string
+		var diffSelection string
+		fields2 := []huh.Field{}
+
+		// Category: select from existing + custom option, or plain input if none configured.
 		if len(cats) > 0 {
 			opts := make([]huh.Option[string], len(cats)+1)
 			for i, cat := range cats {
 				opts[i] = huh.NewOption(cat.Name, cat.Name)
 			}
 			opts[len(cats)] = huh.NewOption("Other (type custom)…", customSentinel)
-			fields = append(fields,
+			fields2 = append(fields2,
 				huh.NewSelect[string]().Title("Category").Options(opts...).Value(&catSelection),
 			)
 		} else {
-			fields = append(fields, huh.NewInput().Title("Category").Value(&createCategory))
+			fields2 = append(fields2, huh.NewInput().Title("Category").Value(&createCategory))
 		}
 
 		// Difficulty: select from existing + custom option, or plain input if none configured.
-		var diffSelection string
 		if len(diffs) > 0 {
 			opts := make([]huh.Option[string], len(diffs)+1)
 			for i, d := range diffs {
 				opts[i] = huh.NewOption(d.Name, d.Name)
 			}
 			opts[len(diffs)] = huh.NewOption("Other (type custom)…", customSentinel)
-			fields = append(fields,
+			fields2 = append(fields2,
 				huh.NewSelect[string]().Title("Difficulty").Options(opts...).Value(&diffSelection),
 			)
 		} else {
-			fields = append(fields, huh.NewInput().Title("Difficulty").Value(&createDifficulty))
+			fields2 = append(fields2, huh.NewInput().Title("Difficulty").Value(&createDifficulty))
 		}
 
-		fields = append(fields,
+		fields2 = append(fields2,
 			huh.NewInput().Title("Points").Value(&pointsStr),
 			huh.NewText().Title("Description (markdown)").Value(&createDescription),
 		)
 
-		if err := huh.NewForm(huh.NewGroup(fields...)).Run(); err != nil {
+		if err := huh.NewForm(huh.NewGroup(fields2...)).Run(); err != nil {
 			return err
 		}
 
@@ -228,41 +234,47 @@ func runChallengeUpdate(_ *cobra.Command, args []string) error {
 		cats, _ := c.ListCategories()
 		diffs, _ := c.ListDifficulties()
 
-		pointsStr := strconv.Itoa(updatePoints)
-		fields := []huh.Field{
+		// Group 1: Title alone so it always fits on screen.
+		if err := huh.NewForm(huh.NewGroup(
 			huh.NewInput().Title("Title").Value(&updateTitle),
+		)).Run(); err != nil {
+			return err
 		}
 
+		// Group 2: Category, Difficulty, Points, Description.
+		pointsStr := strconv.Itoa(updatePoints)
 		var catSelection string
+		var diffSelection string
+		fields2 := []huh.Field{}
+
 		if len(cats) > 0 {
 			opts := make([]huh.Option[string], len(cats)+1)
 			for i, cat := range cats {
 				opts[i] = huh.NewOption(cat.Name, cat.Name)
 			}
 			opts[len(cats)] = huh.NewOption("Other (type custom)…", customSentinel)
-			fields = append(fields, huh.NewSelect[string]().Title("Category").Options(opts...).Value(&catSelection))
+			fields2 = append(fields2, huh.NewSelect[string]().Title("Category").Options(opts...).Value(&catSelection))
 		} else {
-			fields = append(fields, huh.NewInput().Title("Category").Value(&updateCategory))
+			fields2 = append(fields2, huh.NewInput().Title("Category").Value(&updateCategory))
 		}
 
-		var diffSelection string
 		if len(diffs) > 0 {
 			opts := make([]huh.Option[string], len(diffs)+1)
 			for i, d := range diffs {
 				opts[i] = huh.NewOption(d.Name, d.Name)
 			}
 			opts[len(diffs)] = huh.NewOption("Other (type custom)…", customSentinel)
-			fields = append(fields, huh.NewSelect[string]().Title("Difficulty").Options(opts...).Value(&diffSelection))
+			fields2 = append(fields2, huh.NewSelect[string]().Title("Difficulty").Options(opts...).Value(&diffSelection))
 		} else {
-			fields = append(fields, huh.NewInput().Title("Difficulty").Value(&updateDifficulty))
+			fields2 = append(fields2, huh.NewInput().Title("Difficulty").Value(&updateDifficulty))
 		}
 
-		fields = append(fields,
+		fields2 = append(fields2,
 			huh.NewInput().Title("Points").Value(&pointsStr),
 			huh.NewText().Title("Description (markdown)").Value(&updateDescription),
 		)
 
-		if err := huh.NewForm(huh.NewGroup(fields...)).Run(); err != nil {
+		if err := huh.NewForm(huh.NewGroup(fields2...)).Run(); err != nil {
 			return err
 		}
 
