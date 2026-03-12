@@ -60,3 +60,29 @@ func (c *Client) ForceEndCompetition(id int64) error {
 	}
 	return nil
 }
+
+func (c *Client) RegisterForCompetition(id int64) error {
+	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/competitions/%d/register", c.ServerURL, id), nil)
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("server returned %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *Client) DeleteCompetition(id int64) error {
+	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/competitions/%d", c.ServerURL, id), nil)
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("server returned %d", resp.StatusCode)
+	}
+	return nil
+}

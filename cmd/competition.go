@@ -7,7 +7,9 @@ import (
 	"strconv"
 
 	"github.com/ajesus37/hCTF2/internal/tui"
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var competitionCmd = &cobra.Command{Use: "competition", Short: "Competition management", Aliases: []string{"comp"}}
@@ -15,10 +17,12 @@ var compListCmd = &cobra.Command{Use: "list", Short: "List competitions", RunE: 
 var compCreateCmd = &cobra.Command{Use: "create <name>", Short: "Create a competition (admin)", Args: cobra.ExactArgs(1), RunE: runCompCreate}
 var compStartCmd = &cobra.Command{Use: "start <id>", Short: "Force-start a competition (admin)", Args: cobra.ExactArgs(1), RunE: runCompStart}
 var compEndCmd = &cobra.Command{Use: "end <id>", Short: "Force-end a competition (admin)", Args: cobra.ExactArgs(1), RunE: runCompEnd}
+var compRegisterCmd = &cobra.Command{Use: "register <id>", Short: "Register your team for a competition", Args: cobra.ExactArgs(1), RunE: runCompRegister}
+var compDeleteCmd = &cobra.Command{Use: "delete <id>", Short: "Delete a competition (admin)", Args: cobra.ExactArgs(1), RunE: runCompDelete}
 
 func init() {
 	rootCmd.AddCommand(competitionCmd)
-	competitionCmd.AddCommand(compListCmd, compCreateCmd, compStartCmd, compEndCmd)
+	competitionCmd.AddCommand(compListCmd, compCreateCmd, compStartCmd, compEndCmd, compRegisterCmd, compDeleteCmd)
 }
 
 func runCompList(_ *cobra.Command, _ []string) error {
@@ -95,6 +99,53 @@ func runCompEnd(_ *cobra.Command, args []string) error {
 	}
 	if !quietOutput {
 		fmt.Fprintf(os.Stdout, "Ended competition %d\n", id)
+	}
+	return nil
+}
+
+func runCompRegister(_ *cobra.Command, args []string) error {
+	id, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid competition id: %s", args[0])
+	}
+	c, err := newClient()
+	if err != nil {
+		return err
+	}
+	if err := c.RegisterForCompetition(id); err != nil {
+		return err
+	}
+	if !quietOutput {
+		fmt.Fprintf(os.Stdout, "Registered for competition %d\n", id)
+	}
+	return nil
+}
+
+func runCompDelete(_ *cobra.Command, args []string) error {
+	id, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid competition id: %s", args[0])
+	}
+	c, err := newClient()
+	if err != nil {
+		return err
+	}
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		var confirm bool
+		if err := huh.NewForm(huh.NewGroup(
+			huh.NewConfirm().Title(fmt.Sprintf("Delete competition %d? This cannot be undone.", id)).Value(&confirm),
+		)).Run(); err != nil {
+			return err
+		}
+		if !confirm {
+			return nil
+		}
+	}
+	if err := c.DeleteCompetition(id); err != nil {
+		return err
+	}
+	if !quietOutput {
+		fmt.Fprintf(os.Stdout, "Deleted competition %d\n", id)
 	}
 	return nil
 }
