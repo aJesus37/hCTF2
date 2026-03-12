@@ -39,13 +39,62 @@ var (
 	loginServer   string
 )
 
+var (
+	registerEmail    string
+	registerName     string
+	registerPassword string
+)
+
+var registerCmd = &cobra.Command{
+	Use:   "register",
+	Short: "Create a new account",
+	RunE:  runRegister,
+}
+
 func init() {
 	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(logoutCmd)
 	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(registerCmd)
 	loginCmd.Flags().StringVar(&loginEmail, "email", "", "Email address")
 	loginCmd.Flags().StringVar(&loginPassword, "password", "", "Password")
 	loginCmd.Flags().StringVar(&loginServer, "server", "", "Server URL (e.g. http://localhost:8090)")
+	registerCmd.Flags().StringVar(&registerEmail, "email", "", "Email address")
+	registerCmd.Flags().StringVar(&registerName, "name", "", "Display name")
+	registerCmd.Flags().StringVar(&registerPassword, "password", "", "Password")
+}
+
+func runRegister(_ *cobra.Command, _ []string) error {
+	if term.IsTerminal(int(os.Stdin.Fd())) && registerEmail == "" {
+		if err := huh.NewForm(huh.NewGroup(
+			huh.NewInput().Title("Email").Value(&registerEmail),
+			huh.NewInput().Title("Name").Value(&registerName),
+			huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&registerPassword),
+		)).Run(); err != nil {
+			return err
+		}
+	}
+	if registerEmail == "" || registerPassword == "" {
+		return fmt.Errorf("email and password are required")
+	}
+
+	serverURL := serverOverride
+	if serverURL == "" {
+		cfg, _ := config.Load()
+		serverURL = cfg.Server
+	}
+	if serverURL == "" {
+		return fmt.Errorf("server URL required (use --server or run 'hctf2 login' first)")
+	}
+
+	c := client.New(serverURL, "")
+	if err := c.Register(registerEmail, registerName, registerPassword); err != nil {
+		return err
+	}
+	if !quietOutput {
+		fmt.Fprintf(os.Stdout, "Registered as %s\n", registerEmail)
+	}
+	return nil
 }
 
 func runLogin(cmd *cobra.Command, args []string) error {
