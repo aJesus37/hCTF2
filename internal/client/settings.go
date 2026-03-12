@@ -1,6 +1,12 @@
 package client
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+)
 
 type Category struct {
 	ID        string `json:"id"`
@@ -32,4 +38,60 @@ func (c *Client) ListDifficulties() ([]Difficulty, error) {
 	}
 	var out []Difficulty
 	return out, decodeJSON(resp, &out)
+}
+
+func (c *Client) CreateCategory(name string, order int) (*Category, error) {
+	form := url.Values{"name": {name}, "sort_order": {strconv.Itoa(order)}}
+	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/categories", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("server returned %d", resp.StatusCode)
+	}
+	return &Category{Name: name}, nil
+}
+
+func (c *Client) DeleteCategory(id string) error {
+	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/categories/%s", c.ServerURL, id), nil)
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("server returned %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *Client) CreateDifficulty(name string, order int) (*Difficulty, error) {
+	form := url.Values{"name": {name}, "sort_order": {strconv.Itoa(order)}}
+	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/difficulties", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("server returned %d", resp.StatusCode)
+	}
+	return &Difficulty{Name: name}, nil
+}
+
+func (c *Client) DeleteDifficulty(id string) error {
+	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/difficulties/%s", c.ServerURL, id), nil)
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("server returned %d", resp.StatusCode)
+	}
+	return nil
 }
