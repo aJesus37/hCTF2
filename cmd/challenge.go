@@ -19,6 +19,7 @@ var challengeListCmd = &cobra.Command{Use: "list", Short: "List all challenges",
 var challengeGetCmd = &cobra.Command{Use: "get <id>", Short: "Show challenge details", Args: cobra.ExactArgs(1), RunE: runChallengeGet}
 var challengeCreateCmd = &cobra.Command{Use: "create", Short: "Create a challenge (admin)", RunE: runChallengeCreate}
 var challengeDeleteCmd = &cobra.Command{Use: "delete <id>", Short: "Delete a challenge (admin)", Args: cobra.ExactArgs(1), RunE: runChallengeDelete}
+var challengeUpdateCmd = &cobra.Command{Use: "update <id>", Short: "Update a challenge (admin)", Args: cobra.ExactArgs(1), RunE: runChallengeUpdate}
 
 var (
 	createTitle       string
@@ -26,16 +27,28 @@ var (
 	createDifficulty  string
 	createDescription string
 	createPoints      int
+
+	updateTitle       string
+	updateCategory    string
+	updateDifficulty  string
+	updateDescription string
+	updatePoints      int
 )
 
 func init() {
 	rootCmd.AddCommand(challengeCmd)
-	challengeCmd.AddCommand(challengeListCmd, challengeGetCmd, challengeCreateCmd, challengeDeleteCmd, challengeBrowseCmd)
+	challengeCmd.AddCommand(challengeListCmd, challengeGetCmd, challengeCreateCmd, challengeDeleteCmd, challengeBrowseCmd, challengeUpdateCmd)
 	challengeCreateCmd.Flags().StringVar(&createTitle, "title", "", "Challenge title")
 	challengeCreateCmd.Flags().StringVar(&createCategory, "category", "", "Category")
 	challengeCreateCmd.Flags().StringVar(&createDifficulty, "difficulty", "", "Difficulty")
 	challengeCreateCmd.Flags().StringVar(&createDescription, "description", "", "Description (markdown)")
 	challengeCreateCmd.Flags().IntVar(&createPoints, "points", 100, "Point value")
+
+	challengeUpdateCmd.Flags().StringVar(&updateTitle, "title", "", "Challenge title")
+	challengeUpdateCmd.Flags().StringVar(&updateCategory, "category", "", "Category")
+	challengeUpdateCmd.Flags().StringVar(&updateDifficulty, "difficulty", "", "Difficulty")
+	challengeUpdateCmd.Flags().StringVar(&updateDescription, "description", "", "Description (markdown)")
+	challengeUpdateCmd.Flags().IntVar(&updatePoints, "points", 0, "Point value")
 }
 
 func runChallengeList(_ *cobra.Command, _ []string) error {
@@ -188,6 +201,104 @@ func runChallengeCreate(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 	fmt.Fprintf(os.Stdout, "Created challenge %s (%s)\n", ch.Title, ch.ID)
+	return nil
+}
+
+func runChallengeUpdate(_ *cobra.Command, args []string) error {
+	c, err := newClient()
+	if err != nil {
+		return err
+	}
+	id := args[0]
+
+	// On TTY with no flags, pre-fill form from current values.
+	if term.IsTerminal(int(os.Stdin.Fd())) && updateTitle == "" {
+		ch, err := c.GetChallenge(id)
+		if err != nil {
+			return err
+		}
+		updateTitle = ch.Title
+		updateCategory = ch.Category
+		updateDifficulty = ch.Difficulty
+		updateDescription = ch.Description
+		if updatePoints == 0 {
+			updatePoints = ch.InitialPoints
+		}
+
+		cats, _ := c.ListCategories()
+		diffs, _ := c.ListDifficulties()
+
+		pointsStr := strconv.Itoa(updatePoints)
+		fields := []huh.Field{
+			huh.NewInput().Title("Title").Value(&updateTitle),
+		}
+
+		var catSelection string
+		if len(cats) > 0 {
+			opts := make([]huh.Option[string], len(cats)+1)
+			for i, cat := range cats {
+				opts[i] = huh.NewOption(cat.Name, cat.Name)
+			}
+			opts[len(cats)] = huh.NewOption("Other (type custom)…", customSentinel)
+			fields = append(fields, huh.NewSelect[string]().Title("Category").Options(opts...).Value(&catSelection))
+		} else {
+			fields = append(fields, huh.NewInput().Title("Category").Value(&updateCategory))
+		}
+
+		var diffSelection string
+		if len(diffs) > 0 {
+			opts := make([]huh.Option[string], len(diffs)+1)
+			for i, d := range diffs {
+				opts[i] = huh.NewOption(d.Name, d.Name)
+			}
+			opts[len(diffs)] = huh.NewOption("Other (type custom)…", customSentinel)
+			fields = append(fields, huh.NewSelect[string]().Title("Difficulty").Options(opts...).Value(&diffSelection))
+		} else {
+			fields = append(fields, huh.NewInput().Title("Difficulty").Value(&updateDifficulty))
+		}
+
+		fields = append(fields,
+			huh.NewInput().Title("Points").Value(&pointsStr),
+			huh.NewText().Title("Description (markdown)").Value(&updateDescription),
+		)
+
+		if err := huh.NewForm(huh.NewGroup(fields...)).Run(); err != nil {
+			return err
+		}
+
+		if len(cats) > 0 {
+			if catSelection == customSentinel {
+				if err := huh.NewForm(huh.NewGroup(huh.NewInput().Title("Custom category").Value(&updateCategory))).Run(); err != nil {
+					return err
+				}
+			} else if catSelection != "" {
+				updateCategory = catSelection
+			}
+		}
+		if len(diffs) > 0 {
+			if diffSelection == customSentinel {
+				if err := huh.NewForm(huh.NewGroup(huh.NewInput().Title("Custom difficulty").Value(&updateDifficulty))).Run(); err != nil {
+					return err
+				}
+			} else if diffSelection != "" {
+				updateDifficulty = diffSelection
+			}
+		}
+
+		if p, err := strconv.Atoi(pointsStr); err == nil {
+			updatePoints = p
+		}
+	}
+
+	ch, err := c.UpdateChallenge(id, updateTitle, updateCategory, updateDifficulty, updateDescription, updatePoints)
+	if err != nil {
+		return err
+	}
+	if quietOutput {
+		fmt.Fprintln(os.Stdout, ch.ID)
+		return nil
+	}
+	fmt.Fprintf(os.Stdout, "Updated challenge %s (%s)\n", ch.Title, ch.ID)
 	return nil
 }
 

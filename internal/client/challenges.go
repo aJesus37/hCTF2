@@ -133,6 +133,21 @@ func (c *Client) CreateChallenge(title, category, difficulty, description string
 	return &out, decodeJSON(resp, &out)
 }
 
+func (c *Client) UpdateChallenge(id, title, category, difficulty, description string, points int) (*Challenge, error) {
+	body, _ := json.Marshal(map[string]any{
+		"name": title, "category": category, "difficulty": difficulty,
+		"description": description, "initial_points": points,
+	})
+	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/admin/challenges/%s", c.ServerURL, id), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	var out Challenge
+	return &out, decodeJSON(resp, &out)
+}
+
 func (c *Client) DeleteChallenge(id string) error {
 	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/challenges/%s", c.ServerURL, id), nil)
 	resp, err := c.Do(req)
