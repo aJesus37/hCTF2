@@ -42,10 +42,7 @@ func runUserList(_ *cobra.Command, _ []string) error {
 	}
 	var rows [][]string
 	for _, u := range users {
-		id := u.ID
-		if len(id) > 8 {
-			id = id[:8] + "..."
-		}
+		id := tui.Truncate(u.ID, 10)
 		admin := ""
 		if u.IsAdmin {
 			admin = tui.SolvedStyle.Render("✓")

@@ -79,14 +79,8 @@ func runHintList(_ *cobra.Command, args []string) error {
 	}
 	var rows [][]string
 	for _, h := range hints {
-		id := h.ID
-		if len(id) > 8 {
-			id = id[:8] + "..."
-		}
-		unlocked := "no"
-		if h.Unlocked {
-			unlocked = "yes"
-		}
+		id := tui.Truncate(h.ID, 10)
+		unlocked := boolToYesNo(h.Unlocked)
 		content := h.Content
 		if len(content) > 38 {
 			content = content[:38] + "…"

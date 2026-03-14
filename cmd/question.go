@@ -63,10 +63,7 @@ func runQuestionList(_ *cobra.Command, args []string) error {
 	}
 	var rows [][]string
 	for _, q := range qs {
-		id := q.ID
-		if len(id) > 8 {
-			id = id[:8] + "..."
-		}
+		id := tui.Truncate(q.ID, 10)
 		mask := ""
 		if q.FlagMask != "" {
 			mask = q.FlagMask

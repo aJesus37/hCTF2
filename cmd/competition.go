@@ -34,6 +34,14 @@ var createCompDescription string
 var updateCompName string
 var updateCompDescription string
 
+func parseCompetitionID(s string) (int64, error) {
+	id, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid competition id: %s", s)
+	}
+	return id, nil
+}
+
 func init() {
 	rootCmd.AddCommand(competitionCmd)
 	competitionCmd.AddCommand(compListCmd, compCreateCmd, compStartCmd, compEndCmd, compRegisterCmd, compDeleteCmd,
@@ -108,9 +116,9 @@ func runCompCreate(_ *cobra.Command, args []string) error {
 }
 
 func runCompStart(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -126,9 +134,9 @@ func runCompStart(_ *cobra.Command, args []string) error {
 }
 
 func runCompEnd(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -144,9 +152,9 @@ func runCompEnd(_ *cobra.Command, args []string) error {
 }
 
 func runCompRegister(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -162,24 +170,20 @@ func runCompRegister(_ *cobra.Command, args []string) error {
 }
 
 func runCompDelete(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
 		return err
 	}
-	if term.IsTerminal(int(os.Stdin.Fd())) {
-		var confirm bool
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewConfirm().Title(fmt.Sprintf("Delete competition %d? This cannot be undone.", id)).Value(&confirm),
-		)).Run(); err != nil {
-			return err
-		}
-		if !confirm {
-			return nil
-		}
+	ok, err := confirmIfTTY(fmt.Sprintf("Delete competition %d? This cannot be undone.", id))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
 	}
 	if err := c.DeleteCompetition(id); err != nil {
 		return err
@@ -191,9 +195,9 @@ func runCompDelete(_ *cobra.Command, args []string) error {
 }
 
 func runCompGet(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -210,15 +214,11 @@ func runCompGet(_ *cobra.Command, args []string) error {
 		{Header: "FIELD", Width: 20},
 		{Header: "VALUE", Width: 40},
 	}
-	frozen := "no"
-	if co.ScoreboardFrozen {
-		frozen = "yes"
-	}
 	rows := [][]string{
 		{"ID", strconv.FormatInt(co.ID, 10)},
 		{"Name", co.Name},
 		{"Status", co.Status},
-		{"Scoreboard Frozen", frozen},
+		{"Scoreboard Frozen", boolToYesNo(co.ScoreboardFrozen)},
 	}
 	if co.StartAt != "" {
 		rows = append(rows, []string{"Start At", co.StartAt})
@@ -231,9 +231,9 @@ func runCompGet(_ *cobra.Command, args []string) error {
 }
 
 func runCompAddChallenge(_ *cobra.Command, args []string) error {
-	compID, err := strconv.ParseInt(args[0], 10, 64)
+	compID, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -249,9 +249,9 @@ func runCompAddChallenge(_ *cobra.Command, args []string) error {
 }
 
 func runCompRemoveChallenge(_ *cobra.Command, args []string) error {
-	compID, err := strconv.ParseInt(args[0], 10, 64)
+	compID, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -267,9 +267,9 @@ func runCompRemoveChallenge(_ *cobra.Command, args []string) error {
 }
 
 func runCompFreeze(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -285,9 +285,9 @@ func runCompFreeze(_ *cobra.Command, args []string) error {
 }
 
 func runCompUnfreeze(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -303,9 +303,9 @@ func runCompUnfreeze(_ *cobra.Command, args []string) error {
 }
 
 func runCompBlackout(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -321,9 +321,9 @@ func runCompBlackout(_ *cobra.Command, args []string) error {
 }
 
 func runCompUnblackout(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -339,9 +339,9 @@ func runCompUnblackout(_ *cobra.Command, args []string) error {
 }
 
 func runCompUpdate(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -377,9 +377,9 @@ func runCompUpdate(_ *cobra.Command, args []string) error {
 }
 
 func runCompTeams(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {
@@ -398,20 +398,16 @@ func runCompTeams(_ *cobra.Command, args []string) error {
 	}
 	var rows [][]string
 	for _, t := range teams {
-		shortID := t.ID
-		if len(shortID) > 8 {
-			shortID = shortID[:8]
-		}
-		rows = append(rows, []string{shortID, t.Name})
+		rows = append(rows, []string{tui.Truncate(t.ID, 10), t.Name})
 	}
 	tui.PrintTable(os.Stdout, cols, rows)
 	return nil
 }
 
 func runCompScoreboard(_ *cobra.Command, args []string) error {
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseCompetitionID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid competition id: %s", args[0])
+		return err
 	}
 	c, err := newClient()
 	if err != nil {

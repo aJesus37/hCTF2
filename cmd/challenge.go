@@ -276,17 +276,13 @@ func runChallengeUpdate(_ *cobra.Command, args []string) error {
 }
 
 func runChallengeDelete(_ *cobra.Command, args []string) error {
-	if term.IsTerminal(int(os.Stdin.Fd())) {
-		confirm := false
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewConfirm().Title(fmt.Sprintf("Delete challenge %s? This cannot be undone.", args[0])).Value(&confirm),
-		)).Run(); err != nil {
-			return err
-		}
-		if !confirm {
-			fmt.Fprintln(os.Stdout, "Aborted.")
-			return nil
-		}
+	ok, err := confirmIfTTY(fmt.Sprintf("Delete challenge %s? This cannot be undone.", args[0]))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		abortedMsg()
+		return nil
 	}
 	c, err := newClient()
 	if err != nil {

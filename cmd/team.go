@@ -159,16 +159,13 @@ func runTeamDisband(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	if term.IsTerminal(int(os.Stdin.Fd())) {
-		var confirm bool
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewConfirm().Title("Disband your team? This cannot be undone.").Value(&confirm),
-		)).Run(); err != nil {
-			return err
-		}
-		if !confirm {
-			return nil
-		}
+	ok, err := confirmIfTTY("Disband your team? This cannot be undone.")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		abortedMsg()
+		return nil
 	}
 	if err := c.DisbandTeam(); err != nil {
 		return err
@@ -184,16 +181,13 @@ func runTeamTransfer(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if term.IsTerminal(int(os.Stdin.Fd())) {
-		var confirm bool
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewConfirm().Title(fmt.Sprintf("Transfer ownership to member %s?", args[0])).Value(&confirm),
-		)).Run(); err != nil {
-			return err
-		}
-		if !confirm {
-			return nil
-		}
+	ok, err := confirmIfTTY(fmt.Sprintf("Transfer ownership to member %s?", args[0]))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		abortedMsg()
+		return nil
 	}
 	if err := c.TransferOwnership(args[0]); err != nil {
 		return err
