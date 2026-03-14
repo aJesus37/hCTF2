@@ -75,11 +75,14 @@ func runCompCreate(_ *cobra.Command, args []string) error {
 		createCompName = args[0]
 	}
 
-	if term.IsTerminal(int(os.Stdin.Fd())) && createCompName == "" {
-		if err := huh.NewForm(
-			huh.NewGroup(huh.NewInput().Title("Name").Value(&createCompName)),
+	if term.IsTerminal(int(os.Stdin.Fd())) && createCompDescription == "" {
+		groups := []*huh.Group{
 			huh.NewGroup(huh.NewText().Title("Description").Value(&createCompDescription)),
-		).Run(); err != nil {
+		}
+		if createCompName == "" {
+			groups = append([]*huh.Group{huh.NewGroup(huh.NewInput().Title("Name").Value(&createCompName))}, groups...)
+		}
+		if err := huh.NewForm(groups...).Run(); err != nil {
 			return err
 		}
 	}
