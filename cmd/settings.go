@@ -107,11 +107,7 @@ func runCategoryList(_ *cobra.Command, _ []string) error {
 	}
 	var rows [][]string
 	for _, cat := range cats {
-		id := cat.ID
-		if len(id) > 8 {
-			id = id[:8] + "..."
-		}
-		rows = append(rows, []string{id, cat.Name, strconv.Itoa(cat.SortOrder)})
+		rows = append(rows, []string{cat.ID, cat.Name, strconv.Itoa(cat.SortOrder)})
 	}
 	tui.PrintTable(os.Stdout, cols, rows)
 	return nil
@@ -175,11 +171,7 @@ func runDifficultyList(_ *cobra.Command, _ []string) error {
 	}
 	var rows [][]string
 	for _, d := range diffs {
-		id := d.ID
-		if len(id) > 8 {
-			id = id[:8] + "..."
-		}
-		rows = append(rows, []string{id, d.Name, strconv.Itoa(d.SortOrder)})
+		rows = append(rows, []string{d.ID, d.Name, strconv.Itoa(d.SortOrder)})
 	}
 	tui.PrintTable(os.Stdout, cols, rows)
 	return nil
