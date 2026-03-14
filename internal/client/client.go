@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -40,10 +42,13 @@ func decodeJSON(resp *http.Response, v any) error {
 		return fmt.Errorf("not authenticated — run 'hctf2 login'")
 	}
 	if resp.StatusCode >= 400 {
+		b, _ := io.ReadAll(resp.Body)
 		var e struct{ Error string `json:"error"` }
-		_ = json.NewDecoder(resp.Body).Decode(&e)
-		if e.Error != "" {
+		if json.Unmarshal(b, &e) == nil && e.Error != "" {
 			return fmt.Errorf("server error: %s", e.Error)
+		}
+		if msg := strings.TrimSpace(string(b)); msg != "" {
+			return fmt.Errorf("server error: %s", msg)
 		}
 		return fmt.Errorf("server returned %d", resp.StatusCode)
 	}

@@ -27,8 +27,9 @@ var categoryListCmd = &cobra.Command{
 }
 
 var categoryCreateCmd = &cobra.Command{
-	Use:   "create",
+	Use:   "create [name]",
 	Short: "Create a category (admin)",
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runCategoryCreate,
 }
 
@@ -59,8 +60,9 @@ var difficultyListCmd = &cobra.Command{
 }
 
 var difficultyCreateCmd = &cobra.Command{
-	Use:   "create",
+	Use:   "create [name]",
 	Short: "Create a difficulty (admin)",
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runDifficultyCreate,
 }
 
@@ -113,7 +115,10 @@ func runCategoryList(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-func runCategoryCreate(_ *cobra.Command, _ []string) error {
+func runCategoryCreate(_ *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		catName = args[0]
+	}
 	c, err := newClient()
 	if err != nil {
 		return err
@@ -177,7 +182,10 @@ func runDifficultyList(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-func runDifficultyCreate(_ *cobra.Command, _ []string) error {
+func runDifficultyCreate(_ *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		diffName = args[0]
+	}
 	c, err := newClient()
 	if err != nil {
 		return err

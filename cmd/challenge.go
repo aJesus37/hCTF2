@@ -346,15 +346,20 @@ func runChallengeExport(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	// Count challenges in the export bundle.
+	countExported := func() int {
+		var bundle struct {
+			Challenges []json.RawMessage `json:"challenges"`
+		}
+		_ = json.Unmarshal(data, &bundle)
+		return len(bundle.Challenges)
+	}
 	if exportOutput != "" {
 		if err := os.WriteFile(exportOutput, data, 0644); err != nil {
 			return err
 		}
 		if !quietOutput {
-			// Count challenges by parsing the JSON array.
-			var items []json.RawMessage
-			_ = json.Unmarshal(data, &items)
-			fmt.Fprintf(os.Stderr, "Exported %d challenges to %s\n", len(items), exportOutput)
+			fmt.Fprintf(os.Stderr, "Exported %d challenges to %s\n", countExported(), exportOutput)
 		}
 		return nil
 	}
@@ -364,9 +369,7 @@ func runChallengeExport(_ *cobra.Command, _ []string) error {
 		return err
 	}
 	if !quietOutput {
-		var items []json.RawMessage
-		_ = json.Unmarshal(data, &items)
-		fmt.Fprintf(os.Stderr, "Exported %d challenges\n", len(items))
+		fmt.Fprintf(os.Stderr, "Exported %d challenges\n", countExported())
 	}
 	return nil
 }
