@@ -2100,3 +2100,30 @@ func TestCLIChallengeGetHintCount(t *testing.T) {
 		t.Fatalf("expected hint_count=2, got %d", env.Questions[0].HintCount)
 	}
 }
+
+func TestCLISubmitLoopHintCountInLabel(t *testing.T) {
+	// Verify hint_count is present on question via API (the CLI uses this to build the picker label)
+	chID := createTestChallenge(t, "PickerHintCh")
+	qID := createTestQuestion(t, chID, "PickerQ", "flag{ph}", 100)
+	createTestHint(t, qID, "a hint", 0)
+
+	resp, err := http.Get(cliServer + "/api/challenges/" + chID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var env struct {
+		Questions []struct {
+			HintCount int `json:"hint_count"`
+		} `json:"questions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
+		t.Fatal(err)
+	}
+	if len(env.Questions) == 0 {
+		t.Fatal("no questions")
+	}
+	if env.Questions[0].HintCount != 1 {
+		t.Fatalf("expected hint_count=1, got %d", env.Questions[0].HintCount)
+	}
+}

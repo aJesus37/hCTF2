@@ -416,6 +416,7 @@ func runSubmitLoop(c *client.Client, challengeID string) error {
 		questionName := questions[0].Name
 		questionFlagMask := questions[0].FlagMask
 		questionSolved := questions[0].Solved
+		questionHintCount := questions[0].HintCount
 		if len(questions) > 1 {
 			opts := make([]huh.Option[string], len(questions))
 			for i, q := range questions {
@@ -424,6 +425,12 @@ func runSubmitLoop(c *client.Client, challengeID string) error {
 					prefix = "✓ "
 				}
 				label := fmt.Sprintf("%s%s  (%s, %d pts)", prefix, q.Name, q.FlagMask, q.Points)
+				if q.HintCount > 0 {
+					label += fmt.Sprintf(", %d hint", q.HintCount)
+					if q.HintCount > 1 {
+						label += "s"
+					}
+				}
 				opts[i] = huh.NewOption(label, q.ID)
 			}
 			if err := huh.NewForm(huh.NewGroup(
@@ -439,49 +446,8 @@ func runSubmitLoop(c *client.Client, challengeID string) error {
 					questionName = q.Name
 					questionFlagMask = q.FlagMask
 					questionSolved = q.Solved
+					questionHintCount = q.HintCount
 					break
-				}
-			}
-		}
-
-		// Offer hints if any are available.
-		hints, err := c.GetHints(questionID)
-		if err == nil && len(hints) > 0 {
-			var viewHints bool
-			_ = huh.NewForm(huh.NewGroup(
-				huh.NewConfirm().
-					Title(fmt.Sprintf("View hints? (%d available)", len(hints))).
-					Value(&viewHints),
-			)).Run()
-			if viewHints {
-				for _, h := range hints {
-					if h.Unlocked {
-						fmt.Fprintf(os.Stdout, "  Hint %d (-%d pts): %s\n", h.Order, h.Cost, h.Content)
-					} else {
-						fmt.Fprintf(os.Stdout, "  Hint %d (-%d pts): [locked]\n", h.Order, h.Cost)
-						var unlock bool
-						_ = huh.NewForm(huh.NewGroup(
-							huh.NewConfirm().
-								Title(fmt.Sprintf("Unlock hint %d for %d points?", h.Order, h.Cost)).
-								Value(&unlock),
-						)).Run()
-						if unlock {
-							if err := c.UnlockHint(h.ID); err != nil {
-								fmt.Fprintln(os.Stderr, tui.ErrorStyle.Render(fmt.Sprintf("Unlock error: %v", err)))
-							} else {
-								// Re-fetch to get the content.
-								refreshed, rerr := c.GetHints(questionID)
-								if rerr == nil {
-									for _, rh := range refreshed {
-										if rh.ID == h.ID {
-											fmt.Fprintf(os.Stdout, "  Hint %d: %s\n", rh.Order, rh.Content)
-											break
-										}
-									}
-								}
-							}
-						}
-					}
 				}
 			}
 		}
@@ -497,9 +463,7 @@ func runSubmitLoop(c *client.Client, challengeID string) error {
 			}
 			var again bool
 			if err := huh.NewForm(huh.NewGroup(
-				huh.NewConfirm().
-					Title("View another question?").
-					Value(&again),
+				huh.NewConfirm().Title("View another question?").Value(&again),
 			)).Run(); err != nil || !again {
 				return err
 			}
@@ -533,16 +497,89 @@ func runSubmitLoop(c *client.Client, challengeID string) error {
 			}
 		} else {
 			fmt.Fprintln(os.Stdout, tui.ErrorStyle.Render("✗ Incorrect, try again"))
+			// Offer hints after a wrong answer.
+			if questionHintCount > 0 {
+				showHints(c, questionID)
+			}
 		}
 
 		// Ask to continue.
 		var again bool
 		if err := huh.NewForm(huh.NewGroup(
-			huh.NewConfirm().
-				Title("Submit another flag?").
-				Value(&again),
+			huh.NewConfirm().Title("Submit another flag?").Value(&again),
 		)).Run(); err != nil || !again {
 			return err
+		}
+	}
+}
+
+// printHintContent refreshes hints and displays the unlocked content for the
+// given hint ID. Silently returns if refresh fails.
+func printHintContent(questionID, hintID string, c *client.Client) {
+	refreshed, err := c.GetHints(questionID)
+	if err == nil {
+		for _, rh := range refreshed {
+			if rh.ID == hintID {
+				fmt.Fprintf(os.Stdout, "  Hint %d: %s\n", rh.Order, rh.Content)
+				break
+			}
+		}
+	}
+}
+
+// showHints fetches hints for the question and displays them. Locked hints
+// prompt the user to unlock. Silently returns on any API error.
+func showHints(c *client.Client, questionID string) {
+	hints, err := c.GetHints(questionID)
+	if err != nil || len(hints) == 0 {
+		return
+	}
+
+	var viewHints bool
+	hintWord := "hint"
+	if len(hints) > 1 {
+		hintWord = "hints"
+	}
+	_ = huh.NewForm(huh.NewGroup(
+		huh.NewConfirm().
+			Title(fmt.Sprintf("View %s? (%d %s available)", hintWord, len(hints), hintWord)).
+			Value(&viewHints),
+	)).Run()
+	if !viewHints {
+		return
+	}
+
+	for _, h := range hints {
+		if h.Unlocked {
+			fmt.Fprintf(os.Stdout, "  Hint %d: %s\n", h.Order, h.Content)
+		} else {
+			costStr := "free"
+			if h.Cost > 0 {
+				costStr = fmt.Sprintf("%d pts", h.Cost)
+			}
+			fmt.Fprintf(os.Stdout, "  Hint %d (%s): [locked]\n", h.Order, costStr)
+			if h.Cost == 0 {
+				// Free hint — unlock automatically.
+				if err := c.UnlockHint(h.ID); err != nil {
+					fmt.Fprintln(os.Stderr, tui.ErrorStyle.Render(fmt.Sprintf("Unlock error: %v", err)))
+				} else {
+					printHintContent(questionID, h.ID, c)
+				}
+			} else {
+				var unlock bool
+				_ = huh.NewForm(huh.NewGroup(
+					huh.NewConfirm().
+						Title(fmt.Sprintf("Unlock hint %d for %d points?", h.Order, h.Cost)).
+						Value(&unlock),
+				)).Run()
+				if unlock {
+					if err := c.UnlockHint(h.ID); err != nil {
+						fmt.Fprintln(os.Stderr, tui.ErrorStyle.Render(fmt.Sprintf("Unlock error: %v", err)))
+					} else {
+						printHintContent(questionID, h.ID, c)
+					}
+				}
+			}
 		}
 	}
 }
