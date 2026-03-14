@@ -27,7 +27,7 @@ func init() {
 }
 
 var submissionsCols = []tui.Column{
-	{Header: "TIME", Width: 20},
+	{Header: "TIME", Width: 17},
 	{Header: "USER", Width: 20},
 	{Header: "CHALLENGE", Width: 22},
 	{Header: "QUESTION", Width: 18},
@@ -62,8 +62,12 @@ func runSubmissions(_ *cobra.Command, _ []string) error {
 				if s.IsCorrect {
 					correct = tui.SolvedStyle.Render("✓")
 				}
-				rows = append(rows, []string{
-					tui.Truncate(s.SubmittedAt, 20),
+				ts := s.SubmittedAt
+			if t, err := time.Parse(time.RFC3339, s.SubmittedAt); err == nil {
+				ts = t.UTC().Format("Jan 02 15:04:05")
+			}
+			rows = append(rows, []string{
+					ts,
 					tui.Truncate(s.UserName, 20),
 					tui.Truncate(s.ChallengeName, 22),
 					tui.Truncate(s.QuestionName, 18),
@@ -78,7 +82,8 @@ func runSubmissions(_ *cobra.Command, _ []string) error {
 			}
 		}
 		if submissionsWatch {
-			fmt.Fprintf(os.Stdout, tui.MutedStyle.Render("Refreshing every 5s — Ctrl+C to quit")+"\n")
+			ts := time.Now().Format("15:04:05")
+			fmt.Fprintf(os.Stdout, tui.MutedStyle.Render(fmt.Sprintf("Last updated %s — refreshing every 5s — Ctrl+C to quit", ts))+"\n")
 		}
 		return nil
 	}
