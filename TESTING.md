@@ -8,7 +8,8 @@ hCTF2 has a comprehensive testing strategy covering unit tests, integration test
 
 | Test Type | Purpose | Command |
 |-----------|---------|---------|
-| **Unit Tests** | Test individual handlers and functions | `task test` |
+| **Unit Tests** | HTTP handler tests | `task test` |
+| **CLI Integration Tests** | Full CLI command coverage (137 tests) | `go test -count=1 -timeout 120s .` |
 | **Smoke Tests** | Quick validation of critical paths | `./scripts/smoke-test.sh` |
 | **E2E Tests** | Full browser automation validation | `./scripts/e2e-test.sh` |
 | **Browser Automation** | Detailed feature testing | `./scripts/browser-automation-tests.sh` |
@@ -40,7 +41,7 @@ task test
 2. **Start the server**:
    ```bash
    task rebuild
-   ./hctf2 --admin-email admin@hctf.local --admin-password changeme
+   ./hctf2 serve --admin-email admin@hctf.local --admin-password changeme
    ```
 
 3. **Seed test data** (optional, creates sample challenges):

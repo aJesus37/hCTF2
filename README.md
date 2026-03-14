@@ -103,20 +103,33 @@ All server options are set via flags on `hctf2 serve`. See [CONFIGURATION.md](CO
 
 ### CLI
 
-The binary doubles as a CLI client for a running server:
+The binary doubles as a full-featured CLI client for a running server:
 
 ```bash
 # Authenticate
 hctf2 login --server http://localhost:8090 --email admin@example.com --password yourpassword
 
-# Browse challenges interactively
+# Browse challenges interactively (TTY)
 hctf2 challenge browse
 
 # Submit a flag
 hctf2 flag submit <question-id> FLAG{...}
 
-# Admin: create a challenge
-hctf2 challenge create --title "My Challenge" --category Web --points 200
+# Live submission feed (auto-refreshes every 5s)
+hctf2 submissions --watch
+
+# View your profile
+hctf2 user profile
+
+# Admin: create a challenge (interactive on TTY, or via flags)
+hctf2 challenge create --title "My Challenge" --category Web --difficulty Easy --points 200
+hctf2 challenge export --output backup.json
+hctf2 challenge import backup.json
+
+# Admin: manage competitions
+hctf2 competition create "CTF 2026"
+hctf2 competition start <id>
+hctf2 competition scoreboard <id>
 
 # Admin: manage users
 hctf2 user list
@@ -125,6 +138,8 @@ hctf2 user promote <user-id>
 # JSON output for scripting
 hctf2 --json challenge list | jq '.[] | .title'
 ```
+
+All create/update commands prompt interactively on TTY. Pass `--quiet` to suppress output (returns ID only), `--json` for machine-readable output.
 
 Run `hctf2 --help` for the full command tree.
 

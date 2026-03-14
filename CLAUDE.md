@@ -38,12 +38,18 @@ hctf2/
 │   ├── root.go         # Root command, global flags (--server, --json, --quiet)
 │   ├── serve.go        # Server subcommand (all server startup + routes)
 │   ├── auth.go         # login / logout / status
-│   ├── challenge.go    # challenge list/get/create/delete/browse
+│   ├── challenge.go    # challenge list/get/create/update/delete/browse/export/import
+│   ├── question.go     # question list/create/update/delete
+│   ├── hint.go         # hint list/create/update/delete
+│   ├── submissions.go  # submissions feed (--watch for live mode, --competition filter)
+│   ├── scoreboard.go   # scoreboard + freeze/unfreeze
 │   ├── flag.go         # flag submit
-│   ├── team.go         # team list/get/create/join
-│   ├── competition.go  # competition list/create/start/end
-│   ├── user.go         # user list/promote/demote/delete (admin)
-│   └── client.go       # shared newClient() helper
+│   ├── team.go         # team list/get/create/join/leave/disband/transfer/invite-regen
+│   ├── competition.go  # competition full CRUD + start/end/freeze/blackout/scoreboard/teams
+│   ├── user.go         # user list/promote/demote/delete/profile (admin)
+│   ├── settings.go     # category and difficulty list/create/delete
+│   ├── client.go       # shared newClient() helper
+│   └── helpers.go      # shared CLI helpers (confirmIfTTY, boolToYesNo, abortedMsg)
 ├── internal/            # Private application code
 │   ├── auth/           # Authentication & middleware
 │   ├── client/         # HTTP client for CLI (wraps REST API)
@@ -68,7 +74,7 @@ hctf2/
 ### Making Changes
 
 1. **Read Before Editing**: Always read existing code before modifying
-1a. **Validate UI with agent-browser**: Use `npx agent-browser` to screenshot and verify EVERY UI change before marking it done — no exceptions, even for trivial changes. Run `task rebuild`, start server on a free port (`./hctf2 --port 8092 --dev`), then take a screenshot. NEVER use Python Playwright scripts — agent-browser is faster.
+1a. **Validate UI with agent-browser**: Use `npx agent-browser` to screenshot and verify EVERY UI change before marking it done — no exceptions, even for trivial changes. Run `task rebuild`, start server on a free port (`./hctf2 serve --port 8092 --dev`), then take a screenshot. NEVER use Python Playwright scripts — agent-browser is faster.
 2. **Force Rebuild**: Before running server, use `task rebuild` to ensure binary is fresh (task build uses caching)
 3. **Test Locally**: Changes should be testable with `task run`
 4. **Validate with agent-browser**: For UI changes, validate using agent-browser (see Validation section)
@@ -304,7 +310,7 @@ Follow Semantic Versioning: `MAJOR.MINOR.PATCH`
 - **MINOR**: New features (backwards compatible)
 - **PATCH**: Bug fixes (backwards compatible)
 
-Current version: **v0.7.0** (Full CLI: cobra subcommands, charmbracelet TUI, HTTP client for all API domains)
+Current version: **v0.7.0** (Full CLI parity with web UI: all CRUD, submissions feed, user profile, import/export, interactive TTY forms)
 
 ### When to Bump
 
@@ -315,15 +321,15 @@ Current version: **v0.7.0** (Full CLI: cobra subcommands, charmbracelet TUI, HTT
 ## Testing
 
 ### Current State
-- ✅ Unit tests implemented in `handlers_test.go`
-- ⏳ Integration tests not yet implemented
+- ✅ Unit tests in `handlers_test.go`
+- ✅ CLI integration tests in `cli_integration_test.go` (TestMain builds binary, starts real server, 137 tests)
 - ✅ Manual testing via browser
 
 ### Running Tests
 
 ```bash
-task test         # Run all tests
-go test ./... -v  # Run with verbose output
+task test                              # Run all tests
+go test -count=1 -timeout 120s ./...  # Run all tests (bypass cache, explicit timeout)
 ```
 
 ### When Adding Tests
@@ -493,13 +499,47 @@ The following features have been implemented:
 22. ✅ **Live Submission Feed** - Per-competition and global `/submissions` page; public shows correct solves, admin sees all attempts with submitted flag text; polls every 10s
 23. ✅ **Multi-attempt Wrong Answers** - Removed unique constraint on submissions so users can submit multiple wrong flags without errors
 24. ✅ **Question Anchor Links** - Each question card has a `#question-{id}` anchor; hover the title to copy a direct link; live feed and profile activity link directly to the anchored question
-25. ✅ **Full CLI** - Cobra-based subcommands (`hctf2 serve`, `challenge`, `team`, `competition`, `user`, `flag`, `login`, `status`); charmbracelet TUI (lipgloss tables, glamour markdown, huh forms, bubbletea interactive browser); `internal/client/` HTTP client; `internal/config/` config file at `~/.config/hctf2/config.yaml`
+25. ✅ **Full CLI** - Complete web UI parity: all CRUD (challenge/question/hint/team/competition/user/category/difficulty), submissions feed (`--watch` live mode), user profile, challenge import/export, competition scoreboard/blackout, scoreboard freeze; interactive huh forms on TTY with per-field pages (back navigation), JSON/quiet flags throughout; `internal/client/` HTTP client; `internal/config/` config file at `~/.config/hctf2/config.yaml`
+26. ✅ **CLI Integration Tests** - `cli_integration_test.go`: TestMain pattern builds real binary and starts server subprocess; `runCLI(t, args...) (stdout, stderr, exitCode)`; 137 tests covering all commands, JSON output, error cases, and edge cases
 
 ### Planned Features
 
 1. **Real-time Notifications** - WebSocket-based solve notifications
 2. **Challenge Docker Integration** - Per-challenge container spawning
 3. **S3 Storage Backend** - Alternative to local file storage
+
+## CLI Development Patterns
+
+### TTY-interactive rule
+All create/update commands prompt for missing fields on TTY via `huh.NewForm`. Each field is its own `huh.NewGroup` (one group per page = back navigation works). Non-TTY requires all fields via flags. Pattern: `if term.IsTerminal(int(os.Stdin.Fd())) && field == ""`.
+
+### huh form back navigation
+Use a single `huh.NewForm(group1, group2, ...)` — multiple groups = navigable pages with back support. Multiple separate `huh.NewForm` calls lose back navigation entirely.
+
+### Confirmation on destructive ops
+All delete/disband/transfer commands use `confirmIfTTY(msg)` from `cmd/helpers.go`. Non-TTY always proceeds (no prompt). Pattern is consistent across challenge, competition, team.
+
+### Table rendering
+- `tui.Truncate(s, maxLen)` for all string truncation — never manual `[:n] + "..."`
+- `CellStyle.Width(n).Inline(true)` prevents word-wrap at spaces within fixed-width cells
+- Category/Difficulty IDs are 32-char hex strings (use width 34 column); Competition IDs are int64
+
+### ID types
+- Challenge IDs: UUIDv7 strings (36 chars with hyphens) — use width 38 column
+- Category/Difficulty IDs: 32-char hex strings — use width 34 column
+- Competition IDs: int64 — use `parseCompetitionID()` helper in `cmd/competition.go`
+- Question/Hint IDs: strings (UUID format)
+
+### Shared helpers (`cmd/helpers.go`)
+- `confirmIfTTY(msg string) (bool, error)` — TTY confirmation prompt
+- `boolToYesNo(b bool) string` — "yes"/"no" display
+- `abortedMsg()` — prints "Aborted." to stdout
+
+### CLI integration tests
+- `runCLI(t, args...) (stdout, stderr string, exitCode int)` — primary test runner
+- `createTestChallenge/Question/Hint/Competition` helpers available
+- Always use `-count=1 -timeout 120s` to prevent caching
+- Smoke test CI uses `./hctf2 serve --port 8090 ...` (note: `serve` subcommand required)
 
 ## Questions to Ask
 
