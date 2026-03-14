@@ -104,11 +104,11 @@ func runHintCreate(_ *cobra.Command, _ []string) error {
 	}
 	if term.IsTerminal(int(os.Stdin.Fd())) && hintContent == "" {
 		costStr := strconv.Itoa(hintCost)
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewInput().Title("Question ID").Value(&hintQuestionID),
-			huh.NewText().Title("Hint content").Value(&hintContent),
-			huh.NewInput().Title("Point cost").Value(&costStr),
-		)).Run(); err != nil {
+		if err := huh.NewForm(
+			huh.NewGroup(huh.NewInput().Title("Question ID").Value(&hintQuestionID)),
+			huh.NewGroup(huh.NewText().Title("Hint content").Value(&hintContent)),
+			huh.NewGroup(huh.NewInput().Title("Point cost").Value(&costStr)),
+		).Run(); err != nil {
 			return err
 		}
 		if p, err := strconv.Atoi(costStr); err == nil {

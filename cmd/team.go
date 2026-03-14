@@ -14,7 +14,7 @@ import (
 var teamCmd = &cobra.Command{Use: "team", Short: "Team management"}
 var teamListCmd = &cobra.Command{Use: "list", Short: "List all teams", RunE: runTeamList}
 var teamGetCmd = &cobra.Command{Use: "get <id>", Short: "Show team details", Args: cobra.ExactArgs(1), RunE: runTeamGet}
-var teamCreateCmd = &cobra.Command{Use: "create <name>", Short: "Create a team", Args: cobra.ExactArgs(1), RunE: runTeamCreate}
+var teamCreateCmd = &cobra.Command{Use: "create [name]", Short: "Create a team", Args: cobra.MaximumNArgs(1), RunE: runTeamCreate}
 var teamJoinCmd = &cobra.Command{Use: "join <invite-code>", Short: "Join a team by invite code", Args: cobra.ExactArgs(1), RunE: runTeamJoin}
 var teamLeaveCmd = &cobra.Command{Use: "leave", Short: "Leave your current team", RunE: runTeamLeave}
 var teamDisbandCmd = &cobra.Command{Use: "disband", Short: "Disband your team (owner only)", RunE: runTeamDisband}
@@ -96,11 +96,25 @@ func runTeamGet(_ *cobra.Command, args []string) error {
 }
 
 func runTeamCreate(_ *cobra.Command, args []string) error {
+	teamName := ""
+	if len(args) > 0 {
+		teamName = args[0]
+	}
+	if term.IsTerminal(int(os.Stdin.Fd())) && teamName == "" {
+		if err := huh.NewForm(huh.NewGroup(
+			huh.NewInput().Title("Team name").Value(&teamName),
+		)).Run(); err != nil {
+			return err
+		}
+	}
+	if teamName == "" {
+		return fmt.Errorf("team name is required")
+	}
 	c, err := newClient()
 	if err != nil {
 		return err
 	}
-	t, err := c.CreateTeam(args[0])
+	t, err := c.CreateTeam(teamName)
 	if err != nil {
 		return err
 	}
