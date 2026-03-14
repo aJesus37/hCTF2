@@ -80,8 +80,8 @@ func TestMain(m *testing.M) {
 			return 1
 		}
 		defer func() {
-			serverProc.Process.Kill()
-			serverProc.Wait()
+			_ = serverProc.Process.Kill()
+			_ = serverProc.Wait()
 		}()
 
 		// 3. Wait until healthz responds (up to 10 s).
@@ -365,7 +365,7 @@ func TestCLILogoutQuietFlag(t *testing.T) {
 		"--password", adminPass,
 	)
 	cmd.Env = append(os.Environ(), "HCTF2_CONFIG="+tmpCfg)
-	cmd.Run()
+	_ = cmd.Run()
 
 	cmd = exec.Command(cliBinary, "logout", "--quiet")
 	cmd.Env = append(os.Environ(), "HCTF2_CONFIG="+tmpCfg)
@@ -1380,7 +1380,7 @@ func TestCLITeamLeave(t *testing.T) {
 	// Cleanup: second user disbands team.
 	cmd = exec.Command(cliBinary, "team", "disband")
 	cmd.Env = append(os.Environ(), "HCTF2_CONFIG="+tmpCfg)
-	cmd.Run()
+	_ = cmd.Run()
 }
 
 func TestCLITeamDisband(t *testing.T) {
@@ -1603,7 +1603,9 @@ func apiGetQuestion(t *testing.T, challengeID string) apiQuestion {
 	var env struct {
 		Questions []apiQuestion `json:"questions"`
 	}
-	json.NewDecoder(resp.Body).Decode(&env)
+	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
+		t.Fatal(err)
+	}
 	if len(env.Questions) == 0 {
 		t.Fatal("no questions found")
 	}
@@ -1690,7 +1692,9 @@ func TestCLIChallengeImport(t *testing.T) {
 	exported, stderr, code := runCLI(t, "challenge", "export")
 	assertSuccess(t, exported, stderr, code)
 	f := t.TempDir() + "/import.json"
-	os.WriteFile(f, []byte(exported), 0644)
+	if err := os.WriteFile(f, []byte(exported), 0644); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
 	out, stderr2, code2 := runCLI(t, "challenge", "import", f)
 	assertSuccess(t, out, stderr2, code2)
 	if !strings.Contains(out, "Imported") {
