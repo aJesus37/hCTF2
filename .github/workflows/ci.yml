@@ -82,7 +82,7 @@ jobs:
     - name: Start server
       run: |
         chmod +x hctf2
-        ./hctf2 --port 8090 --dev --db /tmp/smoke-test.db \
+        ./hctf2 serve --port 8090 --dev --db /tmp/smoke-test.db \
           --admin-email admin@test.com --admin-password testpass123 &
         for i in $(seq 1 20); do
           curl -sf http://localhost:8090/healthz && break
