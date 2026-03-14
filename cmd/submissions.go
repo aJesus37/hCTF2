@@ -9,6 +9,7 @@ import (
 
 	"github.com/ajesus37/hCTF2/internal/tui"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var submissionsCompetition int64
@@ -63,10 +64,10 @@ func runSubmissions(_ *cobra.Command, _ []string) error {
 					correct = tui.SolvedStyle.Render("✓")
 				}
 				ts := s.SubmittedAt
-			if t, err := time.Parse(time.RFC3339, s.SubmittedAt); err == nil {
-				ts = t.UTC().Format("Jan 02 15:04:05")
-			}
-			rows = append(rows, []string{
+				if t, err := time.Parse(time.RFC3339, s.SubmittedAt); err == nil {
+					ts = t.UTC().Format("Jan 02 15:04:05")
+				}
+				rows = append(rows, []string{
 					ts,
 					tui.Truncate(s.UserName, 20),
 					tui.Truncate(s.ChallengeName, 22),
@@ -74,11 +75,29 @@ func runSubmissions(_ *cobra.Command, _ []string) error {
 					correct,
 				})
 			}
-			tui.PrintTable(os.Stdout, submissionsCols, rows)
+
+			// In watch mode, cap rows to what fits the terminal
+			// so newest submissions (top) are always visible.
+			display := rows
+			if submissionsWatch {
+				_, termH, err := term.GetSize(int(os.Stdout.Fd()))
+				if err == nil {
+					// header + separator = 2 lines, footer status = 2 lines, some margin = 1
+					maxRows := termH - 5
+					if maxRows < 1 {
+						maxRows = 1
+					}
+					if len(display) > maxRows {
+						display = display[:maxRows]
+					}
+				}
+			}
+
+			tui.PrintTable(os.Stdout, submissionsCols, display)
 			if submissionsCompetition == 0 {
-				fmt.Fprintf(os.Stdout, "\n%s entries (global feed)\n", strconv.Itoa(len(rows)))
+				fmt.Fprintf(os.Stdout, "\n%s/%s entries (global feed)\n", strconv.Itoa(len(display)), strconv.Itoa(len(rows)))
 			} else {
-				fmt.Fprintf(os.Stdout, "\n%s entries (competition %d)\n", strconv.Itoa(len(rows)), submissionsCompetition)
+				fmt.Fprintf(os.Stdout, "\n%s/%s entries (competition %d)\n", strconv.Itoa(len(display)), strconv.Itoa(len(rows)), submissionsCompetition)
 			}
 		}
 		if submissionsWatch {
