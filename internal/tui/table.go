@@ -48,7 +48,7 @@ func PrintTable(w io.Writer, cols []Column, rows [][]string) {
 			if i < len(row) {
 				val = row[i]
 			}
-			cells = append(cells, CellStyle.Width(c.Width).Render(val))
+			cells = append(cells, CellStyle.Width(c.Width).Inline(true).Render(val))
 		}
 		fmt.Fprintln(w, strings.Join(cells, ""))
 	}
