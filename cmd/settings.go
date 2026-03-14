@@ -101,13 +101,13 @@ func runCategoryList(_ *cobra.Command, _ []string) error {
 		return json.NewEncoder(os.Stdout).Encode(cats)
 	}
 	cols := []tui.Column{
-		{Header: "ID", Width: 10},
-		{Header: "NAME", Width: 25},
+		{Header: "ID", Width: 34},
+		{Header: "NAME", Width: 20},
 		{Header: "ORDER", Width: 6},
 	}
 	var rows [][]string
 	for _, cat := range cats {
-		rows = append(rows, []string{cat.ID, cat.Name, strconv.Itoa(cat.SortOrder)})
+		rows = append(rows, []string{tui.Truncate(cat.ID, 33), tui.Truncate(cat.Name, 19), strconv.Itoa(cat.SortOrder)})
 	}
 	tui.PrintTable(os.Stdout, cols, rows)
 	return nil
@@ -165,13 +165,13 @@ func runDifficultyList(_ *cobra.Command, _ []string) error {
 		return json.NewEncoder(os.Stdout).Encode(diffs)
 	}
 	cols := []tui.Column{
-		{Header: "ID", Width: 10},
-		{Header: "NAME", Width: 25},
+		{Header: "ID", Width: 34},
+		{Header: "NAME", Width: 20},
 		{Header: "ORDER", Width: 6},
 	}
 	var rows [][]string
 	for _, d := range diffs {
-		rows = append(rows, []string{d.ID, d.Name, strconv.Itoa(d.SortOrder)})
+		rows = append(rows, []string{tui.Truncate(d.ID, 33), tui.Truncate(d.Name, 19), strconv.Itoa(d.SortOrder)})
 	}
 	tui.PrintTable(os.Stdout, cols, rows)
 	return nil
