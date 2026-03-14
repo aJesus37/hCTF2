@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -846,6 +847,10 @@ func (h *ChallengeHandler) UpdateQuestion(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := h.db.UpdateQuestion(id, req.Name, req.Description, req.Flag, req.FlagMask, req.CaseSensitive, req.Points, req.FileURL); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Question not found", http.StatusNotFound)
+			return
+		}
 		if strings.Contains(contentType, "application/json") {
 			http.Error(w, "Failed to update question", http.StatusInternalServerError)
 		} else {
@@ -1100,6 +1105,10 @@ func (h *ChallengeHandler) UpdateHint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.db.UpdateHint(id, req.Content, req.Cost, req.Order); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Hint not found", http.StatusNotFound)
+			return
+		}
 		if strings.Contains(contentType, "application/json") {
 			http.Error(w, "Failed to update hint", http.StatusInternalServerError)
 		} else {

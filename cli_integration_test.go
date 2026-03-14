@@ -2002,3 +2002,70 @@ func TestCLIUserProfileMissingAuth(t *testing.T) {
 		t.Fatal("expected error without auth")
 	}
 }
+
+// Task 10: error handling & edge cases
+
+func TestCLIQuestionUpdateInvalidID(t *testing.T) {
+	_, _, code := runCLI(t, "question", "update", "nonexistent-id",
+		"--name", "x", "--flag", "f", "--points", "1")
+	if code == 0 {
+		t.Fatal("expected error for invalid question ID")
+	}
+}
+
+func TestCLIHintUpdateInvalidID(t *testing.T) {
+	_, _, code := runCLI(t, "hint", "update", "nonexistent-id",
+		"--content", "x", "--cost", "1", "--order", "1")
+	if code == 0 {
+		t.Fatal("expected error for invalid hint ID")
+	}
+}
+
+func TestCLICompetitionUpdateInvalidID(t *testing.T) {
+	_, _, code := runCLI(t, "competition", "update", "99999", "--name", "x")
+	if code == 0 {
+		t.Fatal("expected error for invalid competition ID")
+	}
+}
+
+func TestCLICompetitionBlackoutInvalidID(t *testing.T) {
+	_, _, code := runCLI(t, "competition", "blackout", "99999")
+	if code == 0 {
+		t.Fatal("expected error for invalid competition ID")
+	}
+}
+
+func TestCLICompetitionTeamsMissingArg(t *testing.T) {
+	_, _, code := runCLI(t, "competition", "teams")
+	if code == 0 {
+		t.Fatal("expected error for missing competition ID")
+	}
+}
+
+func TestCLICompetitionScoreboardMissingArg(t *testing.T) {
+	_, _, code := runCLI(t, "competition", "scoreboard")
+	if code == 0 {
+		t.Fatal("expected error for missing competition ID")
+	}
+}
+
+func TestCLIChallengeImportMissingArg(t *testing.T) {
+	_, _, code := runCLI(t, "challenge", "import")
+	if code == 0 {
+		t.Fatal("expected error for missing file arg")
+	}
+}
+
+func TestCLIChallengeImportBadFile(t *testing.T) {
+	_, _, code := runCLI(t, "challenge", "import", "/nonexistent/path.json")
+	if code == 0 {
+		t.Fatal("expected error for missing file")
+	}
+}
+
+func TestCLISubmissionsInvalidCompetition(t *testing.T) {
+	_, _, code := runCLI(t, "submissions", "--competition", "99999")
+	if code == 0 {
+		t.Fatal("expected error for invalid competition ID")
+	}
+}

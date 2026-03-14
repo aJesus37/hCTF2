@@ -261,8 +261,15 @@ func (db *DB) UpdateQuestion(id, name, description, flag string, flagMask *strin
 	query := `UPDATE questions
 	          SET name = ?, description = ?, flag = ?, flag_mask = ?, case_sensitive = ?, points = ?, file_url = ?, updated_at = CURRENT_TIMESTAMP
 	          WHERE id = ?`
-	_, err := db.Exec(query, name, description, flag, flagMask, caseSensitive, points, fileURL, id)
-	return err
+	res, err := db.Exec(query, name, description, flag, flagMask, caseSensitive, points, fileURL, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (db *DB) DeleteQuestion(id string) error {
@@ -1215,8 +1222,15 @@ func (db *DB) GetUserHintCostForQuestion(userID, questionID string) (int, error)
 // UpdateHint updates hint content, cost, and order
 func (db *DB) UpdateHint(id, content string, cost, order int) error {
 	query := `UPDATE hints SET content = ?, cost = ?, "order" = ? WHERE id = ?`
-	_, err := db.Exec(query, content, cost, order, id)
-	return err
+	res, err := db.Exec(query, content, cost, order, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // DeleteHint deletes a hint
@@ -2373,8 +2387,15 @@ func (db *DB) SetCompetitionBlackout(id int64, blackout bool) error {
 	if blackout {
 		v = 1
 	}
-	_, err := db.Exec(`UPDATE competitions SET scoreboard_blackout=?, updated_at=datetime('now') WHERE id=?`, v, id)
-	return err
+	res, err := db.Exec(`UPDATE competitions SET scoreboard_blackout=?, updated_at=datetime('now') WHERE id=?`, v, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // AddChallengeToCompetition links a challenge to a competition.

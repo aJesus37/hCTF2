@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -428,6 +429,10 @@ func (h *CompetitionHandler) SetBlackout(w http.ResponseWriter, r *http.Request)
 	}
 	blackout := r.FormValue("blackout") == "1"
 	if err := h.db.SetCompetitionBlackout(id, blackout); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Competition not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Failed", http.StatusInternalServerError)
 		return
 	}
@@ -533,6 +538,14 @@ func (h *CompetitionHandler) GetSubmissionFeed(w http.ResponseWriter, r *http.Re
 	id, err := parseCompID(r)
 	if err != nil {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+	if _, err := h.db.GetCompetitionByID(id); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Competition not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed", http.StatusInternalServerError)
 		return
 	}
 	claims := auth.GetUserFromContext(r.Context())
