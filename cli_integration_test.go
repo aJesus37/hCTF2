@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1536,4 +1537,221 @@ func createTestUser(t *testing.T, email, password string) string {
 	}
 	t.Fatalf("newly registered user %s not found in user list", email)
 	return ""
+}
+
+// createTestChallenge creates a challenge via CLI and returns its ID.
+func createTestChallenge(t *testing.T, title string) string {
+	t.Helper()
+	stdout, stderr, code := runCLI(t, "challenge", "create",
+		"--title", title, "--category", "web", "--difficulty", "easy",
+		"--points", "100", "--description", "test", "--quiet")
+	if code != 0 {
+		t.Fatalf("createTestChallenge: code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	return strings.TrimSpace(stdout)
+}
+
+type apiChallengeDetail struct {
+	ID             string `json:"id"`
+	Visible        bool   `json:"visible"`
+	MinimumPoints  int    `json:"minimum_points"`
+	DecayThreshold int    `json:"decay_threshold"`
+	InitialPoints  int    `json:"initial_points"`
+}
+
+func apiGetChallenge(t *testing.T, id string) apiChallengeDetail {
+	t.Helper()
+	resp, err := http.Get(cliServer + "/api/challenges/" + id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var env struct {
+		Challenge apiChallengeDetail `json:"challenge"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
+		t.Fatal(err)
+	}
+	return env.Challenge
+}
+
+func createTestQuestion(t *testing.T, challengeID, name, flag string, points int) string {
+	t.Helper()
+	out, stderr, code := runCLI(t, "question", "create",
+		"--challenge", challengeID,
+		"--name", name,
+		"--flag", flag,
+		"--points", strconv.Itoa(points),
+		"--quiet")
+	if code != 0 {
+		t.Fatalf("createTestQuestion: code=%d stderr=%s", code, stderr)
+	}
+	return strings.TrimSpace(out)
+}
+
+type apiQuestion struct {
+	Name string `json:"name"`
+}
+
+func apiGetQuestion(t *testing.T, challengeID string) apiQuestion {
+	t.Helper()
+	resp, err := http.Get(cliServer + "/api/challenges/" + challengeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var env struct {
+		Questions []apiQuestion `json:"questions"`
+	}
+	json.NewDecoder(resp.Body).Decode(&env)
+	if len(env.Questions) == 0 {
+		t.Fatal("no questions found")
+	}
+	return env.Questions[0]
+}
+
+func createTestHint(t *testing.T, questionID, content string, cost int) string {
+	t.Helper()
+	out, stderr, code := runCLI(t, "hint", "create",
+		"--question", questionID,
+		"--content", content,
+		"--cost", strconv.Itoa(cost),
+		"--quiet")
+	if code != 0 {
+		t.Fatalf("createTestHint: code=%d stderr=%s", code, stderr)
+	}
+	return strings.TrimSpace(out)
+}
+
+// ── Task 1: challenge update — visible, min-points, decay flags ───────────────
+
+func TestCLIChallengeUpdateVisible(t *testing.T) {
+	id := createTestChallenge(t, "VisTest")
+	out, stderr, code := runCLI(t, "challenge", "update", id,
+		"--title", "VisTest", "--category", "web",
+		"--difficulty", "easy", "--points", "100", "--visible")
+	assertSuccess(t, out, stderr, code)
+	ch := apiGetChallenge(t, id)
+	if !ch.Visible {
+		t.Fatal("expected visible=true after update")
+	}
+}
+
+func TestCLIChallengeUpdateDynamicScoring(t *testing.T) {
+	id := createTestChallenge(t, "DynTest")
+	out, stderr, code := runCLI(t, "challenge", "update", id,
+		"--title", "DynTest", "--category", "web",
+		"--difficulty", "easy", "--points", "500", "--min-points", "50", "--decay", "10")
+	assertSuccess(t, out, stderr, code)
+	ch := apiGetChallenge(t, id)
+	if ch.MinimumPoints != 50 {
+		t.Fatalf("expected min_points=50, got %d", ch.MinimumPoints)
+	}
+	if ch.DecayThreshold != 10 {
+		t.Fatalf("expected decay=10, got %d", ch.DecayThreshold)
+	}
+}
+
+// ── Task 2: challenge export / import ────────────────────────────────────────
+
+func TestCLIChallengeExport(t *testing.T) {
+	createTestChallenge(t, "ExportMe")
+	out, stderr, code := runCLI(t, "challenge", "export")
+	assertSuccess(t, out, stderr, code)
+	var bundle struct {
+		Challenges []json.RawMessage `json:"challenges"`
+	}
+	if err := json.Unmarshal([]byte(out), &bundle); err != nil {
+		t.Fatalf("export output is not valid JSON bundle: %v\ngot: %s", err, out)
+	}
+	if len(bundle.Challenges) == 0 {
+		t.Fatal("expected at least one challenge in export")
+	}
+}
+
+func TestCLIChallengeExportToFile(t *testing.T) {
+	createTestChallenge(t, "ExportFile")
+	f := t.TempDir() + "/export.json"
+	out, stderr, code := runCLI(t, "challenge", "export", "--output", f)
+	assertSuccess(t, out, stderr, code)
+	data, err := os.ReadFile(f)
+	if err != nil {
+		t.Fatalf("file not written: %v", err)
+	}
+	var bundle struct {
+		Challenges []json.RawMessage `json:"challenges"`
+	}
+	if err := json.Unmarshal(data, &bundle); err != nil {
+		t.Fatalf("file content is not valid JSON bundle: %v", err)
+	}
+}
+
+func TestCLIChallengeImport(t *testing.T) {
+	exported, stderr, code := runCLI(t, "challenge", "export")
+	assertSuccess(t, exported, stderr, code)
+	f := t.TempDir() + "/import.json"
+	os.WriteFile(f, []byte(exported), 0644)
+	out, stderr2, code2 := runCLI(t, "challenge", "import", f)
+	assertSuccess(t, out, stderr2, code2)
+	if !strings.Contains(out, "Imported") {
+		t.Fatalf("expected 'Imported successfully', got: %s", out)
+	}
+}
+
+func TestCLIChallengeExportJSON(t *testing.T) {
+	// challenge export always outputs the bundle JSON object (--json is a no-op here)
+	out, stderr, code := runCLI(t, "challenge", "export", "--json")
+	assertSuccess(t, out, stderr, code)
+	var bundle map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(out), &bundle); err != nil {
+		t.Fatalf("export output not valid JSON object: %v\ngot: %s", err, out)
+	}
+	if _, ok := bundle["challenges"]; !ok {
+		t.Fatal("export bundle missing 'challenges' key")
+	}
+}
+
+// ── Task 3: question update ───────────────────────────────────────────────────
+
+func TestCLIQuestionUpdate(t *testing.T) {
+	chID := createTestChallenge(t, "QUpdateCh")
+	qID := createTestQuestion(t, chID, "OldName", "flag{old}", 100)
+	out, stderr, code := runCLI(t, "question", "update", qID,
+		"--name", "NewName", "--flag", "flag{new}", "--points", "200")
+	assertSuccess(t, out, stderr, code)
+	if !strings.Contains(out, "Updated") {
+		t.Fatalf("expected 'Updated', got: %s", out)
+	}
+	q := apiGetQuestion(t, chID)
+	if q.Name != "NewName" {
+		t.Fatalf("expected name=NewName, got %s", q.Name)
+	}
+}
+
+func TestCLIQuestionUpdateMissingArg(t *testing.T) {
+	_, _, code := runCLI(t, "question", "update")
+	if code == 0 {
+		t.Fatal("expected error for missing arg")
+	}
+}
+
+// ── Task 4: hint update ───────────────────────────────────────────────────────
+
+func TestCLIHintUpdate(t *testing.T) {
+	chID := createTestChallenge(t, "HintUpdateCh")
+	qID := createTestQuestion(t, chID, "HintQ", "flag{h}", 100)
+	hID := createTestHint(t, qID, "old hint", 10)
+	out, stderr, code := runCLI(t, "hint", "update", hID,
+		"--content", "new hint text", "--cost", "20", "--order", "1")
+	assertSuccess(t, out, stderr, code)
+	if !strings.Contains(out, "Updated") {
+		t.Fatalf("expected 'Updated', got: %s", out)
+	}
+}
+
+func TestCLIHintUpdateMissingArg(t *testing.T) {
+	_, _, code := runCLI(t, "hint", "update")
+	if code == 0 {
+		t.Fatal("expected error for missing arg")
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -181,8 +182,19 @@ func (c *Client) ExportChallenges() ([]byte, error) {
 }
 
 func (c *Client) ImportChallenges(data []byte) error {
-	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/import", bytes.NewReader(data))
-	req.Header.Set("Content-Type", "application/json")
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, err := mw.CreateFormFile("file", "import.json")
+	if err != nil {
+		return err
+	}
+	if _, err := fw.Write(data); err != nil {
+		return err
+	}
+	mw.Close()
+
+	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/import", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
 	resp, err := c.Do(req)
 	if err != nil {
 		return err
