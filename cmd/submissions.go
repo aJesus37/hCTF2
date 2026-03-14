@@ -31,8 +31,8 @@ var submissionsCols = []tui.Column{
 	{Header: "TIME", Width: 17},
 	{Header: "USER", Width: 20},
 	{Header: "CHALLENGE", Width: 22},
-	{Header: "QUESTION", Width: 18},
-	{Header: "CORRECT", Width: 8},
+	{Header: "QUESTION", Width: 22},
+	{Header: "CORRECT", Width: 10},
 }
 
 
@@ -71,7 +71,7 @@ func runSubmissions(_ *cobra.Command, _ []string) error {
 					ts,
 					tui.Truncate(s.UserName, 20),
 					tui.Truncate(s.ChallengeName, 22),
-					tui.Truncate(s.QuestionName, 18),
+					tui.Truncate(s.QuestionName, 21),
 					correct,
 				})
 			}
@@ -102,7 +102,7 @@ func runSubmissions(_ *cobra.Command, _ []string) error {
 		}
 		if submissionsWatch {
 			ts := time.Now().Format("15:04:05")
-			fmt.Fprintf(os.Stdout, tui.MutedStyle.Render(fmt.Sprintf("Last updated %s — refreshing every 5s — Ctrl+C to quit", ts))+"\n")
+			fmt.Fprintln(os.Stdout, tui.MutedStyle.Render(fmt.Sprintf("Last updated %s — refreshing every 5s — Ctrl+C to quit", ts)))
 		}
 		return nil
 	}
