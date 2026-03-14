@@ -28,8 +28,8 @@ func (c *Client) ListCompetitions() ([]Competition, error) {
 	return out, decodeJSON(resp, &out)
 }
 
-func (c *Client) CreateCompetition(name string) (*Competition, error) {
-	body := strings.NewReader(url.Values{"name": {name}}.Encode())
+func (c *Client) CreateCompetition(name, description string) (*Competition, error) {
+	body := strings.NewReader(url.Values{"name": {name}, "description": {description}}.Encode())
 	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/competitions", body)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := c.Do(req)
