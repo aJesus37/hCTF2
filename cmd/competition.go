@@ -14,7 +14,7 @@ import (
 
 var competitionCmd = &cobra.Command{Use: "competition", Short: "Competition management", Aliases: []string{"comp"}}
 var compListCmd = &cobra.Command{Use: "list", Short: "List competitions", RunE: runCompList}
-var compCreateCmd = &cobra.Command{Use: "create <name>", Short: "Create a competition (admin)", Args: cobra.ExactArgs(1), RunE: runCompCreate}
+var compCreateCmd = &cobra.Command{Use: "create [name]", Short: "Create a competition (admin)", Args: cobra.MaximumNArgs(1), RunE: runCompCreate}
 var compStartCmd = &cobra.Command{Use: "start <id>", Short: "Force-start a competition (admin)", Args: cobra.ExactArgs(1), RunE: runCompStart}
 var compEndCmd = &cobra.Command{Use: "end <id>", Short: "Force-end a competition (admin)", Args: cobra.ExactArgs(1), RunE: runCompEnd}
 var compRegisterCmd = &cobra.Command{Use: "register <id>", Short: "Register your team for a competition", Args: cobra.ExactArgs(1), RunE: runCompRegister}
@@ -30,6 +30,7 @@ var compUpdateCmd = &cobra.Command{Use: "update <id>", Short: "Update a competit
 var compTeamsCmd = &cobra.Command{Use: "teams <id>", Short: "List teams registered for a competition (admin)", Args: cobra.ExactArgs(1), RunE: runCompTeams}
 var compScoreboardCmd = &cobra.Command{Use: "scoreboard <id>", Short: "Show scoreboard for a competition", Args: cobra.ExactArgs(1), RunE: runCompScoreboard}
 
+var createCompDescription string
 var updateCompName string
 var updateCompDescription string
 
@@ -38,6 +39,7 @@ func init() {
 	competitionCmd.AddCommand(compListCmd, compCreateCmd, compStartCmd, compEndCmd, compRegisterCmd, compDeleteCmd,
 		compGetCmd, compAddChallengeCmd, compRemoveChallengeCmd, compFreezeCmd, compUnfreezeCmd,
 		compBlackoutCmd, compUnblackoutCmd, compUpdateCmd, compTeamsCmd, compScoreboardCmd)
+	compCreateCmd.Flags().StringVar(&createCompDescription, "description", "", "Competition description")
 	compUpdateCmd.Flags().StringVar(&updateCompName, "name", "", "Competition name")
 	compUpdateCmd.Flags().StringVar(&updateCompDescription, "description", "", "Competition description")
 }
@@ -68,11 +70,29 @@ func runCompList(_ *cobra.Command, _ []string) error {
 }
 
 func runCompCreate(_ *cobra.Command, args []string) error {
+	createCompName := ""
+	if len(args) > 0 {
+		createCompName = args[0]
+	}
+
+	if term.IsTerminal(int(os.Stdin.Fd())) && createCompName == "" {
+		if err := huh.NewForm(
+			huh.NewGroup(huh.NewInput().Title("Name").Value(&createCompName)),
+			huh.NewGroup(huh.NewText().Title("Description").Value(&createCompDescription)),
+		).Run(); err != nil {
+			return err
+		}
+	}
+
+	if createCompName == "" {
+		return fmt.Errorf("name is required")
+	}
+
 	c, err := newClient()
 	if err != nil {
 		return err
 	}
-	co, err := c.CreateCompetition(args[0])
+	co, err := c.CreateCompetition(createCompName, createCompDescription)
 	if err != nil {
 		return err
 	}
