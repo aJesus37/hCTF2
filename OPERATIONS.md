@@ -4,101 +4,81 @@
 
 For detailed configuration options, see [CONFIGURATION.md](CONFIGURATION.md).
 
-**First Time:**
 ```bash
-./hctf2 --admin-email admin@test.com --admin-password password123
+docker compose up -d
 ```
 
-**Subsequent Runs:**
-```bash
-./hctf2
-```
+Open http://localhost:8090 and log in with the admin credentials you configured.
 
 ## Deployment
 
 ### Pre-Deployment Checklist
 
-- [ ] Binary built with `task build` or `task build-prod`
-- [ ] Database created and migrations applied
-- [ ] JWT secret generated and set
-- [ ] Admin user created
-- [ ] Firewall rules configured
+- [ ] JWT secret generated and set (`JWT_SECRET` env var)
+- [ ] Admin user credentials configured
+- [ ] Firewall rules configured (expose port 8090 or reverse proxy)
 - [ ] Backup strategy planned
-- [ ] Log rotation configured
 - [ ] SSL/TLS certificate ready (for reverse proxy)
-- [ ] Monitoring alerts set up
 
-### Initial Setup Checklist
+### Docker Compose (recommended)
 
-1. **Create system user:**
-   ```bash
-   sudo useradd -r -s /bin/false hctf2
-   ```
+Create a `docker-compose.yml`:
 
-2. **Create data directory:**
-   ```bash
-   sudo mkdir -p /var/lib/hctf2
-   sudo chown hctf2:hctf2 /var/lib/hctf2
-   sudo chmod 700 /var/lib/hctf2
-   ```
+```yaml
+services:
+  hctf2:
+    image: ghcr.io/ajesus37/hCTF2:latest
+    container_name: hctf2
+    ports:
+      - "8090:8090"
+    volumes:
+      - hctf2-data:/data
+    command:
+      - serve
+      - --port
+      - "8090"
+      - --db
+      - /data/hctf2.db
+      - --admin-email
+      - admin@hctf.local
+      - --admin-password
+      - changeme
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+    restart: unless-stopped
 
-3. **Place binary:**
-   ```bash
-   sudo cp hctf2 /usr/local/bin/
-   sudo chmod 755 /usr/local/bin/hctf2
-   ```
+volumes:
+  hctf2-data:
+```
 
-4. **Create systemd service:**
-   ```bash
-   sudo tee /etc/systemd/system/hctf2.service <<EOF
-   [Unit]
-   Description=hCTF2 CTF Platform
-   After=network.target
+Start, stop, and view logs:
 
-   [Service]
-   Type=simple
-   User=hctf2
-   WorkingDirectory=/var/lib/hctf2
-   ExecStart=/usr/local/bin/hctf2 \\
-     --database-path /var/lib/hctf2/hctf2.db \\
-     --admin-email admin@example.com \\
-     --admin-password \${ADMIN_PASSWORD}
-   Restart=on-failure
-   RestartSec=10
-   StandardOutput=journal
-   StandardError=journal
+```bash
+docker compose up -d        # start
+docker compose down          # stop
+docker compose logs -f       # follow logs
+docker compose restart       # restart
+```
 
-   [Install]
-   WantedBy=multi-user.target
-   EOF
-   ```
+### Docker Run (single command)
 
-5. **Enable and start:**
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable hctf2
-   sudo systemctl start hctf2
-   ```
+```bash
+docker run -d \
+  --name hctf2 \
+  -p 8090:8090 \
+  -v hctf2-data:/data \
+  -e JWT_SECRET="$(openssl rand -base64 32)" \
+  ghcr.io/ajesus37/hCTF2:latest \
+  serve --db /data/hctf2.db \
+    --admin-email admin@hctf.local \
+    --admin-password changeme
+```
 
-6. **Verify running:**
-   ```bash
-   sudo systemctl status hctf2
-   curl http://localhost:8080
-   ```
+### Building the image locally
 
-### Docker Deployment
-
-See [DOCKER.md](DOCKER.md) for complete Docker setup including production Dockerfile and docker-compose.
-
-**Quick deployment:**
 ```bash
 docker build -t hctf2 .
-docker run -d \
-  -p 8080:8080 \
-  -v hctf2-data:/data \
-  -e ADMIN_EMAIL=admin@example.com \
-  -e ADMIN_PASSWORD=password123 \
-  hctf2
+docker compose up -d
 ```
 
 ### Reverse Proxy Setup (nginx)
@@ -146,7 +126,7 @@ server {
 Enable it:
 ```bash
 sudo ln -s /etc/nginx/sites-available/hctf2 /etc/nginx/sites-enabled/
-sudo systemctl restart nginx
+sudo nginx -s reload
 ```
 
 ## Monitoring
@@ -156,24 +136,16 @@ sudo systemctl restart nginx
 hCTF2 doesn't yet have a dedicated health check endpoint, but you can verify it's running:
 
 ```bash
-curl -I http://localhost:8080/
+curl -I http://localhost:8090/
 # Should return 200 or 302 (redirect to login)
 ```
 
 ### Server Logs
 
-**Systemd logs:**
 ```bash
-sudo journalctl -u hctf2 -f
-# -f = follow (tail)
-# -n 100 = last 100 lines
-# --since "1 hour ago" = filter by time
-```
-
-**Docker logs:**
-```bash
-docker logs -f hctf2
-# -f = follow
+docker compose logs -f         # follow all logs
+docker compose logs --tail 100 # last 100 lines
+docker logs -f hctf2           # follow by container name
 ```
 
 ### Key Log Messages
@@ -234,7 +206,7 @@ Until then, monitor via log aggregation (see **Server Logs** section above).
 
 - **HTTP 5xx rate** > 1% of requests over 5 minutes
 - **Request duration p99** > 2 seconds
-- **Process restart** (uptime monitoring via systemd or container health check)
+- **Process restart** (uptime monitoring via container health check)
 - **Disk space** < 1GB remaining (SQLite database growth)
 
 ## Maintenance
@@ -307,14 +279,18 @@ sqlite3 /var/lib/hctf2/hctf2.db "VACUUM;"
 
 ### Updating the Application
 
-**Process:**
-1. Download new binary
-2. Stop application: `sudo systemctl stop hctf2`
-3. Backup database: `cp /var/lib/hctf2/hctf2.db /backups/hctf2-pre-update.db`
-4. Replace binary: `sudo cp hctf2-new /usr/local/bin/hctf2`
-5. Start application: `sudo systemctl start hctf2`
-6. Verify running: `sudo systemctl status hctf2`
-7. Check logs: `sudo journalctl -u hctf2 -n 20`
+**Docker Compose:**
+```bash
+# 1. Backup database
+docker compose exec hctf2 cat /data/hctf2.db > /backups/hctf2-pre-update.db
+
+# 2. Pull and restart
+docker compose pull
+docker compose up -d
+
+# 3. Verify
+docker compose logs --tail 20
+```
 
 Migrations run automatically - no additional steps needed.
 
@@ -324,28 +300,24 @@ Migrations run automatically - no additional steps needed.
 
 **Check logs:**
 ```bash
-sudo journalctl -u hctf2 -n 50
+docker compose logs --tail 50
 ```
 
 **Common issues:**
 
 1. **Port already in use:**
    ```bash
-   lsof -i :8080
-   # Change port or kill process using it
+   lsof -i :8090
+   # Change port mapping in docker-compose.yml or kill the conflicting process
    ```
 
 2. **Database permission denied:**
-   ```bash
-   ls -la /var/lib/hctf2/
-   # Should be owned by hctf2:hctf2
-   # Fix: sudo chown -R hctf2:hctf2 /var/lib/hctf2
-   ```
+   The Docker image runs as UID 1000. Ensure the volume is writable by that user.
 
-3. **Missing data directory:**
+3. **Container keeps restarting:**
    ```bash
-   mkdir -p /var/lib/hctf2
-   chown hctf2:hctf2 /var/lib/hctf2
+   docker compose logs hctf2
+   # Check for missing JWT_SECRET or other configuration errors
    ```
 
 ### High Memory Usage
@@ -358,8 +330,8 @@ sudo journalctl -u hctf2 -n 50
 - Large cache
 
 **Solutions:**
-1. Restart application: `sudo systemctl restart hctf2`
-2. Monitor memory over time: `top -p $(pgrep -f hctf2)`
+1. Restart container: `docker compose restart`
+2. Monitor memory: `docker stats hctf2`
 3. Consider load balancing if consistently high
 
 ### Database Locked
@@ -379,9 +351,9 @@ sudo journalctl -u hctf2 -n 50
    # Should see exactly one process
    ```
 
-2. Restart application:
+2. Restart container:
    ```bash
-   sudo systemctl restart hctf2
+   docker compose restart
    ```
 
 3. Check database integrity:
@@ -411,14 +383,9 @@ sudo journalctl -u hctf2 -n 50
    sqlite3 /var/lib/hctf2/hctf2.db "SELECT * FROM users WHERE is_admin = 1;"
    ```
 
-2. Create new admin if needed:
+2. Recreate admin by restarting with admin flags in `docker-compose.yml`, then restart:
    ```bash
-   sudo systemctl stop hctf2
-   sudo -u hctf2 /usr/local/bin/hctf2 \
-     --database-path /var/lib/hctf2/hctf2.db \
-     --admin-email admin@example.com \
-     --admin-password newpassword
-   sudo systemctl start hctf2
+   docker compose up -d
    ```
 
 ### High CPU Usage
@@ -475,23 +442,16 @@ sudo journalctl -u hctf2 -n 50
 
 **Command:**
 ```bash
-# Stop service
-sudo systemctl stop hctf2
+# 1. Generate new secret
+export JWT_SECRET="$(openssl rand -base64 32)"
 
-# Backup current database
-cp /var/lib/hctf2/hctf2.db /backups/hctf2-pre-rotation.db
+# 2. Update your .env or docker-compose.yml with the new JWT_SECRET
 
-# Update systemd service with new JWT_SECRET
-sudo systemctl edit hctf2
-# In [Service] section, update or add:
-# Environment="JWT_SECRET=new-secret-here"
+# 3. Restart
+docker compose up -d
 
-# Restart
-sudo systemctl daemon-reload
-sudo systemctl start hctf2
-
-# Verify
-sudo systemctl status hctf2
+# 4. Verify
+docker compose logs --tail 10
 ```
 
 ## Disaster Recovery
@@ -499,43 +459,23 @@ sudo systemctl status hctf2
 ### Recovery from Database Corruption
 
 ```bash
-# 1. Stop application
-sudo systemctl stop hctf2
+# 1. Stop container
+docker compose down
 
-# 2. Restore from backup
-cp /backups/hctf2-latest.db /var/lib/hctf2/hctf2.db
-sudo chown hctf2:hctf2 /var/lib/hctf2/hctf2.db
-chmod 644 /var/lib/hctf2/hctf2.db
+# 2. Restore from backup (copy into the named volume)
+docker run --rm -v hctf2-data:/data -v $(pwd)/backups:/backups alpine \
+  cp /backups/hctf2-latest.db /data/hctf2.db
 
-# 3. Verify integrity
-sqlite3 /var/lib/hctf2/hctf2.db "PRAGMA integrity_check;"
+# 3. Start application
+docker compose up -d
 
-# 4. Start application
-sudo systemctl start hctf2
-
-# 5. Verify
-curl http://localhost:8080/
+# 4. Verify
+curl http://localhost:8090/
 ```
 
 ### Recovery from Lost Admin Password
 
-```bash
-# Stop application
-sudo systemctl stop hctf2
-
-# Delete admin account
-sqlite3 /var/lib/hctf2/hctf2.db \
-  "DELETE FROM users WHERE email = 'admin@example.com';"
-
-# Start application and recreate admin
-sudo systemctl start hctf2
-
-# Run with admin setup flags
-sudo -u hctf2 /usr/local/bin/hctf2 \
-  --database-path /var/lib/hctf2/hctf2.db \
-  --admin-email admin@example.com \
-  --admin-password newpassword
-```
+Restart the container with `--admin-email` and `--admin-password` flags to recreate the admin user. The server upserts the admin on startup, so existing data is preserved.
 
 ## Performance Tuning
 
@@ -586,30 +526,27 @@ If memory exceeds available resources:
 
 ```bash
 # Check if running
-pgrep -f hctf2
+docker compose ps
 
-# Restart application
-sudo systemctl restart hctf2
+# Restart
+docker compose restart
 
 # View recent logs
-sudo journalctl -u hctf2 -n 100
+docker compose logs --tail 100
 
-# Check database size
-du -h /var/lib/hctf2/hctf2.db
-
-# Create backup
-cp /var/lib/hctf2/hctf2.db /backups/hctf2-$(date +%Y%m%d).db
+# Follow logs
+docker compose logs -f
 
 # Test connectivity
-curl -I http://localhost:8080/
+curl -I http://localhost:8090/
 
-# Query database
-sqlite3 /var/lib/hctf2/hctf2.db "SELECT COUNT(*) as users FROM users;"
+# Backup database from volume
+docker compose exec hctf2 cat /data/hctf2.db > hctf2-backup.db
 ```
 
 ## Getting Help
 
-- **Application errors:** Check `/var/log/` or systemd logs
+- **Application errors:** Check `docker compose logs`
 - **Database issues:** Consult [CONFIGURATION.md](CONFIGURATION.md)
 - **Architecture questions:** See [ARCHITECTURE.md](ARCHITECTURE.md)
-- **API endpoints:** See [API.md](API.md)
+- **API endpoints:** See the OpenAPI docs at `/api/openapi`

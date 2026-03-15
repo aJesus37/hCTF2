@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-15
+
+### Added
+- `config export` / `config import` CLI commands — full platform config backup and restore (challenges, competitions, settings) with JSON and YAML support
+- YAML auto-detection for config import/export (by file extension or `--format yaml` flag)
+- Docker as the primary and recommended deployment method
+
+### Changed
+- Documentation overhaul: Docker is now the primary deployment method across README, OPERATIONS, and ARCHITECTURE
+- Removed all systemd/systemctl references from documentation — use Docker Compose instead
+- Fixed broken `docker run` commands in README (missing `serve` subcommand, nonexistent `DATABASE_PATH` env var)
+- Fixed `--jwt-secret` and bare `./hctf2` commands missing `serve` subcommand
+- Dockerfile uses scratch base image with non-root user (UID 1000)
+
+### Fixed
+- README `docker run` example used nonexistent `DATABASE_PATH` environment variable (now uses `--db` flag)
+- Multiple documentation commands missing required `serve` subcommand
+
 ## [0.7.0] - 2026-03-14
 
 ### Added
@@ -137,7 +155,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker deployment support
 - Task-based build system (Taskfile.yml)
 
-[Unreleased]: https://github.com/ajesus37/hCTF2/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/ajesus37/hCTF2/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/ajesus37/hCTF2/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/ajesus37/hCTF2/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/ajesus37/hCTF2/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ajesus37/hCTF2/compare/v0.4.0...v0.5.0

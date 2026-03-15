@@ -48,6 +48,7 @@ hctf2/
 │   ├── competition.go  # competition full CRUD + start/end/freeze/blackout/scoreboard/teams
 │   ├── user.go         # user list/promote/demote/delete/profile (admin)
 │   ├── settings.go     # category and difficulty list/create/delete
+│   ├── config.go       # config export/import (admin, JSON/YAML)
 │   ├── client.go       # shared newClient() helper
 │   └── helpers.go      # shared CLI helpers (confirmIfTTY, boolToYesNo, abortedMsg)
 ├── internal/            # Private application code
@@ -310,7 +311,7 @@ Follow Semantic Versioning: `MAJOR.MINOR.PATCH`
 - **MINOR**: New features (backwards compatible)
 - **PATCH**: Bug fixes (backwards compatible)
 
-Current version: **v0.7.0** (Full CLI parity with web UI: all CRUD, submissions feed, user profile, import/export, interactive TTY forms)
+Current version: **v0.8.0** (Config export/import, YAML support, Docker as primary deployment, documentation overhaul)
 
 ### When to Bump
 

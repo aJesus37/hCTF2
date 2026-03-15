@@ -292,20 +292,15 @@ Future: Prometheus metrics endpoint
 
 ## Deployment Strategies
 
-### Single Server
-- Systemd service
-- Nginx reverse proxy
-- Let's Encrypt SSL
-
-### Container
-- Docker image
-- Volume mount for database
-- Environment variables for config
+### Docker Compose (recommended)
+- Docker image from `ghcr.io/ajesus37/hCTF2`
+- Named volume for database persistence
+- Environment variables for secrets (JWT_SECRET, SMTP)
+- Reverse proxy (Caddy/Nginx) for TLS
 
 ### Cloud
-- AWS EC2/Lightsail
-- Google Cloud Run
-- DigitalOcean App Platform
+- Any Docker-capable platform (AWS ECS, Google Cloud Run, Fly.io, etc.)
+- Single container, single volume — no complex orchestration needed
 
 ## Code Organization
 
@@ -320,7 +315,9 @@ cmd/                 # Cobra command tree
   team.go            # team list/get/create/join
   competition.go     # competition list/create/start/end
   user.go            # user list/promote/demote/delete (admin)
+  config.go          # config export/import (admin)
   client.go          # shared newClient() helper
+  helpers.go         # shared CLI helpers (confirmIfTTY, boolToYesNo, abortedMsg)
 internal/
   auth/              # JWT middleware and helpers
   client/            # HTTP client wrapping the REST API (CLI use)

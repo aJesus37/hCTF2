@@ -135,6 +135,10 @@ hctf2 competition scoreboard <id>
 hctf2 user list
 hctf2 user promote <user-id>
 
+# Admin: export/import full platform config (challenges, competitions, settings)
+hctf2 config export -o backup.yaml
+hctf2 config import backup.yaml
+
 # JSON output for scripting
 hctf2 --json challenge list | jq '.[] | .title'
 ```
@@ -147,12 +151,21 @@ Run `hctf2 --help` for the full command tree.
 
 ## Self-Hosting
 
-### Volumes
-
-The only persistent data is the SQLite database file:
+### Docker (recommended)
 
 ```bash
-docker run -v ./data:/data -e DATABASE_PATH=/data/hctf2.db ghcr.io/ajesus37/hCTF2
+docker run -d \
+  -p 8090:8090 \
+  -v hctf2-data:/data \
+  -e JWT_SECRET="$(openssl rand -base64 32)" \
+  ghcr.io/ajesus37/hCTF2 \
+  serve --db /data/hctf2.db --admin-email admin@hctf.local --admin-password changeme
+```
+
+Or use Docker Compose (see `docker-compose.yml` in the repo):
+
+```bash
+docker compose up -d
 ```
 
 ### Reverse Proxy (Caddy)
@@ -181,20 +194,36 @@ server {
 ### Backup
 
 ```bash
-cp hctf2.db hctf2.db.backup-$(date +%Y%m%d)
+# Docker volume
+docker compose exec hctf2 cat /data/hctf2.db > hctf2.db.backup-$(date +%Y%m%d)
+
+# Or if using a bind mount
+cp ./data/hctf2.db ./data/hctf2.db.backup-$(date +%Y%m%d)
 ```
 
 ### Upgrading
 
-Replace the binary and restart — migrations run automatically:
+Pull the latest image and restart — migrations run automatically:
 
 ```bash
-systemctl stop hctf2
-cp hctf2-new hctf2
-systemctl start hctf2
+docker compose pull
+docker compose up -d
 ```
 
 No manual migration steps needed.
+
+### Advanced: bare-metal binary
+
+If you prefer running the binary directly without Docker:
+
+```bash
+./hctf2 serve --db /var/lib/hctf2/hctf2.db \
+  --admin-email admin@example.com \
+  --admin-password yourpassword \
+  --jwt-secret "$(openssl rand -base64 32)"
+```
+
+Use your preferred process manager (e.g. supervisord, runit) to keep it running.
 
 ---
 
@@ -210,18 +239,18 @@ No manual migration steps needed.
 
 **Production (required):**
 ```bash
-./hctf2 --jwt-secret "$(openssl rand -base64 32)"
+./hctf2 serve --jwt-secret "$(openssl rand -base64 32)"
 ```
 
 Or via environment variable:
 ```bash
 export JWT_SECRET="$(openssl rand -base64 32)"
-./hctf2
+./hctf2 serve
 ```
 
 **Development (insecure):**
 ```bash
-./hctf2 --dev  # Allows default JWT secret with warning
+./hctf2 serve --dev  # Allows default JWT secret with warning
 ```
 
 The server will refuse to start in production mode without a proper JWT secret (minimum 32 characters). See [CONFIGURATION.md](CONFIGURATION.md) for details.
