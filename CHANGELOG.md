@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `config export` / `config import` CLI commands — full platform config backup and restore (challenges, competitions, settings) with JSON and YAML support
 - YAML auto-detection for config import/export (by file extension or `--format yaml` flag)
 - Docker as the primary and recommended deployment method
+- Self-contained demo image (`docker/demo/`) — auto-resets every 30 minutes, seeds rich sample data (markdown challenges, SQL Playground challenges with Titanic dataset, active competition with submissions, hints, file attachments)
+- Native Umami analytics support — `--umami-script-url` / `--umami-website-id` flags (or `UMAMI_SCRIPT_URL` / `UMAMI_WEBSITE_ID` env vars) inject the script and track CTF-specific events: flag submissions (with correct/incorrect), hint unlocks, competition registrations, and SQL Playground runs
+- JWT secret regenerated on each demo reset to invalidate stale browser sessions
 
 ### Changed
 - Documentation overhaul: Docker is now the primary deployment method across README, OPERATIONS, and ARCHITECTURE
@@ -20,10 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed broken `docker run` commands in README (missing `serve` subcommand, nonexistent `DATABASE_PATH` env var)
 - Fixed `--jwt-secret` and bare `./hctf2` commands missing `serve` subcommand
 - Dockerfile uses scratch base image with non-root user (UID 1000)
+- Tailwind CSS content scan now includes handler and cmd Go files to prevent dark-mode classes from being purged
 
 ### Fixed
 - README `docker run` example used nonexistent `DATABASE_PATH` environment variable (now uses `--db` flag)
 - Multiple documentation commands missing required `serve` subcommand
+- Medium difficulty badge was unstyled in dark mode (yellow classes purged by Tailwind JIT)
+- Hint boxes had poor contrast in dark theme (handler Go classes were excluded from Tailwind scan)
 
 ## [0.7.0] - 2026-03-14
 
