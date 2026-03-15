@@ -28,6 +28,9 @@ services:
       - SMTP_FROM=${SMTP_FROM:-}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      # Optional: Umami analytics (leave empty to disable)
+      - UMAMI_SCRIPT_URL=${UMAMI_SCRIPT_URL:-}
+      - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-}
     restart: unless-stopped
     # NOTE: healthcheck is omitted — the runtime image is based on scratch (no shell,
     # wget, or curl available). Use an external probe (e.g. Traefik, Caddy, or

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-03-15
+
+### Fixed
+- Dark-mode hint boxes rendered white — `internal/handlers/**/*.go` and `cmd/**/*.go` were missing from Tailwind content scan, causing inline dark: classes to be purged
+- Medium difficulty badge was unstyled — DB-driven badge colors (`bg-yellow-600` etc.) were purged without a Tailwind safelist comment in `base.html`
+- Demo users got "User not found" after a reset — JWT secret is now regenerated on each demo cycle, invalidating stale browser sessions
+- Rebuilt `tailwind.css` with corrected content scan to include all handler dark-mode classes
+
 ## [0.8.1] - 2026-03-15
 
 ### Fixed
