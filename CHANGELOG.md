@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.4] - 2026-03-15
+
+### Fixed
+- Demo seed crashed on startup with `dataset: not found` — BusyBox ash (Alpine's shell) treated the trailing semicolon inside the double-quoted `TITANIC_SCHEMA` variable as a command terminator; removed the semicolon to fix parsing
+- Removed dead `DEMO_MODE=true` env var from demo `docker-compose.yml` (it was set but never read anywhere)
+
 ## [0.8.2] - 2026-03-15
 
 ### Fixed
