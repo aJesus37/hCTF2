@@ -311,7 +311,7 @@ Follow Semantic Versioning: `MAJOR.MINOR.PATCH`
 - **MINOR**: New features (backwards compatible)
 - **PATCH**: Bug fixes (backwards compatible)
 
-Current version: **v0.8.0** (Config export/import, YAML support, Docker as primary deployment, documentation overhaul)
+Current version: **v0.8.1** (Demo seed fix: Titanic SQL challenges, hints, competition, multi-question seed)
 
 ### When to Bump
 
