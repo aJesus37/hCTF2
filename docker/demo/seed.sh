@@ -120,8 +120,8 @@ log "Registering demo users..."
 for ENTRY in "Alice:alice@demo.hctf2" "Bob:bob@demo.hctf2" "Carol:carol@demo.hctf2" "Dave:dave@demo.hctf2" "Eve:eve@demo.hctf2"; do
     NAME=$(echo "${ENTRY}" | cut -d: -f1)
     EMAIL=$(echo "${ENTRY}" | cut -d: -f2)
-    wget -q -O /dev/null --post-data="{\"email\":\"${EMAIL}\",\"password\":\"demo123\",\"name\":\"${NAME}\"}" \
-        --header="Content-Type: application/json" \
+    wget -q -O /dev/null \
+        --post-data="email=${EMAIL}&password=demo123&name=${NAME}" \
         "${BASE}/api/auth/register" 2>/dev/null || true
 done
 
