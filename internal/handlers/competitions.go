@@ -513,6 +513,13 @@ func formatCompetitionEvolutionForChart(series []database.ScoreEvolutionSeries) 
 		})
 	}
 
+	if intervals == nil {
+		intervals = []string{}
+	}
+	if chartSeries == nil {
+		chartSeries = []map[string]interface{}{}
+	}
+
 	return map[string]interface{}{
 		"intervals": intervals,
 		"series":    chartSeries,
