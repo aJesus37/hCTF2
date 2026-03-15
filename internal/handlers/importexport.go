@@ -95,7 +95,9 @@ func (h *ImportExportHandler) ImportChallenges(w http.ResponseWriter, r *http.Re
 func (h *ImportExportHandler) ExportConfig(w http.ResponseWriter, r *http.Request) {
 	bundle, err := h.db.ExportConfig()
 	if err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -133,9 +135,17 @@ func (h *ImportExportHandler) ImportConfig(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 		return
 	}
+	if bundle.Version != 2 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("unsupported config version %d, expected 2", bundle.Version)})
+		return
+	}
 	result, err := h.db.ImportConfig(&bundle)
 	if err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

@@ -2865,7 +2865,10 @@ func (db *DB) ExportConfig() (*models.ConfigBundle, error) {
 	}
 
 	// Categories with sort order
-	cats, _ := db.GetAllCategories()
+	cats, err := db.GetAllCategories()
+	if err != nil {
+		return nil, fmt.Errorf("export categories: %w", err)
+	}
 	for _, c := range cats {
 		bundle.Categories = append(bundle.Categories, models.ExportCategory{
 			Name:      c.Name,
@@ -2874,7 +2877,10 @@ func (db *DB) ExportConfig() (*models.ConfigBundle, error) {
 	}
 
 	// Difficulties with sort order
-	diffs, _ := db.GetAllDifficulties()
+	diffs, err := db.GetAllDifficulties()
+	if err != nil {
+		return nil, fmt.Errorf("export difficulties: %w", err)
+	}
 	for _, d := range diffs {
 		bundle.Difficulties = append(bundle.Difficulties, models.ExportDifficulty{
 			Name:      d.Name,
@@ -2937,17 +2943,24 @@ func (db *DB) ExportConfig() (*models.ConfigBundle, error) {
 func (db *DB) ImportConfig(bundle *models.ConfigBundle) (*models.ConfigImportResult, error) {
 	result := &models.ConfigImportResult{}
 
-	// Build category/difficulty name lists for ImportBundle.
+	// Create categories with correct sort order (INSERT OR IGNORE preserves existing).
 	catNames := make([]string, len(bundle.Categories))
 	for i, c := range bundle.Categories {
 		catNames[i] = c.Name
+		if _, err := db.Exec(`INSERT OR IGNORE INTO categories (id, name, sort_order, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`, GenerateID(), c.Name, c.SortOrder); err != nil {
+			log.Printf("warning: failed to insert category %q: %v", c.Name, err)
+		}
 	}
+	// Create difficulties with correct sort order (INSERT OR IGNORE preserves existing).
 	diffNames := make([]string, len(bundle.Difficulties))
 	for i, d := range bundle.Difficulties {
 		diffNames[i] = d.Name
+		if _, err := db.Exec(`INSERT OR IGNORE INTO difficulties (id, name, color, text_color, sort_order, created_at) VALUES (?, ?, 'bg-gray-600', 'text-white', ?, CURRENT_TIMESTAMP)`, GenerateID(), d.Name, d.SortOrder); err != nil {
+			log.Printf("warning: failed to insert difficulty %q: %v", d.Name, err)
+		}
 	}
 
-	// Import challenges (reuse existing logic).
+	// Import challenges (reuse existing logic; categories/difficulties already created above).
 	ir, err := db.ImportBundle(catNames, diffNames, bundle.Challenges)
 	if err != nil {
 		return nil, err
