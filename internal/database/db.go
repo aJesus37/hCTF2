@@ -25,6 +25,10 @@ func New(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	// SQLite does not handle concurrent writes well; use a single connection
+	// to serialise all DB access and avoid SQLITE_BUSY errors.
+	db.SetMaxOpenConns(1)
+
 	// Enable foreign keys
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)

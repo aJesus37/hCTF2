@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `healthcheck` CLI subcommand — hits `/healthz` and exits 0/1; used by Docker `HEALTHCHECK` in scratch images where no shell or wget is available
 - `HEALTHCHECK` directive added to `Dockerfile` (uses `hctf2 healthcheck`) and `Dockerfile.demo` (uses `wget`); both `docker-compose.yml` files updated with corresponding `healthcheck:` blocks
 
+### Fixed
+- Set `db.SetMaxOpenConns(1)` on the SQLite connection pool — prevents `SQLITE_BUSY` errors that caused intermittent 500 responses on flag submissions and hint unlocks when the background score-recorder goroutine wrote to the DB concurrently
+- Demo seed: corrected `unlock_hint` to call `/api/hints/{id}/unlock` (was missing the `/api` prefix), fixing all hint unlock 500 errors during demo seeding; hint penalties now appear correctly in the SQL Playground
+
 ## [0.8.6] - 2026-03-15
 
 ### Fixed

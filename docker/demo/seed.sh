@@ -226,7 +226,7 @@ add_hint() {
 
 unlock_hint() {
     HID="$1"; UTOK="$2"
-    user_post "/hints/${HID}/unlock" "" "${UTOK}" > /dev/null
+    user_post "/api/hints/${HID}/unlock" "" "${UTOK}" > /dev/null
 }
 
 # Q1 — Cookie Monster
