@@ -550,6 +550,8 @@ ORDER BY comp.name, total_points DESC;`,
                         difficulty: c.difficulty, visible: c.visible ? 1 : 0,
                     }));
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'challenges' });
+                } else {
+                    await conn.query(`CREATE TABLE challenges (id TEXT, name TEXT, category TEXT, difficulty TEXT, visible INTEGER)`);
                 }
 
                 if (snapshot.questions && snapshot.questions.length > 0) {
@@ -559,6 +561,8 @@ ORDER BY comp.name, total_points DESC;`,
                         points: q.points, created_at: q.created_at || '',
                     }));
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'questions' });
+                } else {
+                    await conn.query(`CREATE TABLE questions (id TEXT, challenge_id TEXT, name TEXT, description TEXT, flag_mask TEXT, points INTEGER, created_at TEXT)`);
                 }
 
                 if (snapshot.submissions && snapshot.submissions.length > 0) {
@@ -568,6 +572,11 @@ ORDER BY comp.name, total_points DESC;`,
                         is_correct: s.is_correct ? 1 : 0, created_at: s.created_at || '',
                     }));
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'submissions' });
+                } else {
+                    await conn.query(`CREATE TABLE submissions (
+                        id TEXT, question_id TEXT, user_id TEXT, team_id TEXT,
+                        user_name TEXT, is_correct INTEGER, created_at TEXT
+                    )`);
                 }
 
                 if (snapshot.users && snapshot.users.length > 0) {
@@ -576,6 +585,8 @@ ORDER BY comp.name, total_points DESC;`,
                         created_at: u.created_at || '',
                     }));
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'users' });
+                } else {
+                    await conn.query(`CREATE TABLE users (id TEXT, name TEXT, team_id TEXT, created_at TEXT)`);
                 }
 
                 if (snapshot.teams && snapshot.teams.length > 0) {
@@ -584,6 +595,8 @@ ORDER BY comp.name, total_points DESC;`,
                         owner_id: t.owner_id, created_at: t.created_at || '',
                     }));
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'teams' });
+                } else {
+                    await conn.query(`CREATE TABLE teams (id TEXT, name TEXT, description TEXT, owner_id TEXT, created_at TEXT)`);
                 }
 
                 // Load hints table (content is sensitive and not exported)
@@ -593,6 +606,8 @@ ORDER BY comp.name, total_points DESC;`,
                         order: h.order, cost: h.cost, created_at: h.created_at || '',
                     }));
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'hints' });
+                } else {
+                    await conn.query(`CREATE TABLE hints (id TEXT, question_id TEXT, "order" INTEGER, cost INTEGER, created_at TEXT)`);
                 }
 
                 // Load hint_unlocks table (always create it, even if empty)
