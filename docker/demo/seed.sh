@@ -544,6 +544,10 @@ else
     # Force-start the competition so submissions appear in the live feed
     api_form "/api/admin/competitions/${COMP_ID}/force-start" "" > /dev/null
 
+    # Backdate competition start_at to before the earliest backdated submission
+    # (Alice's first solve is at -120 min, so -130 min ensures all submissions count)
+    sqlite3 "${DB}" "UPDATE competitions SET start_at = datetime('now', '-130 minutes') WHERE id = ${COMP_ID};"
+
     log "Competition running with ${COMP_ID} (all challenges, 3 teams)"
 fi
 
