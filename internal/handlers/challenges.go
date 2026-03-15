@@ -91,7 +91,10 @@ func (h *ChallengeHandler) GetChallenge(w http.ResponseWriter, r *http.Request) 
 		if claims != nil {
 			solved, _ = h.db.HasUserSolved(questions[i].ID, claims.UserID)
 		}
-		hints, _ := h.db.GetHintsByQuestionID(questions[i].ID)
+		hints, hErr := h.db.GetHintsByQuestionID(questions[i].ID)
+		if hErr != nil {
+			log.Printf("GetHintsByQuestionID(%s): %v", questions[i].ID, hErr)
+		}
 		questionsOut[i] = questionWithSolved{Question: &questions[i], Solved: solved, HintCount: len(hints)}
 	}
 
@@ -197,10 +200,10 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return HTMX-friendly HTML response
+	// Calculate points earned (needed for both JSON and HTML responses)
+	pointsEarned := 0
+	hintCost := 0
 	if isCorrect {
-		// Calculate actual points earned after hint deductions and dynamic scoring
-		hintCost := 0
 		if h.db != nil {
 			cost, err := h.db.GetUserHintCostForQuestion(claims.UserID, questionID)
 			if err == nil {
@@ -229,7 +232,7 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		pointsEarned := basePoints - hintCost
+		pointsEarned = basePoints - hintCost
 		if pointsEarned < 0 {
 			pointsEarned = 0
 		}
@@ -238,7 +241,29 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 		if h.recorder != nil {
 			go h.recorder.RecordUser(claims.UserID)
 		}
+	}
 
+	// Return JSON if client requests it (CLI), otherwise HTMX-friendly HTML
+	if r.Header.Get("Accept") == "application/json" {
+		message := "Incorrect, try again"
+		if isCorrect {
+			if hintCost > 0 {
+				message = fmt.Sprintf("Correct! You earned %d points (-%d hint cost)", pointsEarned, hintCost)
+			} else {
+				message = fmt.Sprintf("Correct! You earned %d points", pointsEarned)
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"correct": isCorrect,
+			"points":  pointsEarned,
+			"message": message,
+		})
+		return
+	}
+
+	// Return HTMX-friendly HTML response
+	if isCorrect {
 		// Show hint cost info if hints were used
 		if hintCost > 0 {
 			w.Write([]byte(fmt.Sprintf(`<div class="text-green-400">✅ Correct! You earned %d points <span class="text-yellow-300 text-sm">(-%d hint cost)</span></div>`, pointsEarned, hintCost)))

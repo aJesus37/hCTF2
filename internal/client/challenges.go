@@ -85,6 +85,7 @@ func (c *Client) SubmitFlag(questionID, flag string) (*SubmitResult, error) {
 	form := url.Values{"flag": {flag}}
 	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/questions/%s/submit", c.ServerURL, questionID), strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
@@ -96,13 +97,11 @@ func (c *Client) SubmitFlag(questionID, flag string) (*SubmitResult, error) {
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("server returned %d", resp.StatusCode)
 	}
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	var result SubmitResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-	body := string(bodyBytes)
-	correct := strings.Contains(body, "Correct")
-	return &SubmitResult{Correct: correct}, nil
+	return &result, nil
 }
 
 // GetQuestionSolution returns the flag for a question the user has already solved.

@@ -565,8 +565,8 @@ func (db *DB) GetTeamScoreEvolution(limit int, since time.Time) ([]ScoreEvolutio
 
 // CleanupScoreHistory removes old records beyond retention period
 func (db *DB) CleanupScoreHistory(retentionDays int) error {
-	query := `DELETE FROM score_history WHERE recorded_at < datetime('now', '-? days')`
-	_, err := db.Exec(query, retentionDays)
+	_, err := db.Exec(`DELETE FROM score_history WHERE recorded_at < datetime('now', ?)`,
+		fmt.Sprintf("-%d days", retentionDays))
 	return err
 }
 
