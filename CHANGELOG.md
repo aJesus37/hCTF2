@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-03-15
+
+### Fixed
+- Solved questions now display the previously submitted correct flag in the (disabled) input field when revisiting a challenge
+
 ## [0.8.4] - 2026-03-15
 
 ### Fixed

@@ -707,12 +707,12 @@ func (s *Server) HandleChallengeDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	solvedQuestions := make(map[string]bool)
+	// solvedQuestions maps question ID to the flag the user submitted correctly (empty string if not solved)
+	solvedQuestions := make(map[string]string)
 	if claims != nil {
 		for _, q := range questions {
-			solved, _ := s.DB.HasUserSolved(q.ID, claims.UserID)
-			if solved {
-				solvedQuestions[q.ID] = true
+			if flag := s.DB.GetUserCorrectSubmittedFlag(q.ID, claims.UserID); flag != "" {
+				solvedQuestions[q.ID] = flag
 			}
 		}
 	}

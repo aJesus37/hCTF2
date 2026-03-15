@@ -282,6 +282,13 @@ func (db *DB) HasUserSolved(questionID, userID string) (bool, error) {
 	return count > 0, err
 }
 
+// GetUserCorrectSubmittedFlag returns the flag the user submitted correctly for a question, or "" if not solved.
+func (db *DB) GetUserCorrectSubmittedFlag(questionID, userID string) string {
+	var flag string
+	_ = db.QueryRow("SELECT submitted_flag FROM submissions WHERE question_id = ? AND user_id = ? AND is_correct = 1 LIMIT 1", questionID, userID).Scan(&flag)
+	return flag
+}
+
 func (db *DB) GetScoreboard(limit int) ([]models.ScoreboardEntry, error) {
 	// SQLite doesn't support ROW_NUMBER() in the same way, so we calculate rank in Go
 	freezeCond := ""
