@@ -1,8 +1,6 @@
 services:
   hctf2:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/ajesus37/hctf2:latest
     container_name: hctf2
     ports:
       - "8090:8090"
