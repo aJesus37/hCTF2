@@ -23,6 +23,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 // ── package-level state set by TestMain ─────────────────────────────────────
@@ -2201,5 +2203,45 @@ func TestCLISubmitLoopHintCountInLabel(t *testing.T) {
 	}
 	if env.Questions[0].HintCount != 1 {
 		t.Fatalf("expected hint_count=1, got %d", env.Questions[0].HintCount)
+	}
+}
+
+func TestCLIConfigExportCLI(t *testing.T) {
+	// Export via CLI to stdout (JSON)
+	stdout, stderr, code := runCLI(t, "config", "export")
+	if code != 0 {
+		t.Fatalf("config export failed: %s", stderr)
+	}
+	var bundle map[string]interface{}
+	if err := json.Unmarshal([]byte(stdout), &bundle); err != nil {
+		t.Fatalf("config export output is not valid JSON: %v", err)
+	}
+	v, ok := bundle["version"]
+	if !ok {
+		t.Fatal("config export missing 'version' field")
+	}
+	if int(v.(float64)) != 2 {
+		t.Fatalf("expected version 2, got %v", v)
+	}
+
+	// Export to YAML file by extension
+	yamlFile := filepath.Join(t.TempDir(), "config.yaml")
+	_, stderr, code = runCLI(t, "config", "export", "--output", yamlFile)
+	if code != 0 {
+		t.Fatalf("config export --output yaml failed: %s", stderr)
+	}
+	yamlData, err := os.ReadFile(yamlFile)
+	if err != nil {
+		t.Fatalf("failed to read exported yaml: %v", err)
+	}
+	var yamlBundle map[string]interface{}
+	if err := yaml.Unmarshal(yamlData, &yamlBundle); err != nil {
+		t.Fatalf("exported yaml is not valid YAML: %v", err)
+	}
+
+	// Import YAML file back
+	stdout, stderr, code = runCLI(t, "config", "import", yamlFile)
+	if code != 0 {
+		t.Fatalf("config import yaml failed (stderr: %s, stdout: %s)", stderr, stdout)
 	}
 }
