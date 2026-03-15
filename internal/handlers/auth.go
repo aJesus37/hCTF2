@@ -116,18 +116,22 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} object{error=string}
 // @Router /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	// Parse form data
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-
 	// Detect HTMX (form post) vs API request once, use throughout
 	isHTMX := strings.Contains(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded")
 
-	req := LoginRequest{
-		Email:    r.FormValue("email"),
-		Password: r.FormValue("password"),
+	var req LoginRequest
+	if isHTMX {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		req.Email = r.FormValue("email")
+		req.Password = r.FormValue("password")
+	} else {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
 	}
 
 	// Get user
