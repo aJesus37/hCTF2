@@ -634,12 +634,29 @@ readinessProbe:
 
 ### Docker HEALTHCHECK
 
-The Dockerfile includes a health check using the `/healthz` endpoint:
+Both Dockerfiles include a `HEALTHCHECK` directive.
+
+The production image (scratch-based) uses the built-in `healthcheck` subcommand:
 
 ```dockerfile
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8090/healthz
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/hctf2", "healthcheck", "--port", "8090"]
 ```
+
+The demo image (Alpine-based) uses `wget`:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD wget -qO- http://localhost:8090/healthz || exit 1
+```
+
+You can also run the health check manually from the host:
+
+```bash
+./hctf2 healthcheck --port 8090
+```
+
+The command exits 0 when the server is healthy and 1 otherwise.
 
 ### Database Migration Failures
 

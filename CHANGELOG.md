@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `healthcheck` CLI subcommand — hits `/healthz` and exits 0/1; used by Docker `HEALTHCHECK` in scratch images where no shell or wget is available
+- `HEALTHCHECK` directive added to `Dockerfile` (uses `hctf2 healthcheck`) and `Dockerfile.demo` (uses `wget`); both `docker-compose.yml` files updated with corresponding `healthcheck:` blocks
+
 ## [0.8.6] - 2026-03-15
 
 ### Fixed

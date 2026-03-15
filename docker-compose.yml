@@ -30,9 +30,12 @@ services:
       - UMAMI_SCRIPT_URL=${UMAMI_SCRIPT_URL:-}
       - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-}
     restart: unless-stopped
-    # NOTE: healthcheck is omitted — the runtime image is based on scratch (no shell,
-    # wget, or curl available). Use an external probe (e.g. Traefik, Caddy, or
-    # Kubernetes liveness probe) against http://<host>:8090/healthz if needed.
+    healthcheck:
+      test: ["/hctf2", "healthcheck", "--port", "8090"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     networks:
       - hctf2-network
 

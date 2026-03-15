@@ -38,6 +38,9 @@ COPY --from=builder --chown=1000:1000 /staging/tmp /tmp
 
 EXPOSE 8090
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/hctf2", "healthcheck", "--port", "8090"]
+
 # Run as non-root uid (no /etc/passwd needed when using numeric uid)
 USER 1000
 
