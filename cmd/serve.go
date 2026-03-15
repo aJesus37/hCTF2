@@ -67,6 +67,8 @@ var (
 	serveCORSOrigins      string
 	serveSubmitRateLimit  int
 	serveUploadDir        string
+	serveUmamiScriptURL   string
+	serveUmamiWebsiteID   string
 )
 
 var serveCmd = &cobra.Command{
@@ -96,6 +98,8 @@ func init() {
 	f.StringVar(&serveCORSOrigins, "cors-origins", getEnv("CORS_ORIGINS", ""), "Comma-separated list of allowed CORS origins (empty = same-origin only)")
 	f.IntVar(&serveSubmitRateLimit, "submission-rate-limit", 5, "Max flag submissions per minute per user (0 = unlimited)")
 	f.StringVar(&serveUploadDir, "upload-dir", "./uploads", "Directory for file uploads")
+	f.StringVar(&serveUmamiScriptURL, "umami-script-url", getEnv("UMAMI_SCRIPT_URL", ""), "Umami analytics script URL (e.g. https://umami.example.com/script.js)")
+	f.StringVar(&serveUmamiWebsiteID, "umami-website-id", getEnv("UMAMI_WEBSITE_ID", ""), "Umami analytics website ID")
 
 	rootCmd.AddCommand(serveCmd)
 }
@@ -134,10 +138,12 @@ type Server struct {
 	SettingsH      *handlers.SettingsHandler
 	ImportExportH  *handlers.ImportExportHandler
 	CompetitionH   *handlers.CompetitionHandler
-	Motd           string
-	SubmitLimiter  *ratelimit.Limiter
-	Storage        storage.Storage
-	ScoreRecorder  *scorerecorder.Recorder
+	Motd            string
+	SubmitLimiter   *ratelimit.Limiter
+	Storage         storage.Storage
+	ScoreRecorder   *scorerecorder.Recorder
+	UmamiScriptURL  string
+	UmamiWebsiteID  string
 }
 
 // customFileHandler wraps the file server to set proper content types for WASM and workers.
@@ -313,6 +319,8 @@ func runServe(_ *cobra.Command, _ []string) error {
 		ScoreRecorder:  recorder,
 		Motd:           serveMOTD,
 		Storage:        stor,
+		UmamiScriptURL: serveUmamiScriptURL,
+		UmamiWebsiteID: serveUmamiWebsiteID,
 	}
 
 	if serveSubmitRateLimit > 0 {
@@ -584,6 +592,12 @@ func createAdminUser(db *database.DB, emailAddr, password string) {
 
 // Template rendering helper
 func (s *Server) Render(w http.ResponseWriter, name string, data interface{}) {
+	if m, ok := data.(map[string]interface{}); ok {
+		if s.UmamiScriptURL != "" && s.UmamiWebsiteID != "" {
+			m["UmamiScriptURL"] = s.UmamiScriptURL
+			m["UmamiWebsiteID"] = s.UmamiWebsiteID
+		}
+	}
 	if err := s.Templates.ExecuteTemplate(w, name, data); err != nil {
 		log.Printf("Template error: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

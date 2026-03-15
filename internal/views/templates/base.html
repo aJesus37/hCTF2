@@ -38,6 +38,9 @@
             {{.CustomCode.HeadHTML | safeHTML}}
         {{end}}
     {{end}}
+    {{if and .UmamiScriptURL .UmamiWebsiteID}}
+    <script defer src="{{.UmamiScriptURL}}" data-website-id="{{.UmamiWebsiteID}}"></script>
+    {{end}}
 </head>
 <body class="min-h-screen flex flex-col bg-gray-50 dark:bg-[#0f172a] text-gray-900 dark:text-[#e2e8f0] transition-colors duration-200">
     <nav class="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border transition-colors duration-200">
@@ -161,5 +164,42 @@
         {{end}}
     {{end}}
     <script src="/static/js/focus-trap.js"></script>
+    {{if and .UmamiScriptURL .UmamiWebsiteID}}
+    <script>
+    // Custom Umami event tracking for CTF-specific interactions.
+    // Fires after Umami's script.js loads (deferred), so umami.track() is available.
+    document.addEventListener('htmx:afterRequest', function(e) {
+        if (typeof umami === 'undefined') return;
+        const url = e.detail.requestConfig && e.detail.requestConfig.path || '';
+        const ok  = e.detail.successful;
+
+        // Flag submission: POST /api/questions/{id}/submit
+        const submitMatch = url.match(/\/api\/questions\/([^/]+)\/submit/);
+        if (submitMatch) {
+            const responseText = e.detail.xhr && e.detail.xhr.responseText || '';
+            const correct = responseText.includes('Correct') || responseText.includes('correct');
+            umami.track('flag-submit', { correct: correct });
+            return;
+        }
+
+        // Hint unlock: POST /api/hints/{id}/unlock
+        if (url.match(/\/api\/hints\/[^/]+\/unlock/) && ok) {
+            umami.track('hint-unlock');
+            return;
+        }
+
+        // Team registration for competition: POST /api/competitions/{id}/register
+        if (url.match(/\/api\/competitions\/\d+\/register/) && ok) {
+            umami.track('competition-register');
+            return;
+        }
+    });
+
+    // SQL Playground query execution (fired by the playground's run button)
+    document.addEventListener('sql-playground-run', function() {
+        if (typeof umami !== 'undefined') umami.track('sql-playground-run');
+    });
+    </script>
+    {{end}}
 </body>
 </html>
