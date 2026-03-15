@@ -49,17 +49,7 @@ func (c *Client) GetTeam(id string) (*Team, []Member, error) {
 
 func (c *Client) TransferOwnership(newOwnerID string) error {
 	body, _ := json.Marshal(map[string]string{"new_owner_id": newOwnerID})
-	req, _ := http.NewRequest("POST", c.ServerURL+"/api/teams/transfer-ownership", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doStatus("POST", "/api/teams/transfer-ownership", bytes.NewReader(body))
 }
 
 func (c *Client) RegenerateInvite() (string, error) {
@@ -79,51 +69,18 @@ func (c *Client) RegenerateInvite() (string, error) {
 
 func (c *Client) CreateTeam(name string) (*Team, error) {
 	body, _ := json.Marshal(map[string]string{"name": name})
-	req, _ := http.NewRequest("POST", c.ServerURL+"/api/teams", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
 	var out Team
-	return &out, decodeJSON(resp, &out)
+	return &out, c.doJSON("POST", "/api/teams", bytes.NewReader(body), &out)
 }
 
 func (c *Client) JoinTeam(inviteCode string) error {
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/teams/join/%s", c.ServerURL, inviteCode), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("POST", "/api/teams/join/"+inviteCode)
 }
 
 func (c *Client) LeaveTeam() error {
-	req, _ := http.NewRequest("POST", c.ServerURL+"/api/teams/leave", nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("POST", "/api/teams/leave")
 }
 
 func (c *Client) DisbandTeam() error {
-	req, _ := http.NewRequest("POST", c.ServerURL+"/api/teams/disband", nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("POST", "/api/teams/disband")
 }

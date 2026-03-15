@@ -28,14 +28,8 @@ func (c *Client) CreateQuestion(challengeID, name, flag string, points int) (*Qu
 		"flag":         flag,
 		"points":       points,
 	})
-	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/questions", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
 	var out QuestionDetail
-	return &out, decodeJSON(resp, &out)
+	return &out, c.doJSON("POST", "/api/admin/questions", bytes.NewReader(body), &out)
 }
 
 func (c *Client) GetQuestion(id string) (*QuestionDetail, error) {
@@ -56,28 +50,9 @@ func (c *Client) UpdateQuestion(id, name, flag string, points int, caseSensitive
 		"points":         points,
 		"case_sensitive": caseSensitive,
 	})
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/admin/questions/%s", c.ServerURL, id), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doStatus("PUT", "/api/admin/questions/"+id, bytes.NewReader(body))
 }
 
 func (c *Client) DeleteQuestion(id string) error {
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/questions/%s", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("DELETE", "/api/admin/questions/"+id)
 }

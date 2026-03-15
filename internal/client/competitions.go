@@ -41,42 +41,15 @@ func (c *Client) CreateCompetition(name, description string) (*Competition, erro
 }
 
 func (c *Client) ForceStartCompetition(id int64) error {
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/admin/competitions/%d/force-start", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("POST", fmt.Sprintf("/api/admin/competitions/%d/force-start", id))
 }
 
 func (c *Client) ForceEndCompetition(id int64) error {
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/admin/competitions/%d/force-end", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("POST", fmt.Sprintf("/api/admin/competitions/%d/force-end", id))
 }
 
 func (c *Client) RegisterForCompetition(id int64) error {
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/competitions/%d/register", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("POST", fmt.Sprintf("/api/competitions/%d/register", id))
 }
 
 func (c *Client) GetCompetition(id int64) (*Competition, error) {
@@ -105,16 +78,7 @@ func (c *Client) AddChallengeToCompetition(compID int64, challengeID string) err
 }
 
 func (c *Client) RemoveChallengeFromCompetition(compID int64, challengeID string) error {
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/competitions/%d/challenges/%s", c.ServerURL, compID, challengeID), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("DELETE", fmt.Sprintf("/api/admin/competitions/%d/challenges/%s", compID, challengeID))
 }
 
 func (c *Client) SetCompetitionFreeze(id int64, frozen bool) error {
@@ -156,16 +120,7 @@ func (c *Client) SetCompetitionBlackout(id int64, blackout bool) error {
 }
 
 func (c *Client) DeleteCompetition(id int64) error {
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/competitions/%d", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("DELETE", fmt.Sprintf("/api/admin/competitions/%d", id))
 }
 
 func (c *Client) UpdateCompetition(id int64, name, description string) (*Competition, error) {

@@ -2,7 +2,6 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -26,28 +25,9 @@ func (c *Client) ListUsers() ([]User, error) {
 
 func (c *Client) PromoteUser(id string, admin bool) error {
 	body, _ := json.Marshal(map[string]bool{"is_admin": admin})
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/admin/users/%s/admin", c.ServerURL, id), jsonBody(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doStatus("PUT", "/api/admin/users/"+id+"/admin", jsonBody(body))
 }
 
 func (c *Client) DeleteUser(id string) error {
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/users/%s", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("DELETE", "/api/admin/users/"+id)
 }

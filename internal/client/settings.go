@@ -56,16 +56,7 @@ func (c *Client) CreateCategory(name string, order int) (*Category, error) {
 }
 
 func (c *Client) DeleteCategory(id string) error {
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/categories/%s", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("DELETE", "/api/admin/categories/"+id)
 }
 
 func (c *Client) CreateDifficulty(name string, order int) (*Difficulty, error) {
@@ -84,14 +75,5 @@ func (c *Client) CreateDifficulty(name string, order int) (*Difficulty, error) {
 }
 
 func (c *Client) DeleteDifficulty(id string) error {
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/difficulties/%s", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("DELETE", "/api/admin/difficulties/"+id)
 }

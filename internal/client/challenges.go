@@ -39,13 +39,8 @@ type SubmitResult struct {
 }
 
 func (c *Client) ListChallenges() ([]Challenge, error) {
-	req, _ := http.NewRequest("GET", c.ServerURL+"/api/challenges", nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
 	var out []Challenge
-	return out, decodeJSON(resp, &out)
+	return out, c.doJSON("GET", "/api/challenges", nil, &out)
 }
 
 func (c *Client) GetChallenge(id string) (*Challenge, error) {
@@ -127,14 +122,8 @@ func (c *Client) CreateChallenge(title, category, difficulty, description string
 		"description": description, "initial_points": points,
 		"visible": visible, "minimum_points": minPoints, "decay_threshold": decay,
 	})
-	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/challenges", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
 	var out Challenge
-	return &out, decodeJSON(resp, &out)
+	return &out, c.doJSON("POST", "/api/admin/challenges", bytes.NewReader(body), &out)
 }
 
 func (c *Client) UpdateChallenge(id, title, category, difficulty, description string, points int, visible bool, minPoints, decay int) (*Challenge, error) {
@@ -207,14 +196,5 @@ func (c *Client) ImportChallenges(data []byte) error {
 }
 
 func (c *Client) DeleteChallenge(id string) error {
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/challenges/%s", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("DELETE", "/api/admin/challenges/"+id)
 }

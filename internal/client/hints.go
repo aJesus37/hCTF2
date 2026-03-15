@@ -47,17 +47,7 @@ func (c *Client) UpdateHint(id, content string, cost, order int) error {
 		"cost":    cost,
 		"order":   order,
 	})
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("%s/api/admin/hints/%s", c.ServerURL, id), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doStatus("PUT", "/api/admin/hints/"+id, bytes.NewReader(body))
 }
 
 // CreateHint creates a new hint for a question (admin only).
@@ -67,28 +57,13 @@ func (c *Client) CreateHint(questionID, content string, cost int) (*Hint, error)
 		"content":     content,
 		"cost":        cost,
 	})
-	req, _ := http.NewRequest("POST", c.ServerURL+"/api/admin/hints", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
 	var out Hint
-	return &out, decodeJSON(resp, &out)
+	return &out, c.doJSON("POST", "/api/admin/hints", bytes.NewReader(body), &out)
 }
 
 // DeleteHint deletes a hint by ID (admin only).
 func (c *Client) DeleteHint(id string) error {
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/api/admin/hints/%s", c.ServerURL, id), nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("server returned %d", resp.StatusCode)
-	}
-	return nil
+	return c.doNoBody("DELETE", "/api/admin/hints/"+id)
 }
 
 // UnlockHint unlocks a hint, spending the user's points.
