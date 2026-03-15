@@ -439,6 +439,7 @@ func createTemplates() (*template.Template, error) {
 		"safeHTML":        func(s string) template.HTML { return template.HTML(s) },
 		"mul":             func(a, b int) int { return a * b },
 		"div":             func(a, b int) int { if b == 0 { return 0 }; return a / b },
+		"sub":             func(a, b int) int { return a - b },
 		"difficultyColor": func(name string) string { return "text-gray-400" },
 		"difficultyBadge": func(name string) string { return "bg-gray-600 text-gray-100" },
 		"splitCategories": func(csv string) []string {
