@@ -107,16 +107,11 @@ func (db *DB) CreateChallenge(name, description, category, difficulty string, ta
 	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	          RETURNING id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold, file_url, created_at, updated_at`
 
-	var c models.Challenge
-	err := db.QueryRow(query, id, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint, dynamicScoring, initialPoints, minimumPoints, decayThreshold, fileURL).Scan(
-		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.FileURL, &c.CreatedAt, &c.UpdatedAt,
-	)
-	return &c, err
+	return scanChallenge(db.QueryRow(query, id, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint, dynamicScoring, initialPoints, minimumPoints, decayThreshold, fileURL))
 }
 
 func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
-	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), file_url, created_at, updated_at
-	          FROM challenges`
+	query := `SELECT ` + challengeSelectCols + ` FROM challenges`
 	if visibleOnly {
 		query += " WHERE visible = 1"
 	}
@@ -130,27 +125,22 @@ func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
 
 	var challenges []models.Challenge
 	for rows.Next() {
-		var c models.Challenge
-		if err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.FileURL, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		c, err := scanChallenge(rows)
+		if err != nil {
 			return nil, err
 		}
-		challenges = append(challenges, c)
+		challenges = append(challenges, *c)
 	}
 	return challenges, nil
 }
 
 func (db *DB) GetChallengeByID(id string) (*models.Challenge, error) {
-	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), file_url, created_at, updated_at
-	          FROM challenges WHERE id = ?`
-
-	var c models.Challenge
-	err := db.QueryRow(query, id).Scan(
-		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.FileURL, &c.CreatedAt, &c.UpdatedAt,
-	)
+	query := `SELECT ` + challengeSelectCols + ` FROM challenges WHERE id = ?`
+	c, err := scanChallenge(db.QueryRow(query, id))
 	if err != nil {
 		return nil, err
 	}
-	return &c, nil
+	return c, nil
 }
 
 func (db *DB) UpdateChallenge(id, name, description, category, difficulty string, tags *string, visible bool, sqlEnabled bool, sqlDatasetURL, sqlSchemaHint *string, dynamicScoring bool, initialPoints, minimumPoints, decayThreshold int) error {
@@ -593,6 +583,55 @@ func (db *DB) SetAdminVisibleInScoreboard(visible bool) error {
 	return err
 }
 
+// queryToMaps executes a query and returns results as a slice of column→value maps.
+// Useful for building generic JSON snapshots without typed structs.
+func queryToMaps(db *sql.DB, query string, args ...interface{}) ([]map[string]interface{}, error) {
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	var result []map[string]interface{}
+	for rows.Next() {
+		vals := make([]interface{}, len(cols))
+		ptrs := make([]interface{}, len(cols))
+		for i := range vals {
+			ptrs[i] = &vals[i]
+		}
+		if err := rows.Scan(ptrs...); err != nil {
+			return nil, err
+		}
+		row := make(map[string]interface{}, len(cols))
+		for i, col := range cols {
+			row[col] = vals[i]
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+// challengeScanner abstracts *sql.Row and *sql.Rows for scanChallenge.
+type challengeScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+const challengeSelectCols = `id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), file_url, created_at, updated_at`
+
+func scanChallenge(row challengeScanner) (*models.Challenge, error) {
+	var c models.Challenge
+	err := row.Scan(
+		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty,
+		&c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint,
+		&c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold,
+		&c.FileURL, &c.CreatedAt, &c.UpdatedAt,
+	)
+	return &c, err
+}
+
 // Helper function to generate flag mask
 func generateFlagMask(flag string) string {
 	// Find the flag format (e.g., FLAG{...})
@@ -620,43 +659,17 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 	snapshot["challenges"] = challenges
 
 	// Public questions (without flags)
-	var questions []map[string]interface{}
-	rows, err := db.Query(`
+	questions, err := queryToMaps(db.DB, `
 		SELECT id, challenge_id, name, description, flag_mask, case_sensitive, points, created_at
 		FROM questions WHERE challenge_id IN (SELECT id FROM challenges WHERE visible = 1)
 	`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id, challengeID, name, desc string
-		var flagMask sql.NullString
-		var caseSensitive bool
-		var points int
-		var createdAt string
-
-		if err := rows.Scan(&id, &challengeID, &name, &desc, &flagMask, &caseSensitive, &points, &createdAt); err != nil {
-			return nil, err
-		}
-
-		questions = append(questions, map[string]interface{}{
-			"id":             id,
-			"challenge_id":   challengeID,
-			"name":           name,
-			"description":    desc,
-			"flag_mask":      flagMask.String,
-			"case_sensitive": caseSensitive,
-			"points":         points,
-			"created_at":     createdAt,
-		})
-	}
 	snapshot["questions"] = questions
 
 	// Public submissions (correct only, no flags)
-	var submissions []map[string]interface{}
-	rows2, err := db.Query(`
+	submissions, err := queryToMaps(db.DB, `
 		SELECT s.id, s.question_id, s.user_id, s.team_id, s.is_correct, s.created_at, u.name as user_name
 		FROM submissions s
 		JOIN users u ON s.user_id = u.id
@@ -665,82 +678,24 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows2.Close()
-
-	for rows2.Next() {
-		var id, questionID, userID string
-		var teamID sql.NullString
-		var isCorrect bool
-		var createdAt, userName string
-
-		if err := rows2.Scan(&id, &questionID, &userID, &teamID, &isCorrect, &createdAt, &userName); err != nil {
-			return nil, err
-		}
-
-		submissions = append(submissions, map[string]interface{}{
-			"id":          id,
-			"question_id": questionID,
-			"user_id":     userID,
-			"team_id":     teamID.String,
-			"user_name":   userName,
-			"is_correct":  isCorrect,
-			"created_at":  createdAt,
-		})
-	}
 	snapshot["submissions"] = submissions
 
 	// Public users (name only)
-	var users []map[string]interface{}
-	rows3, err := db.Query(`SELECT id, name, team_id, created_at FROM users`)
+	users, err := queryToMaps(db.DB, `SELECT id, name, team_id, created_at FROM users`)
 	if err != nil {
 		return nil, err
-	}
-	defer rows3.Close()
-
-	for rows3.Next() {
-		var id, name string
-		var teamID sql.NullString
-		var createdAt string
-
-		if err := rows3.Scan(&id, &name, &teamID, &createdAt); err != nil {
-			return nil, err
-		}
-
-		users = append(users, map[string]interface{}{
-			"id":         id,
-			"name":       name,
-			"team_id":    teamID.String,
-			"created_at": createdAt,
-		})
 	}
 	snapshot["users"] = users
 
 	// Public teams (no invite info)
-	var teams []map[string]interface{}
-	rows4, err := db.Query(`SELECT id, name, COALESCE(description, '') as description, owner_id, created_at FROM teams`)
+	teams, err := queryToMaps(db.DB, `SELECT id, name, COALESCE(description, '') as description, owner_id, created_at FROM teams`)
 	if err != nil {
 		return nil, err
-	}
-	defer rows4.Close()
-
-	for rows4.Next() {
-		var id, name, description, ownerID, createdAt string
-		if err := rows4.Scan(&id, &name, &description, &ownerID, &createdAt); err != nil {
-			return nil, err
-		}
-		teams = append(teams, map[string]interface{}{
-			"id":          id,
-			"name":        name,
-			"description": description,
-			"owner_id":    ownerID,
-			"created_at":  createdAt,
-		})
 	}
 	snapshot["teams"] = teams
 
 	// Hints (schema only - content is sensitive and requires unlock)
-	var hints []map[string]interface{}
-	rows5, err := db.Query(`
+	hints, err := queryToMaps(db.DB, `
 		SELECT h.id, h.question_id, h.cost, h.created_at
 		FROM hints h
 		JOIN questions q ON h.question_id = q.id
@@ -749,27 +704,10 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows5.Close()
-
-	for rows5.Next() {
-		var id, questionID string
-		var cost int
-		var createdAt string
-		if err := rows5.Scan(&id, &questionID, &cost, &createdAt); err != nil {
-			return nil, err
-		}
-		hints = append(hints, map[string]interface{}{
-			"id":          id,
-			"question_id": questionID,
-			"cost":        cost,
-			"created_at":  createdAt,
-		})
-	}
 	snapshot["hints"] = hints
 
 	// Hint unlocks (for SQL playground analysis of penalties)
-	var hintUnlocks []map[string]interface{}
-	rows6, err := db.Query(`
+	hintUnlocks, err := queryToMaps(db.DB, `
 		SELECT hu.id, hu.hint_id, hu.user_id, hu.team_id, hu.created_at
 		FROM hint_unlocks hu
 		JOIN hints h ON hu.hint_id = h.id
@@ -778,23 +716,6 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 	`)
 	if err != nil {
 		return nil, err
-	}
-	defer rows6.Close()
-
-	for rows6.Next() {
-		var id, hintID, userID string
-		var teamID sql.NullString
-		var createdAt string
-		if err := rows6.Scan(&id, &hintID, &userID, &teamID, &createdAt); err != nil {
-			return nil, err
-		}
-		hintUnlocks = append(hintUnlocks, map[string]interface{}{
-			"id":         id,
-			"hint_id":    hintID,
-			"user_id":    userID,
-			"team_id":    teamID.String,
-			"created_at": createdAt,
-		})
 	}
 	snapshot["hint_unlocks"] = hintUnlocks
 
@@ -2413,11 +2334,7 @@ func (db *DB) RemoveChallengeFromCompetition(compID int64, challengeID string) e
 
 // GetCompetitionChallenges returns all challenges linked to a competition.
 func (db *DB) GetCompetitionChallenges(compID int64) ([]models.Challenge, error) {
-	rows, err := db.Query(`
-		SELECT c.id, c.name, c.description, c.category, c.difficulty,
-		       c.tags, c.visible, c.sql_enabled, c.sql_dataset_url, c.sql_schema_hint,
-		       c.dynamic_scoring, c.initial_points, c.minimum_points, c.decay_threshold,
-		       c.file_url, c.created_at, c.updated_at
+	rows, err := db.Query(`SELECT `+challengeSelectCols+`
 		FROM challenges c
 		JOIN competition_challenges cc ON cc.challenge_id = c.id
 		WHERE cc.competition_id = ?
@@ -2428,17 +2345,11 @@ func (db *DB) GetCompetitionChallenges(compID int64) ([]models.Challenge, error)
 	defer rows.Close()
 	var challenges []models.Challenge
 	for rows.Next() {
-		var ch models.Challenge
-		err := rows.Scan(
-			&ch.ID, &ch.Name, &ch.Description, &ch.Category, &ch.Difficulty,
-			&ch.Tags, &ch.Visible, &ch.SQLEnabled, &ch.SQLDatasetURL, &ch.SQLSchemaHint,
-			&ch.DynamicScoring, &ch.InitialPoints, &ch.MinimumPoints, &ch.DecayThreshold,
-			&ch.FileURL, &ch.CreatedAt, &ch.UpdatedAt,
-		)
+		ch, err := scanChallenge(rows)
 		if err != nil {
 			return nil, err
 		}
-		challenges = append(challenges, ch)
+		challenges = append(challenges, *ch)
 	}
 	return challenges, nil
 }
