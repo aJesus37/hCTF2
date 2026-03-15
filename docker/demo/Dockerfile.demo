@@ -1,0 +1,31 @@
+# Multi-stage build for hCTF2 demo environment
+# Uses Alpine (not scratch) so we have shell, sqlite3, wget for seed scripts.
+
+# --------------- Build stage ---------------
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+
+ARG VERSION=demo
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w -extldflags=-static -X main.version=${VERSION}" \
+    -o hctf2 main.go
+
+# --------------- Runtime stage ---------------
+FROM alpine:3.21
+
+RUN apk add --no-cache sqlite tini
+
+WORKDIR /app
+COPY --from=builder /src/hctf2 /app/hctf2
+COPY docker/demo/entrypoint.sh /app/entrypoint.sh
+COPY docker/demo/seed.sh /app/seed.sh
+RUN chmod +x /app/entrypoint.sh /app/seed.sh
+RUN mkdir -p /data
+
+EXPOSE 8090
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["/app/entrypoint.sh"]

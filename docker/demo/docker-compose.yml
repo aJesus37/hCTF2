@@ -1,0 +1,10 @@
+services:
+  hctf2-demo:
+    build:
+      context: ../..
+      dockerfile: docker/demo/Dockerfile.demo
+    ports:
+      - "8090:8090"
+    environment:
+      - DEMO_MODE=true
+    restart: unless-stopped
