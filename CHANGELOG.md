@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Hints are now unlocked sequentially: hint N can only be unlocked after hint N-1 has been unlocked. Locked-out hints show a disabled "Unlock hint N first" button.
 
+- Team profile scoring tab now shows "Available Challenges" section listing challenges with unsolved questions the team can still gain points from
+- Teams page now shows a "View Team Profile" button next to your team's name, and highlights your team with a "My Team" badge in the All Teams list
+
 
 ## [0.8.4] - 2026-03-15
 

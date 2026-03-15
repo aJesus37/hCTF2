@@ -158,6 +158,31 @@
                 </div>
             </div>
             {{end}}
+
+            <!-- Available Challenges (unsolved) -->
+            {{if .UnsolvedChallenges}}
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Available Challenges ({{len .UnsolvedChallenges}} with unsolved questions)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {{range .UnsolvedChallenges}}
+                    <a href="/challenges/{{.ID}}" class="block bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4 hover:border-amber-500 transition">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{.Name}}</h3>
+                            <span class="text-xs text-amber-600 dark:text-amber-400 font-medium">{{sub .TotalQuestions .SolvedQuestions}} remaining</span>
+                        </div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                            Category: {{range $i, $cat := splitCategories .Category}}{{if $i}}, {{end}}<span class="text-blue-400">{{$cat}}</span>{{end}}
+                            • Difficulty: <span class="{{difficultyColor .Difficulty}}">{{.Difficulty}}</span>
+                        </p>
+                        <div class="w-full bg-gray-200 dark:bg-dark-bg rounded-full h-2 mb-1">
+                            <div class="bg-amber-500 h-2 rounded-full" style="width: {{if gt .TotalQuestions 0}}{{div (mul .SolvedQuestions 100) .TotalQuestions}}{{else}}0{{end}}%"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{.SolvedQuestions}}/{{.TotalQuestions}} questions solved</p>
+                    </a>
+                {{end}}
+                </div>
+            </div>
+            {{end}}
         </div>
 
         <!-- All Activity Tab -->

@@ -1800,6 +1800,46 @@ func (db *DB) GetTeamSolvedChallenges(teamID string) ([]ChallengeSummary, error)
 	return challenges, nil
 }
 
+// GetTeamUnsolvedChallenges returns visible challenges that have at least one unsolved question for the team.
+func (db *DB) GetTeamUnsolvedChallenges(teamID string) ([]ChallengeSummary, error) {
+	query := `
+		SELECT
+			c.id,
+			c.name,
+			c.category,
+			c.difficulty,
+			(SELECT COUNT(*) FROM questions WHERE challenge_id = c.id) as total_questions,
+			COUNT(DISTINCT team_solves.question_id) as solved_questions
+		FROM challenges c
+		JOIN questions q ON c.id = q.challenge_id
+		LEFT JOIN (
+			SELECT s.question_id
+			FROM submissions s
+			JOIN users u ON s.user_id = u.id
+			WHERE u.team_id = ? AND s.is_correct = 1
+		) team_solves ON q.id = team_solves.question_id
+		WHERE c.visible = 1
+		GROUP BY c.id, c.name, c.category, c.difficulty
+		HAVING solved_questions < (SELECT COUNT(*) FROM questions WHERE challenge_id = c.id)
+		ORDER BY c.name ASC
+	`
+	rows, err := db.Query(query, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var challenges []ChallengeSummary
+	for rows.Next() {
+		var c ChallengeSummary
+		if err := rows.Scan(&c.ID, &c.Name, &c.Category, &c.Difficulty, &c.TotalQuestions, &c.SolvedQuestions); err != nil {
+			return nil, err
+		}
+		challenges = append(challenges, c)
+	}
+	return challenges, rows.Err()
+}
+
 // GetTeamScoringChallenges returns challenges with points earned by the team (only counting first solves)
 // Only counts submissions made while the user was in the team (s.team_id is set)
 func (db *DB) GetTeamScoringChallenges(teamID string) ([]TeamChallengeSummary, error) {

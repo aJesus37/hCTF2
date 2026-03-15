@@ -252,6 +252,19 @@ task deps         # Install dependencies
 
 When documenting or writing scripts, **always use `task`**, never `make`.
 
+## API Usage in Scripts / Seeds
+
+When calling the REST API programmatically (e.g., in test scripts or seed.sh):
+
+- **Auth**: Most endpoints use **cookie-based auth** (browser sessions). The CLI and API endpoints under `/api/` that are intended for scripts accept **Bearer token** via `Authorization: Bearer <token>` header.
+- **Login** returns a JWT token via JSON: `POST /api/auth/login` with `Content-Type: application/json` body `{"email":"...","password":"..."}`.
+- **Registration** expects `Content-Type: application/x-www-form-urlencoded` (form data): `POST /api/auth/register` with body `email=...&password=...&name=...`.
+- **Admin challenge/question/hint creation** expects `Content-Type: application/json`: `POST /api/admin/challenges`, `POST /api/admin/questions`, `POST /api/admin/hints`.
+- **Flag submission** expects form data: `POST /api/questions/{id}/submit` with body `flag=...`.
+- **Team creation** via web form uses cookie auth (redirects). For scripts, use the CLI: `./hctf2 team create`.
+
+See `docker/demo/seed.sh` for a complete working example of API usage patterns.
+
 ## Commit Messages
 
 Use **Conventional Commits** format:

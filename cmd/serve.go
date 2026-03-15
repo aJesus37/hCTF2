@@ -259,6 +259,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 		"stripMarkdown": utils.StripMarkdown,
 		"safeHTML":      func(s string) template.HTML { return template.HTML(s) },
 		"mul":           func(a, b int) int { return a * b },
+		"sub":           func(a, b int) int { return a - b },
 		"div":           func(a, b int) int {
 			if b == 0 {
 				return 0
@@ -1465,23 +1466,25 @@ func (s *Server) HandleTeamProfile(w http.ResponseWriter, r *http.Request) {
 
 	solvedChallenges, _ := s.DB.GetTeamSolvedChallenges(teamID)
 	scoringChallenges, _ := s.DB.GetTeamScoringChallenges(teamID)
+	unsolvedChallenges, _ := s.DB.GetTeamUnsolvedChallenges(teamID)
 	recentSubmissions, _ := s.DB.GetTeamRecentSubmissions(teamID, 20)
 	scoringSubmissions, _ := s.DB.GetTeamScoringSubmissions(teamID, 20)
 	customCode, _ := s.DB.GetCustomCode("team")
 
 	data := map[string]interface{}{
-		"Title":              team.Name + " - Team Profile",
-		"Page":               "team-profile",
-		"User":               claims,
-		"Team":               team,
-		"Members":            members,
-		"Owner":              owner,
-		"Stats":              teamStats,
-		"SolvedChallenges":   solvedChallenges,
-		"ScoringChallenges":  scoringChallenges,
-		"RecentSubmissions":  recentSubmissions,
-		"ScoringSubmissions": scoringSubmissions,
-		"CustomCode":         customCode,
+		"Title":               team.Name + " - Team Profile",
+		"Page":                "team-profile",
+		"User":                claims,
+		"Team":                team,
+		"Members":             members,
+		"Owner":               owner,
+		"Stats":               teamStats,
+		"SolvedChallenges":    solvedChallenges,
+		"ScoringChallenges":   scoringChallenges,
+		"UnsolvedChallenges":  unsolvedChallenges,
+		"RecentSubmissions":   recentSubmissions,
+		"ScoringSubmissions":  scoringSubmissions,
+		"CustomCode":          customCode,
 	}
 	s.Render(w, "base.html", data)
 }

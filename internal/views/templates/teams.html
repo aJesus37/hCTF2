@@ -28,7 +28,10 @@
     {{if .User.TeamID}}
     <!-- User's Current Team -->
     <div class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 mb-8">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Your Team: {{.Team.Name}}</h2>
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Your Team: {{.Team.Name}}</h2>
+            <a href="/teams/{{.Team.ID}}/profile" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">View Team Profile</a>
+        </div>
         {{if .Team.Description}}
         <p class="text-gray-600 dark:text-gray-300 mb-4">{{.Team.Description}}</p>
         {{end}}
@@ -198,7 +201,10 @@
                         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{.Description}}</p>
                         {{end}}
                     </div>
-                    <span class="text-gray-500 dark:text-gray-400 text-xs bg-white dark:bg-dark-surface px-2 py-1 rounded border border-gray-200 dark:border-dark-border">Team</span>
+                    <div class="flex gap-2 items-center">
+                        {{if $.Team}}{{if eq .ID $.Team.ID}}<span class="text-blue-400 text-xs bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded border border-blue-200 dark:border-blue-700">My Team</span>{{end}}{{end}}
+                        <span class="text-gray-500 dark:text-gray-400 text-xs bg-white dark:bg-dark-surface px-2 py-1 rounded border border-gray-200 dark:border-dark-border">Team</span>
+                    </div>
                 </a>
                 {{end}}
             {{else}}
