@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-03-15
+
+### Added
+- Hints are now unlocked sequentially: hint N can only be unlocked after hint N-1 has been unlocked. Locked-out hints show a disabled "Unlock hint N first" button.
+
 ## [0.8.4] - 2026-03-15
 
 ### Fixed

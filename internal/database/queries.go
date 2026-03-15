@@ -1095,6 +1095,29 @@ func (db *DB) IsHintUnlocked(hintID, userID string) (bool, error) {
 	return count > 0, err
 }
 
+// GetPreviousHint returns the hint with the largest "order" strictly less than the given hint's order
+// for the same question. Returns nil, nil if the hint is already the first one.
+func (db *DB) GetPreviousHint(hintID string) (*models.Hint, error) {
+	query := `
+		SELECT prev.id, prev.question_id, prev.content, prev.cost, prev."order", prev.created_at
+		FROM hints prev
+		JOIN hints target ON prev.question_id = target.question_id AND prev."order" < target."order"
+		WHERE target.id = ?
+		ORDER BY prev."order" DESC
+		LIMIT 1
+	`
+	var h models.Hint
+	var createdAt string
+	err := db.QueryRow(query, hintID).Scan(&h.ID, &h.QuestionID, &h.Content, &h.Cost, &h.Order, &createdAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &h, nil
+}
+
 // GetUserUnlockedHints returns all hint IDs unlocked by a user for a specific question
 func (db *DB) GetUserUnlockedHints(userID, questionID string) ([]string, error) {
 	query := `SELECT hu.hint_id FROM hint_unlocks hu
