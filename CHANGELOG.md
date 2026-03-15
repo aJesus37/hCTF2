@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-03-15
+
+### Fixed
+- Team profile "All Activity" now correctly shows the total number of questions per challenge instead of only counting solved questions
+
 ## [0.8.4] - 2026-03-15
 
 ### Fixed

@@ -1681,12 +1681,12 @@ func (db *DB) GetCustomCode(page string) (*models.CustomCode, error) {
 // GetTeamSolvedChallenges returns challenges that have been solved by team members (all activity)
 func (db *DB) GetTeamSolvedChallenges(teamID string) ([]ChallengeSummary, error) {
 	query := `
-		SELECT 
+		SELECT
 			c.id,
 			c.name,
 			c.category,
 			c.difficulty,
-			COUNT(DISTINCT q.id) as total_questions,
+			(SELECT COUNT(*) FROM questions WHERE challenge_id = c.id) as total_questions,
 			COUNT(DISTINCT s.question_id) as solved_questions
 		FROM challenges c
 		JOIN questions q ON c.id = q.challenge_id
