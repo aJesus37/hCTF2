@@ -2,6 +2,7 @@
 {{$comp := .Competition}}
 <div x-data="{
     showChart: true,
+    chartHasData: true,
     chartInstance: null,
     init() {
         this.$watch('showChart', v => { if (v) this.$nextTick(() => this.renderChart()) })
@@ -17,7 +18,7 @@
         fetch('/api/competitions/{{$comp.ID}}/scoreboard/evolution')
             .then(r => r.json())
             .then(data => {
-                if (!data.series || data.series.length === 0) { this.showChart = false; return }
+                if (!data.series || data.series.length === 0) { this.chartHasData = false; this.showChart = false; return }
                 const isDark = document.documentElement.classList.contains('dark')
                 const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
                 const textColor = isDark ? '#e2e8f0' : '#374151'
@@ -149,7 +150,7 @@
                 {{if $comp.ScoreboardBlackout}}<span class="text-xs ml-2 text-orange-400">(blackout active)</span>{{end}}
             </h2>
             {{if and (not .BlackedOut) .Entries}}
-            <button @click="showChart = !showChart" class="text-sm text-purple-500 hover:underline">
+            <button x-show="chartHasData" @click="showChart = !showChart" class="text-sm text-purple-500 hover:underline">
                 <span x-text="showChart ? 'Hide Chart' : 'Show Chart'"></span>
             </button>
             {{end}}
