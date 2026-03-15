@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin dashboard Questions list now shows Challenge name instead of Challenge ID for each question
 - Admin dashboard Hints list now shows which Challenge → Question each hint belongs to, both in view and edit mode
 
+- Hints are now unlocked sequentially: hint N can only be unlocked after hint N-1 has been unlocked. Locked-out hints show a disabled "Unlock hint N first" button.
+
 
 ## [0.8.4] - 2026-03-15
 

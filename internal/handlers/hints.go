@@ -76,6 +76,27 @@ func (h *HintHandler) UnlockHint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enforce sequential unlock: previous hint must be unlocked first
+	prevHint, err := h.db.GetPreviousHint(hintID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"error":"Failed to check hint order"}`))
+		return
+	}
+	if prevHint != nil {
+		prevUnlocked, err := h.db.IsHintUnlocked(prevHint.ID, claims.UserID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error":"Failed to check previous hint unlock status"}`))
+			return
+		}
+		if !prevUnlocked {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error":"You must unlock the previous hint first"}`))
+			return
+		}
+	}
+
 	// Get user's current team to record it with the hint unlock
 	user, err := h.db.GetUserByID(claims.UserID)
 	if err != nil {
@@ -148,13 +169,27 @@ func (h *HintHandler) GetHints(w http.ResponseWriter, r *http.Request) {
 
 	// Build HTML response
 	w.Header().Set("Content-Type", "text/html")
-	for _, hint := range hints {
+	prevUnlocked := true // first hint has no prerequisite
+	for i, hint := range hints {
+		if i > 0 {
+			prevUnlocked = unlockedMap[hints[i-1].ID]
+		}
 		if unlockedMap[hint.ID] {
 			// Show unlocked hint with content (preserve line breaks)
 			fmt.Fprintf(w, `<div class="p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded text-blue-900 dark:text-blue-100 text-sm">
                 <strong>Hint %d:</strong> <pre class="whitespace-pre-wrap font-sans mt-1">%s</pre>
                 <span class="text-xs text-blue-600 dark:text-blue-300">(Cost: %d points)</span>
             </div>`, hint.Order, hint.Content, hint.Cost)
+		} else if !prevUnlocked {
+			// Previous hint not unlocked — show as sequentially blocked
+			fmt.Fprintf(w, `<div class="p-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 text-sm flex justify-between items-center">
+                <span><strong>Hint %d</strong> (Cost: %d points)</span>
+                <button disabled
+                    class="px-3 py-1 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 text-xs rounded cursor-not-allowed"
+                    title="Unlock hint %d first">
+                    🔒 Unlock hint %d first
+                </button>
+            </div>`, hint.Order, hint.Cost, hint.Order-1, hint.Order-1)
 		} else {
 			// Show locked hint with unlock button
 			if claims != nil {
