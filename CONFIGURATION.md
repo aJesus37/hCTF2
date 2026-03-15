@@ -31,6 +31,8 @@ All server flags live under the `serve` subcommand. Run `./hctf2 serve --help` t
 --base-url URL                 Base URL for links in emails (default: http://localhost:8090)
 --jwt-secret SECRET            JWT signing secret (min 32 chars, required in production)
 --cors-origins ORIGINS         Comma-separated list of allowed CORS origins (empty = same-origin only)
+--umami-script-url URL         Umami analytics script URL (e.g. https://umami.example.com/script.js)
+--umami-website-id ID          Umami analytics website ID (from your Umami dashboard)
 --dev                          Enable development mode (allows default JWT secret)
 ```
 
@@ -58,10 +60,19 @@ Run `./hctf2 --help` to see the full command tree including CLI subcommands.
 All configuration can be set via environment variables:
 
 ```bash
-# Authentication (only JWT_SECRET works via env var)
+# Authentication
 export JWT_SECRET=$(openssl rand -base64 32)
 
-# Other settings must use CLI flags
+# SMTP (email / password reset)
+export SMTP_HOST=smtp.example.com
+export SMTP_FROM=noreply@example.com
+export SMTP_USER=apikey
+export SMTP_PASSWORD=secret
+export BASE_URL=https://ctf.example.com
+
+# Analytics (optional)
+export UMAMI_SCRIPT_URL=https://umami.example.com/script.js
+export UMAMI_WEBSITE_ID=your-website-id
 ```
 
 Then run:
@@ -366,6 +377,33 @@ These flags set up the initial administrator account. Subsequent runs don't requ
 - When **disabled** (default): Admin users and teams are excluded from scoreboard and chart rankings
 
 This allows CTF organizers to participate without affecting competition rankings.
+
+### Analytics (Umami)
+
+hCTF2 has native support for [Umami](https://umami.is/) analytics. When configured, the Umami script is injected into every page and the following CTF-specific events are tracked automatically:
+
+| Event | Trigger |
+|-------|---------|
+| `flag-submit` | Flag submitted (includes `correct: true/false` property) |
+| `hint-unlock` | Hint unlocked |
+| `competition-register` | Team registered for a competition |
+| `sql-playground-run` | SQL Playground query executed |
+
+**Configuration:**
+
+```bash
+# Via CLI flags
+./hctf2 serve \
+  --umami-script-url https://umami.example.com/script.js \
+  --umami-website-id your-website-id
+
+# Via environment variables
+export UMAMI_SCRIPT_URL=https://umami.example.com/script.js
+export UMAMI_WEBSITE_ID=your-website-id
+./hctf2 serve
+```
+
+**Disabled by default** — analytics are only active when both `UMAMI_SCRIPT_URL` and `UMAMI_WEBSITE_ID` are set. Self-hosting Umami is recommended for privacy.
 
 ## Production Settings
 
