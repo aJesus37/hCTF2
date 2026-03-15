@@ -10,7 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.5] - 2026-03-15
 
 ### Added
+- Footer "Heavens CTF 2 (hCTF2)" text is now a clickable link to the GitHub repository
+
+### Changed
+- `docker-compose.yml` now uses the pre-built `ghcr.io/ajesus37/hctf2:latest` image instead of building from source; `docker compose up -d` works out of the box without requiring Go or a local build
+
+### Fixed
+- Team profile "All Activity" now correctly shows the total number of questions per challenge instead of only counting solved questions
+### Fixed
+- Competition scoreboard chart toggle no longer resets to "Show Chart" when no evolution data is available yet; chart button is hidden instead
+- Evolution API now returns empty arrays `[]` instead of `null` for intervals and series when no data exists
+
+### Fixed
+- Solved questions now display the previously submitted correct flag in the (disabled) input field when revisiting a challenge
+
+### Fixed
+- SQL Playground no longer fails with "Table with name hint_unlocks does not exist" when no hints have been unlocked; the table is now always created in DuckDB even when empty
+- Demo seed now unlocks hints for several users, populating the `hint_unlocks` table with realistic data
+
+- Admin dashboard Questions list now shows Challenge name instead of Challenge ID for each question
+- Admin dashboard Hints list now shows which Challenge → Question each hint belongs to, both in view and edit mode
+
 - Hints are now unlocked sequentially: hint N can only be unlocked after hint N-1 has been unlocked. Locked-out hints show a disabled "Unlock hint N first" button.
+
 
 ## [0.8.4] - 2026-03-15
 

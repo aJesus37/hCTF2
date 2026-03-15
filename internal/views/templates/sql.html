@@ -566,13 +566,17 @@ ORDER BY total_points DESC;`,
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'hints' });
                 }
 
-                // Load hint_unlocks table
+                // Load hint_unlocks table (always create it, even if empty)
                 if (snapshot.hint_unlocks && snapshot.hint_unlocks.length > 0) {
                     const records = snapshot.hint_unlocks.map(hu => ({
                         id: hu.id, hint_id: hu.hint_id, user_id: hu.user_id,
                         team_id: hu.team_id || null, created_at: hu.created_at || '',
                     }));
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'hint_unlocks' });
+                } else {
+                    await conn.query(`CREATE TABLE hint_unlocks (
+                        id TEXT, hint_id TEXT, user_id TEXT, team_id TEXT, created_at TEXT
+                    )`);
                 }
 
                 duckdbReady = true;

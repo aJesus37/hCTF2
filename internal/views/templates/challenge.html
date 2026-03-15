@@ -70,13 +70,14 @@
         </div>
 
         {{if $.User}}
-            {{if index $.SolvedQuestions .ID}}
+            {{$submittedFlag := index $.SolvedQuestions .ID}}
+            {{if $submittedFlag}}
             <!-- Solved Question - Grayed Out Form -->
             <div class="opacity-60">
                 <form class="flex gap-2">
                     <input type="text"
                            disabled
-                           value="{{.Flag}}"
+                           value="{{$submittedFlag}}"
                            class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded cursor-not-allowed">
                     <button type="button"
                             disabled
