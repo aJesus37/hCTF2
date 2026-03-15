@@ -366,34 +366,52 @@ submit_flag() {
         "${BASE}/api/questions/${QID}/submit" 2>/dev/null || true
 }
 
-# Alice solves: Q1, Q2, Q3, Q6, Q7, Q9 (1350 pts)
+# ── Submit flags with hint unlocks interleaved for realistic penalties ────
+log "Submitting flags and unlocking hints..."
+
+# Alice solves: Q1, Q2, Q3, Q6, Q7, Q9 (with hint penalties on Q7 and Q9)
 submit_flag "${ALICE_TOKEN}" "${Q1}" "hctf2{c00ki3_m0nst3r_w4s_here}"
 submit_flag "${ALICE_TOKEN}" "${Q2}" "hctf2{julius_w0uld_be_pr0ud}"
 submit_flag "${ALICE_TOKEN}" "${Q3}" "hctf2{n0t_just_b4s3_64}"
 submit_flag "${ALICE_TOKEN}" "${Q6}" "hctf2{sql_1nj3ct10n_m4st3r}"
+# Alice unlocks hint 1 for Q7 (XOR Master) before solving it — costs 25 pts
+[ -n "${H7_1}" ] && unlock_hint "${H7_1}" "${ALICE_TOKEN}"
 submit_flag "${ALICE_TOKEN}" "${Q7}" "hctf2{xor_1s_not_s3cur3}"
+# Alice also peeks at hint 1 for Q9 (Titanic) before submitting — costs 15 pts
+[ -n "${H9_1}" ] && unlock_hint "${H9_1}" "${ALICE_TOKEN}"
 submit_flag "${ALICE_TOKEN}" "${Q9}" "hctf2{342}"
 
-# Bob solves: Q1, Q4, Q5, Q8, Q10 (1400 pts)
+# Bob solves: Q1, Q4, Q5, Q8, Q10 (with hint penalties on Q4 and Q8)
 submit_flag "${BOB_TOKEN}" "${Q1}" "hctf2{c00ki3_m0nst3r_w4s_here}"
+# Bob unlocks both hints for Q4 (Steganography) before solving it — costs 50+75 pts
+[ -n "${H4_1}" ] && unlock_hint "${H4_1}" "${BOB_TOKEN}"
+[ -n "${H4_1}" ] && [ -n "${H4_2}" ] && unlock_hint "${H4_2}" "${BOB_TOKEN}"
 submit_flag "${BOB_TOKEN}" "${Q4}" "hctf2{st3g4n0gr4phy_1s_fun}"
 submit_flag "${BOB_TOKEN}" "${Q5}" "hctf2{r3v3rs3_3ng1n33r1ng}"
+# Bob unlocks hint 1 for Q8 (Memory Forensics) before solving it — costs 40 pts
+[ -n "${H8_1}" ] && unlock_hint "${H8_1}" "${BOB_TOKEN}"
 submit_flag "${BOB_TOKEN}" "${Q8}" "hctf2{m3m0ry_t3lls_4ll}"
 submit_flag "${BOB_TOKEN}" "${Q10}" "hctf2{233}"
 
-# Carol solves: Q1, Q2, Q4 (450 pts)
+# Carol solves: Q1, Q2, Q4 (with hint penalty on Q2)
 submit_flag "${CAROL_TOKEN}" "${Q1}" "hctf2{c00ki3_m0nst3r_w4s_here}"
+# Carol unlocks hint 1 for Q2 (Caesar's Secret) before solving it — costs 20 pts
+[ -n "${H2_1}" ] && unlock_hint "${H2_1}" "${CAROL_TOKEN}"
 submit_flag "${CAROL_TOKEN}" "${Q2}" "hctf2{julius_w0uld_be_pr0ud}"
 submit_flag "${CAROL_TOKEN}" "${Q4}" "hctf2{st3g4n0gr4phy_1s_fun}"
 
-# Dave solves: Q2, Q3, Q7, Q9 (1000 pts)
+# Dave solves: Q2, Q3, Q7, Q9 (with hint penalty on Q3)
 submit_flag "${DAVE_TOKEN}" "${Q2}" "hctf2{julius_w0uld_be_pr0ud}"
+# Dave unlocks hint 1 for Q3 (Base64? No.) before solving it — costs 30 pts
+[ -n "${H3_1}" ] && unlock_hint "${H3_1}" "${DAVE_TOKEN}"
 submit_flag "${DAVE_TOKEN}" "${Q3}" "hctf2{n0t_just_b4s3_64}"
 submit_flag "${DAVE_TOKEN}" "${Q7}" "hctf2{xor_1s_not_s3cur3}"
 submit_flag "${DAVE_TOKEN}" "${Q9}" "hctf2{342}"
 
-# Eve solves: Q1, Q6 (350 pts)
+# Eve solves: Q1, Q6 (with hint penalty on Q6)
 submit_flag "${EVE_TOKEN}" "${Q1}" "hctf2{c00ki3_m0nst3r_w4s_here}"
+# Eve unlocks hint 1 for Q6 (SQL Injection 101) before solving it — costs 25 pts
+[ -n "${H6_1}" ] && unlock_hint "${H6_1}" "${EVE_TOKEN}"
 submit_flag "${EVE_TOKEN}" "${Q6}" "hctf2{sql_1nj3ct10n_m4st3r}"
 
 # Extra questions
@@ -419,29 +437,6 @@ submit_flag "${DAVE_TOKEN}" "${Q10B}" "hctf2{109}"
 
 # Eve: Q6B (web focused)
 submit_flag "${EVE_TOKEN}" "${Q6B}" "hctf2{p4ssw0rd_h4sh_3xp0s3d}"
-
-# ── Unlock hints for various users ───────────────────────────────
-log "Unlocking hints for demo users..."
-
-# Alice unlocked hint 1 for Q7 (XOR Master) before solving it
-[ -n "${H7_1}" ] && unlock_hint "${H7_1}" "${ALICE_TOKEN}"
-
-# Bob unlocked hint 1 for Q4 (Hidden in Plain Sight)
-[ -n "${H4_1}" ] && unlock_hint "${H4_1}" "${BOB_TOKEN}"
-# Bob also unlocked hint 2 (the detailed one)
-[ -n "${H4_1}" ] && [ -n "${H4_2}" ] && unlock_hint "${H4_2}" "${BOB_TOKEN}"
-
-# Carol unlocked hint 1 for Q2 (Caesar's Secret)
-[ -n "${H2_1}" ] && unlock_hint "${H2_1}" "${CAROL_TOKEN}"
-
-# Dave unlocked hint 1 for Q3 (Base64? No.)
-[ -n "${H3_1}" ] && unlock_hint "${H3_1}" "${DAVE_TOKEN}"
-
-# Eve unlocked hint 1 for Q6 (SQL Injection 101) before solving it
-[ -n "${H6_1}" ] && unlock_hint "${H6_1}" "${EVE_TOKEN}"
-
-# Alice also used hint 1 for Q9 (Titanic — SQL easy)
-[ -n "${H9_1}" ] && unlock_hint "${H9_1}" "${ALICE_TOKEN}"
 
 # Wrong attempts for realism
 submit_flag "${CAROL_TOKEN}" "${Q7}"  "hctf2{wrong_flag_lol}"
