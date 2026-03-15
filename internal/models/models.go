@@ -141,6 +141,18 @@ type QuestionWithChallenge struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+// HintWithContext is used in the admin dashboard to display question and challenge names with hints
+type HintWithContext struct {
+	ID            string    `json:"id"`
+	QuestionID    string    `json:"question_id"`
+	QuestionName  string    `json:"question_name"`
+	ChallengeName string    `json:"challenge_name"`
+	Content       string    `json:"content"`
+	Cost          int       `json:"cost"`
+	Order         int       `json:"order"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
 // SiteSetting represents a key-value configuration setting
 type SiteSetting struct {
 	Key       string    `json:"key"`

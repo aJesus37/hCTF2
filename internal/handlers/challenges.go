@@ -1159,21 +1159,28 @@ func (h *ChallengeHandler) UpdateHint(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Return updated hint card for HTMX
 		w.Header().Set("Content-Type", "text/html")
-		hint, _ := h.db.GetHintByID(id)
-		html := fmt.Sprintf(`<div id="hint-%s" class="bg-dark-surface border border-dark-border rounded-lg p-4 mb-2">
-                <p class="text-gray-300 mb-2">%s</p>
-                <div class="flex justify-between items-center text-xs text-gray-400 mb-2">
-                    <span>Order: %d | Cost: %d points</span>
-                </div>
-                <div class="flex gap-2">
-                    <button class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">Edit</button>
-                    <button hx-delete="/api/admin/hints/%s" hx-target="#hint-%s" hx-swap="outerHTML swap:1s" hx-confirm="Delete this hint? This action cannot be undone." class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
+		hint, _ := h.db.GetHintWithContext(id)
+		if hint == nil {
+			w.Write([]byte(`<div class="text-red-400">Hint not found</div>`))
+			return
+		}
+		html := fmt.Sprintf(`<div id="hint-%s" x-data="{ editing: false }" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-6 hover:border-purple-500 transition">
+                <div x-show="!editing" class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <p class="text-xs text-blue-400 mb-1">%s &rarr; %s</p>
+                        <p class="text-gray-700 dark:text-gray-300 mb-2">%s</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Order: %d &bull; Cost: %d points</p>
+                    </div>
+                    <div class="flex gap-2 ml-4">
+                        <button @click="editing = true" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition">Edit</button>
+                        <button hx-delete="/api/admin/hints/%s" hx-target="#hint-%s" hx-swap="outerHTML swap:1s" hx-confirm="Delete this hint? This action cannot be undone." class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition">Delete</button>
+                    </div>
                 </div>
             </div>`,
 			hint.ID,
+			hint.ChallengeName, hint.QuestionName,
 			hint.Content,
-			hint.Order,
-			hint.Cost,
+			hint.Order, hint.Cost,
 			hint.ID, hint.ID,
 		)
 		w.Write([]byte(html))
