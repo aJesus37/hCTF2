@@ -460,6 +460,8 @@ ORDER BY comp.name, total_points DESC;`,
             return;
         }
 
+        document.dispatchEvent(new CustomEvent('sql-playground-run'));
+
         resultsDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400">Executing query...</p>';
 
         try {
