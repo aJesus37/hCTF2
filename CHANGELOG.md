@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Footer "Heavens CTF 2 (hCTF2)" text is now a clickable link to the GitHub repository
 
+### Changed
+- `docker-compose.yml` now uses the pre-built `ghcr.io/ajesus37/hctf2:latest` image instead of building from source; `docker compose up -d` works out of the box without requiring Go or a local build
+
 ## [0.8.4] - 2026-03-15
 
 ### Fixed
