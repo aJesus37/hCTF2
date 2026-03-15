@@ -976,12 +976,10 @@ func (s *Server) HandleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var hints []models.Hint
-	for _, q := range questionsWithChallenge {
-		qHints, err := s.DB.GetHintsByQuestionID(q.ID)
-		if err == nil {
-			hints = append(hints, qHints...)
-		}
+	hintsWithContext, err := s.DB.GetAllHintsWithContext()
+	if err != nil {
+		http.Error(w, "Failed to fetch hints", http.StatusInternalServerError)
+		return
 	}
 
 	categories, _ := s.DB.GetAllCategories()
@@ -1004,7 +1002,7 @@ func (s *Server) HandleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		"User":                     claims,
 		"Challenges":               challenges,
 		"Questions":                questionsWithChallenge,
-		"Hints":                    hints,
+		"Hints":                    hintsWithContext,
 		"Categories":               categories,
 		"Difficulties":             difficulties,
 		"Users":                    users,

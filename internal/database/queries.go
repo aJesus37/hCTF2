@@ -1221,6 +1221,61 @@ func (db *DB) GetAllQuestionsWithChallenge() ([]models.QuestionWithChallenge, er
 	return questions, nil
 }
 
+// GetHintWithContext returns a single hint with its question and challenge names.
+func (db *DB) GetHintWithContext(hintID string) (*models.HintWithContext, error) {
+	query := `
+		SELECT h.id, h.question_id, q.name, c.name, h.content, h.cost, h."order", h.created_at
+		FROM hints h
+		JOIN questions q ON h.question_id = q.id
+		JOIN challenges c ON q.challenge_id = c.id
+		WHERE h.id = ?
+	`
+	var h models.HintWithContext
+	var createdAt string
+	err := db.QueryRow(query, hintID).Scan(&h.ID, &h.QuestionID, &h.QuestionName, &h.ChallengeName, &h.Content, &h.Cost, &h.Order, &createdAt)
+	if err != nil {
+		return nil, err
+	}
+	h.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	return &h, nil
+}
+
+// GetAllHintsWithContext returns all hints joined with their question and challenge names for admin display
+func (db *DB) GetAllHintsWithContext() ([]models.HintWithContext, error) {
+	query := `
+		SELECT
+			h.id,
+			h.question_id,
+			q.name as question_name,
+			c.name as challenge_name,
+			h.content,
+			h.cost,
+			h."order",
+			h.created_at
+		FROM hints h
+		JOIN questions q ON h.question_id = q.id
+		JOIN challenges c ON q.challenge_id = c.id
+		ORDER BY c.name, q.name, h."order"
+	`
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var hints []models.HintWithContext
+	for rows.Next() {
+		var h models.HintWithContext
+		var createdAt string
+		if err := rows.Scan(&h.ID, &h.QuestionID, &h.QuestionName, &h.ChallengeName, &h.Content, &h.Cost, &h.Order, &createdAt); err != nil {
+			return nil, err
+		}
+		h.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		hints = append(hints, h)
+	}
+	return hints, rows.Err()
+}
+
 // GetNextHintOrder returns the next order number for a question's hints
 func (db *DB) GetNextHintOrder(questionID string) (int, error) {
 	var maxOrder int

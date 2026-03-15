@@ -475,7 +475,7 @@
                 <div class="mb-3">
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{.Name}}</h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                        Challenge ID: <span class="text-blue-400">{{.ChallengeID}}</span> •
+                        Challenge: <span class="text-blue-400">{{.ChallengeName}}</span> •
                         Points: <span class="text-green-600 dark:text-green-400 font-medium">{{.Points}}</span>
                     </p>
                 </div>
@@ -644,6 +644,7 @@
                 <!-- View Mode -->
                 <div x-show="!editing" class="flex justify-between items-start mb-3">
                     <div class="flex-1">
+                        <p class="text-xs text-blue-400 mb-1">{{.ChallengeName}} → {{.QuestionName}}</p>
                         <p class="text-gray-700 dark:text-gray-300 mb-2">{{.Content}}</p>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             Order: {{.Order}} • Cost: {{.Cost}} points
@@ -658,6 +659,7 @@
                       hx-swap="outerHTML"
                       @htmx:after-request="editing = false"
                       class="space-y-3 mb-3">
+                    <p class="text-xs text-blue-400 mb-2">{{.ChallengeName}} → {{.QuestionName}}</p>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Content</label>
                         <textarea
