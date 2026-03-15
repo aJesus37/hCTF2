@@ -324,7 +324,7 @@ Follow Semantic Versioning: `MAJOR.MINOR.PATCH`
 - **MINOR**: New features (backwards compatible)
 - **PATCH**: Bug fixes (backwards compatible)
 
-Current version: **v0.8.5** (9 bug fixes and features from GitHub issues)
+Current version: **v0.8.6** (CI test fix)
 
 ### When to Bump
 

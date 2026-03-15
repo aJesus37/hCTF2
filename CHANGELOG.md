@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.6] - 2026-03-15
+
+### Fixed
+- CI test suite no longer panics with "function sub not defined" — added missing `sub` template function to the test server FuncMap
+
 ## [0.8.5] - 2026-03-15
 
 ### Added
@@ -202,7 +207,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker deployment support
 - Task-based build system (Taskfile.yml)
 
-[Unreleased]: https://github.com/ajesus37/hCTF2/compare/v0.8.5...HEAD
+[Unreleased]: https://github.com/ajesus37/hCTF2/compare/v0.8.6...HEAD
+[0.8.6]: https://github.com/ajesus37/hCTF2/compare/v0.8.5...v0.8.6
 [0.8.5]: https://github.com/ajesus37/hCTF2/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/ajesus37/hCTF2/compare/v0.8.2...v0.8.4
 [0.8.2]: https://github.com/ajesus37/hCTF2/compare/v0.8.1...v0.8.2
