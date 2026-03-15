@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-03-15
+
+### Fixed
+- Demo seed was missing Titanic SQL challenges, hints, competition, and multiple questions — the enriched `seed.sh` was committed to an orphaned branch that never made it into the v0.8.0 release PR
+
 ## [0.8.0] - 2026-03-15
 
 ### Added
