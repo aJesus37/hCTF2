@@ -311,7 +311,7 @@ Follow Semantic Versioning: `MAJOR.MINOR.PATCH`
 - **MINOR**: New features (backwards compatible)
 - **PATCH**: Bug fixes (backwards compatible)
 
-Current version: **v0.8.1** (Demo seed fix: Titanic SQL challenges, hints, competition, multi-question seed)
+Current version: **v0.8.2** (UI dark-mode fixes, demo JWT reset fix)
 
 ### When to Bump
 
