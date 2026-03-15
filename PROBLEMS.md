@@ -1,7 +1,0 @@
-- Taskfile seems to not be update with the current CLI overhaul
-- {{BIN}} challenge list/browse show title in blank
-- Challenge list/browse as logged-in wont correctly show solves and points
-- Team list table size doesnt seem to automatically update with the terminal size (ID is being collapsed)
-- Competition list gives json error
-- I think you didnt test anything. Use the superpowers to validate everything properly works.
-- What is the point of the completions command? Is it really useful?
