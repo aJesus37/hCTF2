@@ -8,19 +8,26 @@ services:
       - "8090:8090"
     volumes:
       # Persist database
-      - ./data:/app/data
-      # Mount source for development (optional - requires rebuild)
-      # - .:/app
+      - ./data:/data
     command:
+      - serve
       - --port
       - "8090"
       - --db
-      - /app/data/hctf2.db
+      - /data/hctf2.db
       - --dev
       - --admin-email
       - admin@hctf.local
       - --admin-password
       - changeme
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-me}
+      - BASE_URL=${BASE_URL:-http://localhost:8090}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
     restart: on-failure
     networks:
       - hctf2-network

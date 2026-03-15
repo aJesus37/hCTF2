@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/ajesus37/hCTF2/internal/auth"
 	"github.com/ajesus37/hCTF2/internal/database"
+	"github.com/ajesus37/hCTF2/internal/models"
 )
 
 type TeamHandler struct {
@@ -17,6 +18,40 @@ type TeamHandler struct {
 
 func NewTeamHandler(db *database.DB) *TeamHandler {
 	return &TeamHandler{db: db}
+}
+
+// requireTeamOwner returns the user and their team if the authenticated user is the team owner.
+// If any check fails it writes an appropriate HTTP error response and returns nil, nil.
+func (h *TeamHandler) requireTeamOwner(w http.ResponseWriter, r *http.Request) (*models.User, *models.Team) {
+	claims := auth.GetUserFromContext(r.Context())
+	if claims == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return nil, nil
+	}
+
+	user, err := h.db.GetUserByID(claims.UserID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return nil, nil
+	}
+
+	if user.TeamID == nil {
+		http.Error(w, "Not in a team", http.StatusBadRequest)
+		return nil, nil
+	}
+
+	team, err := h.db.GetTeamByID(*user.TeamID)
+	if err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return nil, nil
+	}
+
+	if team.OwnerID != claims.UserID {
+		http.Error(w, "Only team owner can perform this action", http.StatusForbidden)
+		return nil, nil
+	}
+
+	return user, team
 }
 
 type CreateTeamRequest struct {
@@ -208,32 +243,8 @@ func (h *TeamHandler) LeaveTeam(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} object{error=string}
 // @Router /teams/transfer-ownership [post]
 func (h *TeamHandler) TransferOwnership(w http.ResponseWriter, r *http.Request) {
-	claims := auth.GetUserFromContext(r.Context())
-	if claims == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	user, err := h.db.GetUserByID(claims.UserID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	if user.TeamID == nil {
-		http.Error(w, "Not in a team", http.StatusBadRequest)
-		return
-	}
-
-	// Check if user is team owner
-	team, err := h.db.GetTeamByID(*user.TeamID)
-	if err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
-	}
-
-	if team.OwnerID != claims.UserID {
-		http.Error(w, "Only team owner can transfer ownership", http.StatusForbidden)
+	_, team := h.requireTeamOwner(w, r)
+	if team == nil {
 		return
 	}
 
@@ -285,32 +296,8 @@ func (h *TeamHandler) TransferOwnership(w http.ResponseWriter, r *http.Request) 
 // @Failure 500 {object} object{error=string}
 // @Router /teams/disband [post]
 func (h *TeamHandler) DisbandTeam(w http.ResponseWriter, r *http.Request) {
-	claims := auth.GetUserFromContext(r.Context())
-	if claims == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	user, err := h.db.GetUserByID(claims.UserID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	if user.TeamID == nil {
-		http.Error(w, "Not in a team", http.StatusBadRequest)
-		return
-	}
-
-	// Check if user is team owner
-	team, err := h.db.GetTeamByID(*user.TeamID)
-	if err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
-	}
-
-	if team.OwnerID != claims.UserID {
-		http.Error(w, "Only team owner can disband the team", http.StatusForbidden)
+	user, team := h.requireTeamOwner(w, r)
+	if team == nil {
 		return
 	}
 
@@ -340,28 +327,33 @@ func (h *TeamHandler) ListTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get current user (optional)
+	// Get current user (optional) — fetch once before the loop to avoid N+1
 	claims := auth.GetUserFromContext(r.Context())
+	var currentUserTeamID *string
+	if claims != nil && claims.UserID != "" {
+		u, err := h.db.GetUserByID(claims.UserID)
+		if err == nil && u.TeamID != nil {
+			currentUserTeamID = u.TeamID
+		}
+	}
 
 	// Filter invite codes from response for non-members
 	var response []interface{}
 	for _, team := range teams {
 		teamData := map[string]interface{}{
-			"id":           team.ID,
-			"name":         team.Name,
-			"description":  team.Description,
-			"owner_id":     team.OwnerID,
-			"created_at":   team.CreatedAt,
-			"updated_at":   team.UpdatedAt,
+			"id":          team.ID,
+			"name":        team.Name,
+			"description": team.Description,
+			"owner_id":    team.OwnerID,
+			"created_at":  team.CreatedAt,
+			"updated_at":  team.UpdatedAt,
 		}
 
 		// Only include invite_id and invite_permission if user is a team member
-		if claims != nil && claims.UserID != "" {
-			user, err := h.db.GetUserByID(claims.UserID)
-			if err == nil && user.TeamID != nil && *user.TeamID == team.ID {
-				teamData["invite_id"] = team.InviteID
-				teamData["invite_permission"] = team.InvitePermission
-			}
+		isMember := currentUserTeamID != nil && *currentUserTeamID == team.ID
+		if isMember {
+			teamData["invite_id"] = team.InviteID
+			teamData["invite_permission"] = team.InvitePermission
 		}
 
 		response = append(response, teamData)
@@ -490,32 +482,8 @@ func (h *TeamHandler) GetTeamScoreboard(w http.ResponseWriter, r *http.Request) 
 // @Failure 500 {object} object{error=string}
 // @Router /teams/regenerate-invite [post]
 func (h *TeamHandler) RegenerateInviteCode(w http.ResponseWriter, r *http.Request) {
-	claims := auth.GetUserFromContext(r.Context())
-	if claims == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	user, err := h.db.GetUserByID(claims.UserID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	if user.TeamID == nil {
-		http.Error(w, "Not in a team", http.StatusBadRequest)
-		return
-	}
-
-	// Verify user is team owner
-	team, err := h.db.GetTeamByID(*user.TeamID)
-	if err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
-	}
-
-	if team.OwnerID != claims.UserID {
-		http.Error(w, "Only team owner can regenerate invite code", http.StatusForbidden)
+	_, team := h.requireTeamOwner(w, r)
+	if team == nil {
 		return
 	}
 
@@ -544,32 +512,8 @@ func (h *TeamHandler) RegenerateInviteCode(w http.ResponseWriter, r *http.Reques
 // @Failure 500 {object} object{error=string}
 // @Router /teams/invite-permission [post]
 func (h *TeamHandler) UpdateInvitePermission(w http.ResponseWriter, r *http.Request) {
-	claims := auth.GetUserFromContext(r.Context())
-	if claims == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	user, err := h.db.GetUserByID(claims.UserID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	if user.TeamID == nil {
-		http.Error(w, "Not in a team", http.StatusBadRequest)
-		return
-	}
-
-	// Verify user is team owner
-	team, err := h.db.GetTeamByID(*user.TeamID)
-	if err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
-	}
-
-	if team.OwnerID != claims.UserID {
-		http.Error(w, "Only team owner can change invite permission", http.StatusForbidden)
+	_, team := h.requireTeamOwner(w, r)
+	if team == nil {
 		return
 	}
 

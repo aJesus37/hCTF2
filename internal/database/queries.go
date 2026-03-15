@@ -107,16 +107,11 @@ func (db *DB) CreateChallenge(name, description, category, difficulty string, ta
 	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	          RETURNING id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, dynamic_scoring, initial_points, minimum_points, decay_threshold, file_url, created_at, updated_at`
 
-	var c models.Challenge
-	err := db.QueryRow(query, id, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint, dynamicScoring, initialPoints, minimumPoints, decayThreshold, fileURL).Scan(
-		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.FileURL, &c.CreatedAt, &c.UpdatedAt,
-	)
-	return &c, err
+	return scanChallenge(db.QueryRow(query, id, name, description, category, difficulty, tags, visible, sqlEnabled, sqlDatasetURL, sqlSchemaHint, dynamicScoring, initialPoints, minimumPoints, decayThreshold, fileURL))
 }
 
 func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
-	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), file_url, created_at, updated_at
-	          FROM challenges`
+	query := `SELECT ` + challengeSelectCols + ` FROM challenges`
 	if visibleOnly {
 		query += " WHERE visible = 1"
 	}
@@ -130,27 +125,22 @@ func (db *DB) GetChallenges(visibleOnly bool) ([]models.Challenge, error) {
 
 	var challenges []models.Challenge
 	for rows.Next() {
-		var c models.Challenge
-		if err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.FileURL, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		c, err := scanChallenge(rows)
+		if err != nil {
 			return nil, err
 		}
-		challenges = append(challenges, c)
+		challenges = append(challenges, *c)
 	}
 	return challenges, nil
 }
 
 func (db *DB) GetChallengeByID(id string) (*models.Challenge, error) {
-	query := `SELECT id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), file_url, created_at, updated_at
-	          FROM challenges WHERE id = ?`
-
-	var c models.Challenge
-	err := db.QueryRow(query, id).Scan(
-		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty, &c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint, &c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold, &c.FileURL, &c.CreatedAt, &c.UpdatedAt,
-	)
+	query := `SELECT ` + challengeSelectCols + ` FROM challenges WHERE id = ?`
+	c, err := scanChallenge(db.QueryRow(query, id))
 	if err != nil {
 		return nil, err
 	}
-	return &c, nil
+	return c, nil
 }
 
 func (db *DB) UpdateChallenge(id, name, description, category, difficulty string, tags *string, visible bool, sqlEnabled bool, sqlDatasetURL, sqlSchemaHint *string, dynamicScoring bool, initialPoints, minimumPoints, decayThreshold int) error {
@@ -261,8 +251,15 @@ func (db *DB) UpdateQuestion(id, name, description, flag string, flagMask *strin
 	query := `UPDATE questions
 	          SET name = ?, description = ?, flag = ?, flag_mask = ?, case_sensitive = ?, points = ?, file_url = ?, updated_at = CURRENT_TIMESTAMP
 	          WHERE id = ?`
-	_, err := db.Exec(query, name, description, flag, flagMask, caseSensitive, points, fileURL, id)
-	return err
+	res, err := db.Exec(query, name, description, flag, flagMask, caseSensitive, points, fileURL, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (db *DB) DeleteQuestion(id string) error {
@@ -558,8 +555,8 @@ func (db *DB) GetTeamScoreEvolution(limit int, since time.Time) ([]ScoreEvolutio
 
 // CleanupScoreHistory removes old records beyond retention period
 func (db *DB) CleanupScoreHistory(retentionDays int) error {
-	query := `DELETE FROM score_history WHERE recorded_at < datetime('now', '-? days')`
-	_, err := db.Exec(query, retentionDays)
+	_, err := db.Exec(`DELETE FROM score_history WHERE recorded_at < datetime('now', ?)`,
+		fmt.Sprintf("-%d days", retentionDays))
 	return err
 }
 
@@ -584,6 +581,55 @@ func (db *DB) SetAdminVisibleInScoreboard(visible bool) error {
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
 	_, err := db.Exec(query, value)
 	return err
+}
+
+// queryToMaps executes a query and returns results as a slice of column→value maps.
+// Useful for building generic JSON snapshots without typed structs.
+func queryToMaps(db *sql.DB, query string, args ...interface{}) ([]map[string]interface{}, error) {
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	var result []map[string]interface{}
+	for rows.Next() {
+		vals := make([]interface{}, len(cols))
+		ptrs := make([]interface{}, len(cols))
+		for i := range vals {
+			ptrs[i] = &vals[i]
+		}
+		if err := rows.Scan(ptrs...); err != nil {
+			return nil, err
+		}
+		row := make(map[string]interface{}, len(cols))
+		for i, col := range cols {
+			row[col] = vals[i]
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+// challengeScanner abstracts *sql.Row and *sql.Rows for scanChallenge.
+type challengeScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+const challengeSelectCols = `id, name, description, category, difficulty, tags, visible, sql_enabled, sql_dataset_url, sql_schema_hint, COALESCE(dynamic_scoring, 0), COALESCE(initial_points, 500), COALESCE(minimum_points, 100), COALESCE(decay_threshold, 50), file_url, created_at, updated_at`
+
+func scanChallenge(row challengeScanner) (*models.Challenge, error) {
+	var c models.Challenge
+	err := row.Scan(
+		&c.ID, &c.Name, &c.Description, &c.Category, &c.Difficulty,
+		&c.Tags, &c.Visible, &c.SQLEnabled, &c.SQLDatasetURL, &c.SQLSchemaHint,
+		&c.DynamicScoring, &c.InitialPoints, &c.MinimumPoints, &c.DecayThreshold,
+		&c.FileURL, &c.CreatedAt, &c.UpdatedAt,
+	)
+	return &c, err
 }
 
 // Helper function to generate flag mask
@@ -613,43 +659,17 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 	snapshot["challenges"] = challenges
 
 	// Public questions (without flags)
-	var questions []map[string]interface{}
-	rows, err := db.Query(`
+	questions, err := queryToMaps(db.DB, `
 		SELECT id, challenge_id, name, description, flag_mask, case_sensitive, points, created_at
 		FROM questions WHERE challenge_id IN (SELECT id FROM challenges WHERE visible = 1)
 	`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id, challengeID, name, desc string
-		var flagMask sql.NullString
-		var caseSensitive bool
-		var points int
-		var createdAt string
-
-		if err := rows.Scan(&id, &challengeID, &name, &desc, &flagMask, &caseSensitive, &points, &createdAt); err != nil {
-			return nil, err
-		}
-
-		questions = append(questions, map[string]interface{}{
-			"id":             id,
-			"challenge_id":   challengeID,
-			"name":           name,
-			"description":    desc,
-			"flag_mask":      flagMask.String,
-			"case_sensitive": caseSensitive,
-			"points":         points,
-			"created_at":     createdAt,
-		})
-	}
 	snapshot["questions"] = questions
 
 	// Public submissions (correct only, no flags)
-	var submissions []map[string]interface{}
-	rows2, err := db.Query(`
+	submissions, err := queryToMaps(db.DB, `
 		SELECT s.id, s.question_id, s.user_id, s.team_id, s.is_correct, s.created_at, u.name as user_name
 		FROM submissions s
 		JOIN users u ON s.user_id = u.id
@@ -658,82 +678,24 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows2.Close()
-
-	for rows2.Next() {
-		var id, questionID, userID string
-		var teamID sql.NullString
-		var isCorrect bool
-		var createdAt, userName string
-
-		if err := rows2.Scan(&id, &questionID, &userID, &teamID, &isCorrect, &createdAt, &userName); err != nil {
-			return nil, err
-		}
-
-		submissions = append(submissions, map[string]interface{}{
-			"id":          id,
-			"question_id": questionID,
-			"user_id":     userID,
-			"team_id":     teamID.String,
-			"user_name":   userName,
-			"is_correct":  isCorrect,
-			"created_at":  createdAt,
-		})
-	}
 	snapshot["submissions"] = submissions
 
 	// Public users (name only)
-	var users []map[string]interface{}
-	rows3, err := db.Query(`SELECT id, name, team_id, created_at FROM users`)
+	users, err := queryToMaps(db.DB, `SELECT id, name, team_id, created_at FROM users`)
 	if err != nil {
 		return nil, err
-	}
-	defer rows3.Close()
-
-	for rows3.Next() {
-		var id, name string
-		var teamID sql.NullString
-		var createdAt string
-
-		if err := rows3.Scan(&id, &name, &teamID, &createdAt); err != nil {
-			return nil, err
-		}
-
-		users = append(users, map[string]interface{}{
-			"id":         id,
-			"name":       name,
-			"team_id":    teamID.String,
-			"created_at": createdAt,
-		})
 	}
 	snapshot["users"] = users
 
 	// Public teams (no invite info)
-	var teams []map[string]interface{}
-	rows4, err := db.Query(`SELECT id, name, COALESCE(description, '') as description, owner_id, created_at FROM teams`)
+	teams, err := queryToMaps(db.DB, `SELECT id, name, COALESCE(description, '') as description, owner_id, created_at FROM teams`)
 	if err != nil {
 		return nil, err
-	}
-	defer rows4.Close()
-
-	for rows4.Next() {
-		var id, name, description, ownerID, createdAt string
-		if err := rows4.Scan(&id, &name, &description, &ownerID, &createdAt); err != nil {
-			return nil, err
-		}
-		teams = append(teams, map[string]interface{}{
-			"id":          id,
-			"name":        name,
-			"description": description,
-			"owner_id":    ownerID,
-			"created_at":  createdAt,
-		})
 	}
 	snapshot["teams"] = teams
 
 	// Hints (schema only - content is sensitive and requires unlock)
-	var hints []map[string]interface{}
-	rows5, err := db.Query(`
+	hints, err := queryToMaps(db.DB, `
 		SELECT h.id, h.question_id, h.cost, h.created_at
 		FROM hints h
 		JOIN questions q ON h.question_id = q.id
@@ -742,27 +704,10 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows5.Close()
-
-	for rows5.Next() {
-		var id, questionID string
-		var cost int
-		var createdAt string
-		if err := rows5.Scan(&id, &questionID, &cost, &createdAt); err != nil {
-			return nil, err
-		}
-		hints = append(hints, map[string]interface{}{
-			"id":          id,
-			"question_id": questionID,
-			"cost":        cost,
-			"created_at":  createdAt,
-		})
-	}
 	snapshot["hints"] = hints
 
 	// Hint unlocks (for SQL playground analysis of penalties)
-	var hintUnlocks []map[string]interface{}
-	rows6, err := db.Query(`
+	hintUnlocks, err := queryToMaps(db.DB, `
 		SELECT hu.id, hu.hint_id, hu.user_id, hu.team_id, hu.created_at
 		FROM hint_unlocks hu
 		JOIN hints h ON hu.hint_id = h.id
@@ -771,23 +716,6 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 	`)
 	if err != nil {
 		return nil, err
-	}
-	defer rows6.Close()
-
-	for rows6.Next() {
-		var id, hintID, userID string
-		var teamID sql.NullString
-		var createdAt string
-		if err := rows6.Scan(&id, &hintID, &userID, &teamID, &createdAt); err != nil {
-			return nil, err
-		}
-		hintUnlocks = append(hintUnlocks, map[string]interface{}{
-			"id":         id,
-			"hint_id":    hintID,
-			"user_id":    userID,
-			"team_id":    teamID.String,
-			"created_at": createdAt,
-		})
 	}
 	snapshot["hint_unlocks"] = hintUnlocks
 
@@ -1215,8 +1143,15 @@ func (db *DB) GetUserHintCostForQuestion(userID, questionID string) (int, error)
 // UpdateHint updates hint content, cost, and order
 func (db *DB) UpdateHint(id, content string, cost, order int) error {
 	query := `UPDATE hints SET content = ?, cost = ?, "order" = ? WHERE id = ?`
-	_, err := db.Exec(query, content, cost, order, id)
-	return err
+	res, err := db.Exec(query, content, cost, order, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // DeleteHint deletes a hint
@@ -1289,18 +1224,19 @@ func (db *DB) GetNextHintOrder(questionID string) (int, error) {
 
 // Profile queries
 type UserStats struct {
-	UserID          string
-	Name            string
-	Email           string
-	AvatarURL       *string
-	TeamID          *string
-	TeamName        *string
-	CreatedAt       time.Time
-	TotalPoints     int
-	SolvedCount     int
-	TotalSubmissions int
-	HintsCost       int
-	HintsUnlocked   int
+	UserID           string    `json:"user_id"`
+	Name             string    `json:"name"`
+	Email            string    `json:"email,omitempty"`
+	AvatarURL        *string   `json:"avatar_url,omitempty"`
+	TeamID           *string   `json:"team_id,omitempty"`
+	TeamName         *string   `json:"team_name,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	Rank             int       `json:"rank"`
+	TotalPoints      int       `json:"total_points"`
+	SolvedCount      int       `json:"solved_count"`
+	TotalSubmissions int       `json:"total_submissions"`
+	HintsCost        int       `json:"hints_cost"`
+	HintsUnlocked    int       `json:"hints_unlocked"`
 }
 
 func (db *DB) GetUserStats(userID string) (*UserStats, error) {
@@ -1355,6 +1291,29 @@ func (db *DB) GetUserStats(userID string) (*UserStats, error) {
 	if teamName.Valid {
 		stats.TeamName = &teamName.String
 	}
+
+	// Compute rank: number of users with strictly more points, plus 1.
+	// Uses the same points formula (correct submissions minus hint costs) as GetScoreboard.
+	rankQuery := `
+		SELECT COUNT(*) + 1
+		FROM (
+			SELECT
+				u2.id,
+				COALESCE(SUM(q2.points), 0) - COALESCE(hc2.total_cost, 0) as pts
+			FROM users u2
+			LEFT JOIN submissions s2 ON u2.id = s2.user_id AND s2.is_correct = 1
+			LEFT JOIN questions q2 ON s2.question_id = q2.id
+			LEFT JOIN (
+				SELECT hu2.user_id, SUM(h2.cost) as total_cost
+				FROM hint_unlocks hu2
+				JOIN hints h2 ON hu2.hint_id = h2.id
+				GROUP BY hu2.user_id
+			) hc2 ON u2.id = hc2.user_id
+			GROUP BY u2.id
+		) scores
+		WHERE scores.pts > ?
+	`
+	_ = db.QueryRow(rankQuery, stats.TotalPoints).Scan(&stats.Rank)
 
 	return &stats, nil
 }
@@ -2349,8 +2308,15 @@ func (db *DB) SetCompetitionBlackout(id int64, blackout bool) error {
 	if blackout {
 		v = 1
 	}
-	_, err := db.Exec(`UPDATE competitions SET scoreboard_blackout=?, updated_at=datetime('now') WHERE id=?`, v, id)
-	return err
+	res, err := db.Exec(`UPDATE competitions SET scoreboard_blackout=?, updated_at=datetime('now') WHERE id=?`, v, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // AddChallengeToCompetition links a challenge to a competition.
@@ -2368,11 +2334,7 @@ func (db *DB) RemoveChallengeFromCompetition(compID int64, challengeID string) e
 
 // GetCompetitionChallenges returns all challenges linked to a competition.
 func (db *DB) GetCompetitionChallenges(compID int64) ([]models.Challenge, error) {
-	rows, err := db.Query(`
-		SELECT c.id, c.name, c.description, c.category, c.difficulty,
-		       c.tags, c.visible, c.sql_enabled, c.sql_dataset_url, c.sql_schema_hint,
-		       c.dynamic_scoring, c.initial_points, c.minimum_points, c.decay_threshold,
-		       c.file_url, c.created_at, c.updated_at
+	rows, err := db.Query(`SELECT `+challengeSelectCols+`
 		FROM challenges c
 		JOIN competition_challenges cc ON cc.challenge_id = c.id
 		WHERE cc.competition_id = ?
@@ -2383,17 +2345,11 @@ func (db *DB) GetCompetitionChallenges(compID int64) ([]models.Challenge, error)
 	defer rows.Close()
 	var challenges []models.Challenge
 	for rows.Next() {
-		var ch models.Challenge
-		err := rows.Scan(
-			&ch.ID, &ch.Name, &ch.Description, &ch.Category, &ch.Difficulty,
-			&ch.Tags, &ch.Visible, &ch.SQLEnabled, &ch.SQLDatasetURL, &ch.SQLSchemaHint,
-			&ch.DynamicScoring, &ch.InitialPoints, &ch.MinimumPoints, &ch.DecayThreshold,
-			&ch.FileURL, &ch.CreatedAt, &ch.UpdatedAt,
-		)
+		ch, err := scanChallenge(rows)
 		if err != nil {
 			return nil, err
 		}
-		challenges = append(challenges, ch)
+		challenges = append(challenges, *ch)
 	}
 	return challenges, nil
 }
@@ -2657,15 +2613,15 @@ func (db *DB) GetCompetitionScoreEvolution(compID int64) ([]ScoreEvolutionSeries
 
 // CompetitionSubmission represents a single submission event for the live feed.
 type CompetitionSubmission struct {
-	ChallengeID   string
-	QuestionID    string
-	TeamName      string
-	UserName      string
-	ChallengeName string
-	QuestionName  string
-	IsCorrect     bool
-	SubmittedFlag string // only populated for admin view
-	SubmittedAt   time.Time
+	ChallengeID   string    `json:"challenge_id"`
+	QuestionID    string    `json:"question_id"`
+	TeamName      string    `json:"team_name"`
+	UserName      string    `json:"user_name"`
+	ChallengeName string    `json:"challenge_name"`
+	QuestionName  string    `json:"question_name"`
+	IsCorrect     bool      `json:"is_correct"`
+	SubmittedFlag string    `json:"submitted_flag,omitempty"` // only populated for admin view
+	SubmittedAt   time.Time `json:"submitted_at"`
 }
 
 // GetCompetitionRecentSubmissions returns the latest submissions for a competition.
@@ -2800,4 +2756,184 @@ func (db *DB) TickCompetitionLifecycle() {
 
 	// running → ended when end_at arrives; auto-freeze
 	db.Exec(`UPDATE competitions SET status='ended', scoreboard_frozen=1, updated_at=datetime('now') WHERE status='running' AND end_at IS NOT NULL AND end_at <= ?`, now) //nolint:errcheck
+}
+
+// configSettingsKeys are the site_settings keys included in a config backup.
+// Operational keys (freeze_enabled, freeze_at, admin_visible_in_scoreboard) are excluded.
+var configSettingsKeys = []string{
+	"custom_head_html",
+	"custom_body_end_html",
+	"custom_code_pages",
+	"motd",
+}
+
+// ExportConfig builds a full platform configuration backup.
+func (db *DB) ExportConfig() (*models.ConfigBundle, error) {
+	bundle := &models.ConfigBundle{
+		Version:      2,
+		ExportedAt:   time.Now(),
+		SiteSettings: make(map[string]string),
+	}
+
+	// Categories with sort order
+	cats, err := db.GetAllCategories()
+	if err != nil {
+		return nil, fmt.Errorf("export categories: %w", err)
+	}
+	for _, c := range cats {
+		bundle.Categories = append(bundle.Categories, models.ExportCategory{
+			Name:      c.Name,
+			SortOrder: c.SortOrder,
+		})
+	}
+
+	// Difficulties with sort order
+	diffs, err := db.GetAllDifficulties()
+	if err != nil {
+		return nil, fmt.Errorf("export difficulties: %w", err)
+	}
+	for _, d := range diffs {
+		bundle.Difficulties = append(bundle.Difficulties, models.ExportDifficulty{
+			Name:      d.Name,
+			SortOrder: d.SortOrder,
+		})
+	}
+
+	// Challenges (reuse existing export logic)
+	base, err := db.ExportBundle()
+	if err != nil {
+		return nil, err
+	}
+	bundle.Challenges = base.Challenges
+
+	// Competitions (structure only)
+	comps, err := db.ListCompetitions()
+	if err != nil {
+		return nil, err
+	}
+	for _, comp := range comps {
+		ec := models.ExportCompetition{
+			Name:              comp.Name,
+			Description:       comp.Description,
+			RulesHTML:         comp.RulesHTML,
+			StartAt:           comp.StartAt,
+			EndAt:             comp.EndAt,
+			RegistrationStart: comp.RegistrationStart,
+			RegistrationEnd:   comp.RegistrationEnd,
+			FreezeAt:          comp.FreezeAt,
+		}
+		// Linked challenge names
+		rows, err := db.Query(`
+			SELECT c.name FROM challenges c
+			JOIN competition_challenges cc ON cc.challenge_id = c.id
+			WHERE cc.competition_id = ?`, comp.ID)
+		if err == nil {
+			for rows.Next() {
+				var name string
+				if rows.Scan(&name) == nil {
+					ec.ChallengeNames = append(ec.ChallengeNames, name)
+				}
+			}
+			rows.Close()
+		}
+		bundle.Competitions = append(bundle.Competitions, ec)
+	}
+
+	// Site settings (customization keys only)
+	for _, key := range configSettingsKeys {
+		val, _ := db.GetSetting(key)
+		bundle.SiteSettings[key] = val
+	}
+
+	return bundle, nil
+}
+
+// ImportConfig restores a platform configuration from a ConfigBundle.
+// Challenges are upserted (renamed on conflict). Competitions are created if
+// they don't exist by name. Site settings are applied directly.
+func (db *DB) ImportConfig(bundle *models.ConfigBundle) (*models.ConfigImportResult, error) {
+	result := &models.ConfigImportResult{}
+
+	// Create categories with correct sort order (INSERT OR IGNORE preserves existing).
+	catNames := make([]string, len(bundle.Categories))
+	for i, c := range bundle.Categories {
+		catNames[i] = c.Name
+		if _, err := db.Exec(`INSERT OR IGNORE INTO categories (id, name, sort_order, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`, GenerateID(), c.Name, c.SortOrder); err != nil {
+			log.Printf("warning: failed to insert category %q: %v", c.Name, err)
+		}
+	}
+	// Create difficulties with correct sort order (INSERT OR IGNORE preserves existing).
+	diffNames := make([]string, len(bundle.Difficulties))
+	for i, d := range bundle.Difficulties {
+		diffNames[i] = d.Name
+		if _, err := db.Exec(`INSERT OR IGNORE INTO difficulties (id, name, color, text_color, sort_order, created_at) VALUES (?, ?, 'bg-gray-600', 'text-white', ?, CURRENT_TIMESTAMP)`, GenerateID(), d.Name, d.SortOrder); err != nil {
+			log.Printf("warning: failed to insert difficulty %q: %v", d.Name, err)
+		}
+	}
+
+	// Import challenges (reuse existing logic; categories/difficulties already created above).
+	ir, err := db.ImportBundle(catNames, diffNames, bundle.Challenges)
+	if err != nil {
+		return nil, err
+	}
+	result.ChallengesImported = ir.Imported
+	result.Renamed = ir.Renamed
+	result.Errors = ir.Errors
+
+	// Import competitions.
+	for _, ec := range bundle.Competitions {
+		// Skip if competition with same name already exists.
+		var existingID int64
+		err := db.QueryRow(`SELECT id FROM competitions WHERE name = ?`, ec.Name).Scan(&existingID)
+		if err == nil {
+			continue // already exists
+		}
+		_, err = db.Exec(`
+			INSERT INTO competitions (name, description, rules_html, start_at, end_at,
+			  registration_start, registration_end, freeze_at, status)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
+			ec.Name, ec.Description, ec.RulesHTML,
+			ec.StartAt, ec.EndAt, ec.RegistrationStart, ec.RegistrationEnd, ec.FreezeAt,
+		)
+		if err != nil {
+			result.Errors = append(result.Errors, "competition "+ec.Name+": "+err.Error())
+			continue
+		}
+		var compID int64
+		if err := db.QueryRow(`SELECT id FROM competitions WHERE name = ?`, ec.Name).Scan(&compID); err != nil {
+			result.Errors = append(result.Errors, "failed to retrieve competition '"+ec.Name+"' after creation: "+err.Error())
+			continue
+		}
+		result.CompetitionsCreated++
+
+		// Link challenges by name.
+		for _, chName := range ec.ChallengeNames {
+			var chID string
+			if err := db.QueryRow(`SELECT id FROM challenges WHERE name = ?`, chName).Scan(&chID); err != nil {
+				continue // challenge not found — skip silently
+			}
+			if _, err := db.Exec(`INSERT OR IGNORE INTO competition_challenges (competition_id, challenge_id) VALUES (?, ?)`, compID, chID); err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to link '%s' to competition '%s': %v", chName, ec.Name, err))
+			}
+		}
+	}
+
+	// Apply site settings.
+	for key, val := range bundle.SiteSettings {
+		// Only apply known customization keys (safety guard).
+		allowed := false
+		for _, k := range configSettingsKeys {
+			if k == key {
+				allowed = true
+				break
+			}
+		}
+		if allowed {
+			if err := db.SetSetting(key, val); err != nil {
+				result.Errors = append(result.Errors, "failed to apply setting "+key+": "+err.Error())
+			}
+		}
+	}
+
+	return result, nil
 }

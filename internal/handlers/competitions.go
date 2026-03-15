@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"html"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -428,6 +430,10 @@ func (h *CompetitionHandler) SetBlackout(w http.ResponseWriter, r *http.Request)
 	}
 	blackout := r.FormValue("blackout") == "1"
 	if err := h.db.SetCompetitionBlackout(id, blackout); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Competition not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Failed", http.StatusInternalServerError)
 		return
 	}
@@ -477,7 +483,7 @@ func formatCompetitionEvolutionForChart(series []database.ScoreEvolutionSeries) 
 		intervals = append(intervals, t)
 	}
 	// Sort chronologically (format MM/DD HH:MM sorts lexicographically)
-	sortStrings(intervals)
+	sort.Strings(intervals)
 
 	var chartSeries []map[string]interface{}
 	for i, s := range series {
@@ -513,14 +519,6 @@ func formatCompetitionEvolutionForChart(series []database.ScoreEvolutionSeries) 
 	}
 }
 
-func sortStrings(ss []string) {
-	for i := 1; i < len(ss); i++ {
-		for j := i; j > 0 && ss[j] < ss[j-1]; j-- {
-			ss[j], ss[j-1] = ss[j-1], ss[j]
-		}
-	}
-}
-
 // parseOptionalTime parses datetime-local input format or RFC3339.
 // GetSubmissionFeed godoc
 // @Summary Live submission feed for a competition (HTMX fragment)
@@ -535,11 +533,27 @@ func (h *CompetitionHandler) GetSubmissionFeed(w http.ResponseWriter, r *http.Re
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
+	if _, err := h.db.GetCompetitionByID(id); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Competition not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed", http.StatusInternalServerError)
+		return
+	}
 	claims := auth.GetUserFromContext(r.Context())
 	isAdmin := claims != nil && claims.IsAdmin
 	subs, err := h.db.GetCompetitionRecentSubmissions(id, 50, isAdmin)
 	if err != nil {
 		http.Error(w, "Failed to fetch submissions", http.StatusInternalServerError)
+		return
+	}
+	if r.Header.Get("Accept") == "application/json" {
+		w.Header().Set("Content-Type", "application/json")
+		if subs == nil {
+			subs = []database.CompetitionSubmission{}
+		}
+		json.NewEncoder(w).Encode(subs)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -558,6 +572,14 @@ func (h *CompetitionHandler) GetGlobalSubmissionFeed(w http.ResponseWriter, r *h
 	subs, err := h.db.GetGlobalRecentSubmissions(100, isAdmin)
 	if err != nil {
 		http.Error(w, "Failed to fetch submissions", http.StatusInternalServerError)
+		return
+	}
+	if r.Header.Get("Accept") == "application/json" {
+		w.Header().Set("Content-Type", "application/json")
+		if subs == nil {
+			subs = []database.CompetitionSubmission{}
+		}
+		json.NewEncoder(w).Encode(subs)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")

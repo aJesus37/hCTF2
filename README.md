@@ -14,6 +14,7 @@ A self-hosted CTF (Capture The Flag) platform. Single binary, no dependencies, r
 ## Features
 
 - **Single binary** — embeds all assets, templates, and migrations; copy one file and run
+- **Full CLI** — cobra subcommands for admins and participants; charmbracelet TUI with tables, markdown, interactive browser
 - **Auto-migrations** — schema upgrades apply automatically on startup, no data loss
 - **Challenge management** — categories, difficulties, flag masking, point hints, file attachments
 - **Team play** — create teams, invite-link based joining, team scoreboard
@@ -71,7 +72,7 @@ Download the latest binary from [Releases](https://github.com/ajesus37/hCTF2/rel
 ```bash
 curl -L https://github.com/ajesus37/hCTF2/releases/latest/download/hctf2-linux-amd64 -o hctf2
 chmod +x hctf2
-./hctf2 --admin-email admin@example.com --admin-password yourpassword
+./hctf2 serve --admin-email admin@example.com --admin-password yourpassword
 ```
 
 ### Option 2: Build from source
@@ -83,14 +84,14 @@ git clone https://github.com/ajesus37/hCTF2.git
 cd hctf2
 ./setup.sh   # checks requirements and downloads dependencies
 task build
-./hctf2 --admin-email admin@example.com --admin-password yourpassword
+./hctf2 serve --admin-email admin@example.com --admin-password yourpassword
 ```
 
 ---
 
 ## Configuration
 
-All options are set via CLI flags. See [CONFIGURATION.md](CONFIGURATION.md) for a fully annotated reference.
+All server options are set via flags on `hctf2 serve`. See [CONFIGURATION.md](CONFIGURATION.md) for a fully annotated reference.
 
 | Option | Flag | Default |
 |--------|------|---------|
@@ -100,16 +101,71 @@ All options are set via CLI flags. See [CONFIGURATION.md](CONFIGURATION.md) for 
 | Admin password | `--admin-password` | — |
 | Message of the Day | `--motd` | — |
 
+### CLI
+
+The binary doubles as a full-featured CLI client for a running server:
+
+```bash
+# Authenticate
+hctf2 login --server http://localhost:8090 --email admin@example.com --password yourpassword
+
+# Browse challenges interactively (TTY)
+hctf2 challenge browse
+
+# Submit a flag
+hctf2 flag submit <question-id> FLAG{...}
+
+# Live submission feed (auto-refreshes every 5s)
+hctf2 submissions --watch
+
+# View your profile
+hctf2 user profile
+
+# Admin: create a challenge (interactive on TTY, or via flags)
+hctf2 challenge create --title "My Challenge" --category Web --difficulty Easy --points 200
+hctf2 challenge export --output backup.json
+hctf2 challenge import backup.json
+
+# Admin: manage competitions
+hctf2 competition create "CTF 2026"
+hctf2 competition start <id>
+hctf2 competition scoreboard <id>
+
+# Admin: manage users
+hctf2 user list
+hctf2 user promote <user-id>
+
+# Admin: export/import full platform config (challenges, competitions, settings)
+hctf2 config export -o backup.yaml
+hctf2 config import backup.yaml
+
+# JSON output for scripting
+hctf2 --json challenge list | jq '.[] | .title'
+```
+
+All create/update commands prompt interactively on TTY. Pass `--quiet` to suppress output (returns ID only), `--json` for machine-readable output.
+
+Run `hctf2 --help` for the full command tree.
+
 ---
 
 ## Self-Hosting
 
-### Volumes
-
-The only persistent data is the SQLite database file:
+### Docker (recommended)
 
 ```bash
-docker run -v ./data:/data -e DATABASE_PATH=/data/hctf2.db ghcr.io/ajesus37/hCTF2
+docker run -d \
+  -p 8090:8090 \
+  -v hctf2-data:/data \
+  -e JWT_SECRET="$(openssl rand -base64 32)" \
+  ghcr.io/ajesus37/hCTF2 \
+  serve --db /data/hctf2.db --admin-email admin@hctf.local --admin-password changeme
+```
+
+Or use Docker Compose (see `docker-compose.yml` in the repo):
+
+```bash
+docker compose up -d
 ```
 
 ### Reverse Proxy (Caddy)
@@ -138,20 +194,36 @@ server {
 ### Backup
 
 ```bash
-cp hctf2.db hctf2.db.backup-$(date +%Y%m%d)
+# Docker volume
+docker compose exec hctf2 cat /data/hctf2.db > hctf2.db.backup-$(date +%Y%m%d)
+
+# Or if using a bind mount
+cp ./data/hctf2.db ./data/hctf2.db.backup-$(date +%Y%m%d)
 ```
 
 ### Upgrading
 
-Replace the binary and restart — migrations run automatically:
+Pull the latest image and restart — migrations run automatically:
 
 ```bash
-systemctl stop hctf2
-cp hctf2-new hctf2
-systemctl start hctf2
+docker compose pull
+docker compose up -d
 ```
 
 No manual migration steps needed.
+
+### Advanced: bare-metal binary
+
+If you prefer running the binary directly without Docker:
+
+```bash
+./hctf2 serve --db /var/lib/hctf2/hctf2.db \
+  --admin-email admin@example.com \
+  --admin-password yourpassword \
+  --jwt-secret "$(openssl rand -base64 32)"
+```
+
+Use your preferred process manager (e.g. supervisord, runit) to keep it running.
 
 ---
 
@@ -167,18 +239,18 @@ No manual migration steps needed.
 
 **Production (required):**
 ```bash
-./hctf2 --jwt-secret "$(openssl rand -base64 32)"
+./hctf2 serve --jwt-secret "$(openssl rand -base64 32)"
 ```
 
 Or via environment variable:
 ```bash
 export JWT_SECRET="$(openssl rand -base64 32)"
-./hctf2
+./hctf2 serve
 ```
 
 **Development (insecure):**
 ```bash
-./hctf2 --dev  # Allows default JWT secret with warning
+./hctf2 serve --dev  # Allows default JWT secret with warning
 ```
 
 The server will refuse to start in production mode without a proper JWT secret (minimum 32 characters). See [CONFIGURATION.md](CONFIGURATION.md) for details.

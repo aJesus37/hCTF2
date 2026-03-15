@@ -42,4 +42,4 @@ EXPOSE 8090
 USER 1000
 
 ENTRYPOINT ["/hctf2"]
-CMD ["--port", "8090", "--db", "/data/hctf2.db"]
+CMD ["serve", "--port", "8090", "--db", "/data/hctf2.db"]

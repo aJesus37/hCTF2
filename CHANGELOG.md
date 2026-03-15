@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-15
+
+### Added
+- `config export` / `config import` CLI commands — full platform config backup and restore (challenges, competitions, settings) with JSON and YAML support
+- YAML auto-detection for config import/export (by file extension or `--format yaml` flag)
+- Docker as the primary and recommended deployment method
+
+### Changed
+- Documentation overhaul: Docker is now the primary deployment method across README, OPERATIONS, and ARCHITECTURE
+- Removed all systemd/systemctl references from documentation — use Docker Compose instead
+- Fixed broken `docker run` commands in README (missing `serve` subcommand, nonexistent `DATABASE_PATH` env var)
+- Fixed `--jwt-secret` and bare `./hctf2` commands missing `serve` subcommand
+- Dockerfile uses scratch base image with non-root user (UID 1000)
+
+### Fixed
+- README `docker run` example used nonexistent `DATABASE_PATH` environment variable (now uses `--db` flag)
+- Multiple documentation commands missing required `serve` subcommand
+
+## [0.7.0] - 2026-03-14
+
+### Added
+- Full CLI parity with web UI — all CRUD operations available from the command line
+- `question update` — update name, flag, points, and case-sensitivity via CLI
+- `hint update` — update content, cost, and order via CLI
+- `competition update` — update name and description via CLI
+- `competition teams` — list teams registered for a competition
+- `competition blackout` / `unblackout` — scoreboard blackout toggle via CLI
+- `competition scoreboard` — per-competition scoreboard from CLI
+- `scoreboard freeze` / `unfreeze` — global scoreboard freeze toggle
+- `submissions` command — live submission feed with `--competition` filter and `--watch` auto-refresh mode
+- `user profile` — view own or another user's profile (name, rank, points, solves)
+- `challenge export` / `import` — JSON bundle for backup and sharing
+- `challenge update` — `--visible`, `--min-points`, `--decay` flags for dynamic scoring
+- `competition create` — now interactive on TTY (prompts for name and description)
+- `team create` — now interactive on TTY (prompts for name when not given as arg)
+- `challenge delete` — confirmation prompt on TTY (consistent with competition/team delete)
+- CLI integration tests (`cli_integration_test.go`) — 137 tests covering all commands, JSON output, error cases; TestMain pattern builds real binary and starts server subprocess
+- `cmd/helpers.go` — shared CLI helpers: `confirmIfTTY`, `boolToYesNo`, `abortedMsg`
+
+### Changed
+- `hint create` — one field per huh form page (matches challenge/question UX, enables back navigation)
+- All huh forms use one `huh.NewGroup` per field so back navigation works between pages
+- `tui.Truncate()` standardized across all table ID columns (removed manual `[:8] + "..."` patterns)
+- `parseCompetitionID()` helper extracted; `confirmIfTTY()` replaces inline confirmation blocks in 4 commands
+- CI test command uses `-count=1 -timeout 120s` to prevent caching
+
+### Fixed
+- Category/difficulty list showed truncated IDs (widened column to 34 for 32-char hex IDs)
+- Smoke test CI used stale `./hctf2 --port` invocation (fixed to `./hctf2 serve --port`)
+- `UpdateQuestion`/`UpdateHint`/`SetCompetitionBlackout` now return 404 on nonexistent IDs
+- `GetSubmissionFeed` validates competition exists before querying (returns 404 for unknown IDs)
+- `ImportChallenges` client now uses correct `multipart/form-data` with `file` field
+- vet warning in `cmd/submissions.go` — non-constant format string in `fmt.Fprintf`
+- errcheck lint warnings in integration tests
+
 ## [0.6.0] - 2026-03-08
 
 ### Added
@@ -100,7 +155,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker deployment support
 - Task-based build system (Taskfile.yml)
 
-[Unreleased]: https://github.com/ajesus37/hCTF2/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ajesus37/hCTF2/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/ajesus37/hCTF2/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/ajesus37/hCTF2/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/ajesus37/hCTF2/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ajesus37/hCTF2/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ajesus37/hCTF2/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ajesus37/hCTF2/compare/v0.2.0...v0.3.0

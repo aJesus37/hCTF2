@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/ajesus37/hCTF2/internal/auth"
 	"github.com/ajesus37/hCTF2/internal/database"
+	"github.com/ajesus37/hCTF2/internal/models"
 	"github.com/ajesus37/hCTF2/internal/ratelimit"
 	"github.com/ajesus37/hCTF2/internal/storage"
 )
@@ -73,18 +75,33 @@ func (h *ChallengeHandler) GetChallenge(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Remove flag from questions for non-admin users
+	// Remove flag from questions for non-admin users; annotate solved status.
 	claims := auth.GetUserFromContext(r.Context())
-	if claims == nil || !claims.IsAdmin {
-		for i := range questions {
+	type questionWithSolved struct {
+		*models.Question
+		Solved    bool `json:"solved"`
+		HintCount int  `json:"hint_count"`
+	}
+	questionsOut := make([]questionWithSolved, len(questions))
+	for i := range questions {
+		if claims == nil || !claims.IsAdmin {
 			questions[i].Flag = ""
 		}
+		solved := false
+		if claims != nil {
+			solved, _ = h.db.HasUserSolved(questions[i].ID, claims.UserID)
+		}
+		hints, hErr := h.db.GetHintsByQuestionID(questions[i].ID)
+		if hErr != nil {
+			log.Printf("GetHintsByQuestionID(%s): %v", questions[i].ID, hErr)
+		}
+		questionsOut[i] = questionWithSolved{Question: &questions[i], Solved: solved, HintCount: len(hints)}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"challenge": challenge,
-		"questions": questions,
+		"questions": questionsOut,
 	})
 }
 
@@ -183,10 +200,10 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return HTMX-friendly HTML response
+	// Calculate points earned (needed for both JSON and HTML responses)
+	pointsEarned := 0
+	hintCost := 0
 	if isCorrect {
-		// Calculate actual points earned after hint deductions and dynamic scoring
-		hintCost := 0
 		if h.db != nil {
 			cost, err := h.db.GetUserHintCostForQuestion(claims.UserID, questionID)
 			if err == nil {
@@ -215,7 +232,7 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		pointsEarned := basePoints - hintCost
+		pointsEarned = basePoints - hintCost
 		if pointsEarned < 0 {
 			pointsEarned = 0
 		}
@@ -224,7 +241,29 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 		if h.recorder != nil {
 			go h.recorder.RecordUser(claims.UserID)
 		}
+	}
 
+	// Return JSON if client requests it (CLI), otherwise HTMX-friendly HTML
+	if r.Header.Get("Accept") == "application/json" {
+		message := "Incorrect, try again"
+		if isCorrect {
+			if hintCost > 0 {
+				message = fmt.Sprintf("Correct! You earned %d points (-%d hint cost)", pointsEarned, hintCost)
+			} else {
+				message = fmt.Sprintf("Correct! You earned %d points", pointsEarned)
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"correct": isCorrect,
+			"points":  pointsEarned,
+			"message": message,
+		})
+		return
+	}
+
+	// Return HTMX-friendly HTML response
+	if isCorrect {
 		// Show hint cost info if hints were used
 		if hintCost > 0 {
 			w.Write([]byte(fmt.Sprintf(`<div class="text-green-400">✅ Correct! You earned %d points <span class="text-yellow-300 text-sm">(-%d hint cost)</span></div>`, pointsEarned, hintCost)))
@@ -234,6 +273,45 @@ func (h *ChallengeHandler) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Write([]byte(`<div class="text-red-400">❌ Incorrect, try again</div>`))
 	}
+}
+
+// GetQuestionSolution godoc
+// @Summary Get the flag for a question the user has already solved
+// @Tags Challenges
+// @Produce json
+// @Security CookieAuth
+// @Param id path string true "Question ID"
+// @Success 200 {object} object{flag=string}
+// @Failure 401 {object} object{error=string}
+// @Failure 403 {object} object{error=string}
+// @Failure 404 {object} object{error=string}
+// @Router /questions/{id}/solution [get]
+func (h *ChallengeHandler) GetQuestionSolution(w http.ResponseWriter, r *http.Request) {
+	questionID := chi.URLParam(r, "id")
+	claims := auth.GetUserFromContext(r.Context())
+	if claims == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	solved, err := h.db.HasUserSolved(questionID, claims.UserID)
+	if err != nil {
+		http.Error(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	if !solved {
+		http.Error(w, "not solved", http.StatusForbidden)
+		return
+	}
+
+	q, err := h.db.GetQuestionByID(questionID)
+	if err != nil {
+		http.Error(w, "question not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"flag": q.Flag})
 }
 
 type CreateChallengeRequest struct {
@@ -796,6 +874,10 @@ func (h *ChallengeHandler) UpdateQuestion(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := h.db.UpdateQuestion(id, req.Name, req.Description, req.Flag, req.FlagMask, req.CaseSensitive, req.Points, req.FileURL); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Question not found", http.StatusNotFound)
+			return
+		}
 		if strings.Contains(contentType, "application/json") {
 			http.Error(w, "Failed to update question", http.StatusInternalServerError)
 		} else {
@@ -878,6 +960,26 @@ func (h *ChallengeHandler) DeleteQuestion(w http.ResponseWriter, r *http.Request
 	w.Write([]byte(""))
 }
 
+// GetQuestion godoc
+// @Summary Get a question by ID (admin only)
+// @Tags Admin
+// @Produce json
+// @Security CookieAuth
+// @Param id path string true "Question ID"
+// @Success 200 {object} models.Question
+// @Failure 404 {object} object{error=string}
+// @Router /admin/questions/{id} [get]
+func (h *ChallengeHandler) GetQuestion(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	q, err := h.db.GetQuestionByID(id)
+	if err != nil {
+		http.Error(w, "Question not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(q)
+}
+
 // Hint handlers
 
 type CreateHintRequest struct {
@@ -937,6 +1039,13 @@ func (h *ChallengeHandler) CreateHint(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(`<div class="text-red-400">Missing required fields</div>`))
 		}
 		return
+	}
+
+	// Auto-assign order when not specified (order == 0 means "next available").
+	if req.Order == 0 {
+		if next, err := h.db.GetNextHintOrder(req.QuestionID); err == nil {
+			req.Order = next
+		}
 	}
 
 	// Check if hint with this order already exists for this question
@@ -1030,6 +1139,10 @@ func (h *ChallengeHandler) UpdateHint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.db.UpdateHint(id, req.Content, req.Cost, req.Order); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Hint not found", http.StatusNotFound)
+			return
+		}
 		if strings.Contains(contentType, "application/json") {
 			http.Error(w, "Failed to update hint", http.StatusInternalServerError)
 		} else {
@@ -1094,6 +1207,26 @@ func (h *ChallengeHandler) DeleteHint(w http.ResponseWriter, r *http.Request) {
 	// For HTMX, return empty response (element will be removed by hx-swap)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(""))
+}
+
+// GetHint godoc
+// @Summary Get a hint by ID (admin only)
+// @Tags Admin
+// @Produce json
+// @Security CookieAuth
+// @Param id path string true "Hint ID"
+// @Success 200 {object} models.Hint
+// @Failure 404 {object} object{error=string}
+// @Router /admin/hints/{id} [get]
+func (h *ChallengeHandler) GetHint(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	hint, err := h.db.GetHintByID(id)
+	if err != nil {
+		http.Error(w, "Hint not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(hint)
 }
 
 // GetChallengesDropdown godoc

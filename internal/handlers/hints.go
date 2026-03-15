@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/ajesus37/hCTF2/internal/auth"
@@ -98,15 +99,19 @@ func (h *HintHandler) UnlockHint(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetHints godoc
-// @Summary Get hints for a question as HTML fragments (for HTMX)
-// @Description Returns hints with unlock status. Unlocked hint content is visible. Locked hints show cost and unlock button.
+// @Summary Get hints for a question as HTML fragments (for HTMX) or JSON (for API clients)
+// @Description Returns hints with unlock status. Send Accept: application/json for JSON response.
 // @Tags Hints
-// @Produce html
+// @Produce html,json
 // @Param questionId path string true "Question ID"
-// @Success 200 {string} string "HTML fragments with hint cards"
+// @Success 200 {string} string "HTML fragments with hint cards, or JSON array"
 // @Failure 500 {object} object{error=string}
 // @Router /questions/{questionId}/hints [get]
 func (h *HintHandler) GetHints(w http.ResponseWriter, r *http.Request) {
+	if strings.Contains(r.Header.Get("Accept"), "application/json") {
+		h.GetHintsJSON(w, r)
+		return
+	}
 	questionID := chi.URLParam(r, "questionId")
 	claims := auth.GetUserFromContext(r.Context())
 

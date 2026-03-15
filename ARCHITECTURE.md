@@ -57,6 +57,50 @@ Example:
 </form>
 ```
 
+## CLI Architecture
+
+The binary serves a dual role: HTTP server and CLI client.
+
+### Entry Point
+
+`main.go` calls `cmd.Execute(version)`. Cobra dispatches to either `serve` (server) or a CLI subcommand.
+
+### Server (`cmd/serve.go`)
+
+All existing server logic lives here. Flags registered with `serveCmd.Flags()` mirror the old flat flags exactly — the only user-visible change is `hctf2 serve --port 8090` instead of `hctf2 --port 8090`.
+
+### CLI Client
+
+CLI subcommands in `cmd/` use `internal/client/` to communicate with a running server via its REST API. No direct database access from the CLI.
+
+```
+cmd/challenge.go → internal/client/challenges.go → GET /api/challenges
+cmd/user.go      → internal/client/users.go      → GET /api/admin/users
+```
+
+### Auth Flow (CLI)
+
+```
+hctf2 login --email ... --password ...
+      ↓
+POST /api/auth/login (form-encoded)
+      ↓
+JWT extracted from Set-Cookie response header
+      ↓
+Stored in ~/.config/hctf2/config.yaml
+      ↓
+Subsequent commands: Cookie: auth_token=<jwt> on every request
+```
+
+### Output Strategy
+
+TTY detection at startup determines output mode:
+- **TTY**: lipgloss tables, glamour markdown, huh forms, bubbletea browser
+- **Pipe / `--json`**: raw JSON to stdout
+- **`--quiet`**: minimal (IDs only on create, "ok" on success)
+
+Errors always go to stderr. Exit code 1 on any error.
+
 ## Database Schema
 
 ### Design Principles
@@ -248,31 +292,51 @@ Future: Prometheus metrics endpoint
 
 ## Deployment Strategies
 
-### Single Server
-- Systemd service
-- Nginx reverse proxy
-- Let's Encrypt SSL
-
-### Container
-- Docker image
-- Volume mount for database
-- Environment variables for config
+### Docker Compose (recommended)
+- Docker image from `ghcr.io/ajesus37/hCTF2`
+- Named volume for database persistence
+- Environment variables for secrets (JWT_SECRET, SMTP)
+- Reverse proxy (Caddy/Nginx) for TLS
 
 ### Cloud
-- AWS EC2/Lightsail
-- Google Cloud Run
-- DigitalOcean App Platform
+- Any Docker-capable platform (AWS ECS, Google Cloud Run, Fly.io, etc.)
+- Single container, single volume — no complex orchestration needed
 
 ## Code Organization
 
 ```
-main.go              # Application entry point (router, middleware, server setup)
+main.go              # Entry point — calls cmd.Execute(version)
+cmd/                 # Cobra command tree
+  root.go            # Root command, global flags (--server, --json, --quiet)
+  serve.go           # Server subcommand — all server startup logic and routes
+  auth.go            # login / logout / status
+  challenge.go       # challenge list/get/create/delete/browse
+  flag.go            # flag submit
+  team.go            # team list/get/create/join
+  competition.go     # competition list/create/start/end
+  user.go            # user list/promote/demote/delete (admin)
+  config.go          # config export/import (admin)
+  client.go          # shared newClient() helper
+  helpers.go         # shared CLI helpers (confirmIfTTY, boolToYesNo, abortedMsg)
 internal/
-  auth/              # Authentication & middleware
+  auth/              # JWT middleware and helpers
+  client/            # HTTP client wrapping the REST API (CLI use)
+    client.go        # base Client struct, Do(), decodeJSON()
+    auth.go          # Login()
+    challenges.go    # ListChallenges, GetChallenge, SubmitFlag, CreateChallenge, DeleteChallenge
+    teams.go         # ListTeams, GetTeam, CreateTeam, JoinTeam
+    competitions.go  # ListCompetitions, CreateCompetition, ForceStart, ForceEnd
+    users.go         # ListUsers, PromoteUser, DeleteUser
+  config/            # CLI config file (~/.config/hctf2/config.yaml)
+    config.go        # Load() / Save() using gopkg.in/yaml.v3
   database/          # Database layer
     migrations/      # SQL migration files (001–017)
   handlers/          # HTTP handlers (auth, challenges, teams, competitions, etc.)
   models/            # Data structures
+  tui/               # Charmbracelet terminal UI components
+    theme.go         # Shared lipgloss styles
+    table.go         # PrintTable() — width-aware lipgloss table renderer
+    browse.go        # Bubbletea interactive challenge browser
   utils/             # Utility functions (markdown rendering)
   views/             # Templates & static files
     templates/       # HTML templates

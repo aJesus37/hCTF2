@@ -47,6 +47,11 @@ docs/validation/*.png
 
 .task.worktrees/
 .worktrees/
+.task/
+
+# Internal AI agent planning docs
+docs/plans/
+docs/superpowers/
 
 # Node.js (build-time only)
 node_modules/

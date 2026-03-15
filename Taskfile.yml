@@ -27,12 +27,12 @@ tasks:
   run:
     desc: Run the application with admin setup
     cmds:
-      - go run {{.MAIN_PATH}} --port 8090 --admin-email admin@hctf.local --admin-password changeme --dev
+      - go run {{.MAIN_PATH}} serve --port 8090 --admin-email admin@hctf.local --admin-password changeme --dev
 
   run-dev:
     desc: Run the application without admin setup
     cmds:
-      - go run {{.MAIN_PATH}} --port 8090
+      - go run {{.MAIN_PATH}} serve --port 8090 --dev
 
   clean:
     desc: Clean build artifacts (preserves database)
@@ -51,9 +51,19 @@ tasks:
       - task: build
 
   test:
-    desc: Run all tests with verbose output
+    desc: Run all tests (unit + integration) with verbose output
     cmds:
-      - go test ./... -v
+      - go test -timeout 120s ./... -v
+
+  test-unit:
+    desc: Run unit tests only (excludes CLI integration tests)
+    cmds:
+      - go test -timeout 30s ./internal/... -v
+
+  test-integration:
+    desc: Run CLI integration tests (builds binary, starts real server)
+    cmds:
+      - go test -timeout 120s -run TestCLI -v .
 
   deps:
     desc: Install dependencies

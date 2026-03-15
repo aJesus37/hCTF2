@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -81,4 +82,72 @@ func (h *ImportExportHandler) ImportChallenges(w http.ResponseWriter, r *http.Re
 	}
 	html += `</div>`
 	w.Write([]byte(html))
+}
+
+// ExportConfig godoc
+// @Summary Export full platform config (admin)
+// @Tags admin
+// @Security CookieAuth
+// @Produce json
+// @Success 200 {object} models.ConfigBundle
+// @Failure 500 {object} object{error=string}
+// @Router /api/admin/config/export [get]
+func (h *ImportExportHandler) ExportConfig(w http.ResponseWriter, r *http.Request) {
+	bundle, err := h.db.ExportConfig()
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(bundle)
+}
+
+// ImportConfig godoc
+// @Summary Import full platform config (admin)
+// @Tags admin
+// @Security CookieAuth
+// @Accept multipart/form-data
+// @Param file formData file true "Config JSON file"
+// @Success 200 {object} models.ConfigImportResult
+// @Failure 400 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /api/admin/config/import [post]
+func (h *ImportExportHandler) ImportConfig(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		http.Error(w, `{"error":"failed to parse form"}`, http.StatusBadRequest)
+		return
+	}
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, `{"error":"missing file"}`, http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, `{"error":"failed to read file"}`, http.StatusBadRequest)
+		return
+	}
+	var bundle models.ConfigBundle
+	if err := json.Unmarshal(data, &bundle); err != nil {
+		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+	if bundle.Version != 2 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("unsupported config version %d, expected 2", bundle.Version)})
+		return
+	}
+	result, err := h.db.ImportConfig(&bundle)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }

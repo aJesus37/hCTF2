@@ -420,12 +420,12 @@ func newTestServer(db *database.DB) *Server {
 	}
 
 	s := &Server{
-		db:          db,
-		templates:   tmpl,
-		authH:       handlers.NewAuthHandler(db, email.NewService(email.Config{}), "http://localhost:8090"),
-		challengeH:  handlers.NewChallengeHandler(db, nil, nil, nil),
-		scoreboardH: handlers.NewScoreboardHandler(db, nil),
-		sqlH:        handlers.NewSQLHandler(db),
+		DB:          db,
+		Templates:   tmpl,
+		AuthH:       handlers.NewAuthHandler(db, email.NewService(email.Config{}), "http://localhost:8090"),
+		ChallengeH:  handlers.NewChallengeHandler(db, nil, nil, nil),
+		ScoreboardH: handlers.NewScoreboardHandler(db, nil),
+		SQLH:        handlers.NewSQLHandler(db),
 	}
 
 	return s
@@ -460,66 +460,66 @@ func newTestRouter(s *Server) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health check endpoints
-	mux.HandleFunc("GET /healthz", s.handleHealthz)
-	mux.HandleFunc("GET /readyz", s.handleReadyz)
+	mux.HandleFunc("GET /healthz", s.HandleHealthz)
+	mux.HandleFunc("GET /readyz", s.HandleReadyz)
 
 	// Create a simple router that redirects to server handlers
 	// Since we can't easily export chi router, we'll use the server's methods directly
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" && r.URL.Path == "/" {
-			s.handleIndex(w, r)
+			s.HandleIndex(w, r)
 		}
 	})
 
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			s.handleLoginPage(w, r)
+			s.HandleLoginPage(w, r)
 		}
 	})
 
 	mux.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			s.handleRegisterPage(w, r)
+			s.HandleRegisterPage(w, r)
 		}
 	})
 
 	mux.HandleFunc("/challenges", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/challenges" {
 			if r.Method == "GET" {
-				s.handleChallenges(w, r)
+				s.HandleChallenges(w, r)
 			}
 		} else if len(r.URL.Path) > len("/challenges/") {
-			s.handleChallengeDetail(w, r)
+			s.HandleChallengeDetail(w, r)
 		}
 	})
 
 	mux.HandleFunc("/scoreboard", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			s.handleScoreboard(w, r)
+			s.HandleScoreboard(w, r)
 		}
 	})
 
 	mux.HandleFunc("/sql", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			s.handleSQL(w, r)
+			s.HandleSQL(w, r)
 		}
 	})
 
 	mux.HandleFunc("/api/challenges", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			s.challengeH.ListChallenges(w, r)
+			s.ChallengeH.ListChallenges(w, r)
 		}
 	})
 
 	mux.HandleFunc("/api/scoreboard", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			s.scoreboardH.GetScoreboard(w, r)
+			s.ScoreboardH.GetScoreboard(w, r)
 		}
 	})
 
 	mux.HandleFunc("/api/sql/snapshot", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			s.sqlH.GetSnapshot(w, r)
+			s.SQLH.GetSnapshot(w, r)
 		}
 	})
 
