@@ -2,6 +2,8 @@
 module.exports = {
   content: [
     './internal/views/templates/**/*.html',
+    './internal/handlers/**/*.go',
+    './cmd/**/*.go',
     './main.go',
   ],
   darkMode: 'class',
