@@ -324,9 +324,9 @@ FROM (
 GROUP BY category;`,
 
         `-- Team leaderboard (accounts for hint penalties)
-SELECT 
-    t.name as team, 
-    COUNT(DISTINCT s.question_id) as solves, 
+SELECT
+    t.name as team,
+    COUNT(DISTINCT s.question_id) as solves,
     SUM(q.points) as max_points,
     SUM(q.points) - COALESCE(SUM(hint_costs.total_cost), 0) as total_points,
     COALESCE(SUM(hint_costs.total_cost), 0) as hint_penalties
@@ -342,6 +342,33 @@ LEFT JOIN (
 ) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
 GROUP BY t.id, t.name
 ORDER BY total_points DESC;`,
+
+        `-- Competition scoreboard: team scores within a competition
+SELECT
+    comp.name AS competition,
+    t.name AS team,
+    COUNT(DISTINCT s.question_id) AS solves,
+    SUM(q.points) AS max_points,
+    SUM(q.points) - COALESCE(SUM(hint_costs.total_cost), 0) AS total_points,
+    COALESCE(SUM(hint_costs.total_cost), 0) AS hint_penalties
+FROM competitions comp
+JOIN competition_teams ct ON ct.competition_id = comp.id
+JOIN teams t ON t.id = ct.team_id
+JOIN users u ON u.team_id = t.id
+JOIN submissions s ON s.user_id = u.id AND s.is_correct = 1
+JOIN competition_challenges cc ON cc.competition_id = comp.id AND cc.challenge_id = (
+    SELECT challenge_id FROM questions WHERE id = s.question_id
+)
+JOIN questions q ON q.id = s.question_id
+LEFT JOIN (
+    SELECT hu.user_id, h.question_id, SUM(h.cost) AS total_cost
+    FROM hint_unlocks hu
+    JOIN hints h ON hu.hint_id = h.id
+    GROUP BY hu.user_id, h.question_id
+) hint_costs ON s.user_id = hint_costs.user_id AND s.question_id = hint_costs.question_id
+WHERE s.created_at >= comp.start_at
+GROUP BY comp.id, comp.name, t.id, t.name
+ORDER BY comp.name, total_points DESC;`,
     ];
 
     window.exampleQueries = exampleQueries;
@@ -561,7 +588,7 @@ ORDER BY total_points DESC;`,
                 if (snapshot.hints && snapshot.hints.length > 0) {
                     const records = snapshot.hints.map(h => ({
                         id: h.id, question_id: h.question_id,
-                        cost: h.cost, created_at: h.created_at || '',
+                        order: h.order, cost: h.cost, created_at: h.created_at || '',
                     }));
                     await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'hints' });
                 }
@@ -576,6 +603,60 @@ ORDER BY total_points DESC;`,
                 } else {
                     await conn.query(`CREATE TABLE hint_unlocks (
                         id TEXT, hint_id TEXT, user_id TEXT, team_id TEXT, created_at TEXT
+                    )`);
+                }
+
+                // Load competitions
+                if (snapshot.competitions && snapshot.competitions.length > 0) {
+                    const records = snapshot.competitions.map(c => ({
+                        id: c.id, name: c.name, description: c.description || '',
+                        status: c.status || '', start_at: c.start_at || null,
+                        end_at: c.end_at || null, registration_start: c.registration_start || null,
+                        registration_end: c.registration_end || null,
+                        scoreboard_frozen: c.scoreboard_frozen ? 1 : 0,
+                        scoreboard_blackout: c.scoreboard_blackout ? 1 : 0,
+                        created_at: c.created_at || '',
+                    }));
+                    await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'competitions' });
+                } else {
+                    await conn.query(`CREATE TABLE competitions (
+                        id INTEGER, name TEXT, description TEXT, status TEXT,
+                        start_at TEXT, end_at TEXT, registration_start TEXT, registration_end TEXT,
+                        scoreboard_frozen INTEGER, scoreboard_blackout INTEGER, created_at TEXT
+                    )`);
+                }
+
+                // Load competition_challenges
+                if (snapshot.competition_challenges && snapshot.competition_challenges.length > 0) {
+                    const records = snapshot.competition_challenges.map(r => ({
+                        competition_id: r.competition_id, challenge_id: r.challenge_id,
+                    }));
+                    await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'competition_challenges' });
+                } else {
+                    await conn.query(`CREATE TABLE competition_challenges (competition_id INTEGER, challenge_id TEXT)`);
+                }
+
+                // Load competition_teams
+                if (snapshot.competition_teams && snapshot.competition_teams.length > 0) {
+                    const records = snapshot.competition_teams.map(r => ({
+                        competition_id: r.competition_id, team_id: r.team_id,
+                        joined_at: r.joined_at || '',
+                    }));
+                    await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'competition_teams' });
+                } else {
+                    await conn.query(`CREATE TABLE competition_teams (competition_id INTEGER, team_id TEXT, joined_at TEXT)`);
+                }
+
+                // Load score_history
+                if (snapshot.score_history && snapshot.score_history.length > 0) {
+                    const records = snapshot.score_history.map(r => ({
+                        id: r.id, user_id: r.user_id, team_id: r.team_id || null,
+                        score: r.score, solve_count: r.solve_count, recorded_at: r.recorded_at || '',
+                    }));
+                    await conn.insertArrowTable(arrow.tableFromJSON(records), { name: 'score_history' });
+                } else {
+                    await conn.query(`CREATE TABLE score_history (
+                        id TEXT, user_id TEXT, team_id TEXT, score INTEGER, solve_count INTEGER, recorded_at TEXT
                     )`);
                 }
 
@@ -684,6 +765,7 @@ ORDER BY total_points DESC;`,
                     <tbody>
                         <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
                         <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">question_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">order</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
                         <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">cost</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
                         <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">created_at</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
                     </tbody>
@@ -703,6 +785,60 @@ ORDER BY total_points DESC;`,
                 </table>
             </div>
 
+            <div>
+                <h4 class="font-bold text-blue-400 mb-1 uppercase tracking-wide">competitions</h4>
+                <table class="w-full text-gray-600 dark:text-gray-400">
+                    <tbody>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">id</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">name</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">description</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">status</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">start_at</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">end_at</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">registration_start</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">registration_end</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">scoreboard_frozen</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">scoreboard_blackout</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">created_at</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div>
+                <h4 class="font-bold text-blue-400 mb-1 uppercase tracking-wide">competition_challenges</h4>
+                <table class="w-full text-gray-600 dark:text-gray-400">
+                    <tbody>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">competition_id</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">challenge_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div>
+                <h4 class="font-bold text-blue-400 mb-1 uppercase tracking-wide">competition_teams</h4>
+                <table class="w-full text-gray-600 dark:text-gray-400">
+                    <tbody>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">competition_id</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">team_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">joined_at</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div>
+                <h4 class="font-bold text-blue-400 mb-1 uppercase tracking-wide">score_history</h4>
+                <table class="w-full text-gray-600 dark:text-gray-400">
+                    <tbody>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">user_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">team_id</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">score</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">solve_count</td><td class="text-gray-500 dark:text-gray-600">INTEGER</td></tr>
+                        <tr><td class="font-mono pr-2 py-0.5 text-gray-700 dark:text-gray-300">recorded_at</td><td class="text-gray-500 dark:text-gray-600">TEXT</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
         </div>
 
         <div class="mt-4 pt-4 border-t border-gray-200 dark:border-dark-border shrink-0">
@@ -716,8 +852,11 @@ ORDER BY total_points DESC;`,
             <button onclick="window.setQuery(window.exampleQueries[2])" class="text-left w-full text-xs text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-2 leading-tight">
                 Category stats
             </button>
-            <button onclick="window.setQuery(window.exampleQueries[3])" class="text-left w-full text-xs text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 leading-tight">
+            <button onclick="window.setQuery(window.exampleQueries[3])" class="text-left w-full text-xs text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-2 leading-tight">
                 Team leaderboard
+            </button>
+            <button onclick="window.setQuery(window.exampleQueries[4])" class="text-left w-full text-xs text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 leading-tight">
+                Competition scoreboard
             </button>
         </div>
     </div>
