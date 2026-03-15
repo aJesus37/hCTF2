@@ -221,66 +221,71 @@ log "Creating hints..."
 add_hint() {
     QID="$1"; CONTENT="$2"; COST="$3"; ORD="$4"
     api_post "/api/admin/hints" \
-        "{\"question_id\":\"${QID}\",\"content\":\"${CONTENT}\",\"cost\":${COST},\"order\":${ORD}}" > /dev/null
+        "{\"question_id\":\"${QID}\",\"content\":\"${CONTENT}\",\"cost\":${COST},\"order\":${ORD}}" | extract_id
+}
+
+unlock_hint() {
+    HID="$1"; UTOK="$2"
+    user_post "/hints/${HID}/unlock" "" "${UTOK}" > /dev/null
 }
 
 # Q1 — Cookie Monster
-add_hint "${Q1}" "Check the Network tab in browser DevTools (F12). Look at response headers, not just cookies visible in JavaScript." 10 1
-add_hint "${Q1}" "The cookie is named \`auth_demo\` and is set on the \`/\` path. It is HttpOnly, so \`document.cookie\` won't show it — use the Application tab or a raw HTTP client." 25 2
+H1_1=$(add_hint "${Q1}" "Check the Network tab in browser DevTools (F12). Look at response headers, not just cookies visible in JavaScript." 10 1)
+H1_2=$(add_hint "${Q1}" "The cookie is named \`auth_demo\` and is set on the \`/\` path. It is HttpOnly, so \`document.cookie\` won't show it — use the Application tab or a raw HTTP client." 25 2)
 
 # Q2 — Caesar's Secret
-add_hint "${Q2}" "The Caesar cipher only shifts letters — numbers and symbols stay unchanged. Try all 26 possible shifts on the ciphertext." 15 1
-add_hint "${Q2}" "The shift value is 3. Apply ROT-3 (or equivalently, shift each letter back by 3 positions) to the ciphertext to reveal the flag." 35 2
+H2_1=$(add_hint "${Q2}" "The Caesar cipher only shifts letters — numbers and symbols stay unchanged. Try all 26 possible shifts on the ciphertext." 15 1)
+H2_2=$(add_hint "${Q2}" "The shift value is 3. Apply ROT-3 (or equivalently, shift each letter back by 3 positions) to the ciphertext to reveal the flag." 35 2)
 
 # Q3 — Base64? No.
-add_hint "${Q3}" "Start by Base64-decoding the payload. The result won't be readable yet — look at it as hex bytes to identify the next layer." 20 1
-add_hint "${Q3}" "Layer order: Base64 → then hex-decode the result → then apply ROT47 to the final string. Python's \`codecs.decode(s, 'rot_13')\` won't work for ROT47 — implement it manually or use CyberChef." 50 2
+H3_1=$(add_hint "${Q3}" "Start by Base64-decoding the payload. The result won't be readable yet — look at it as hex bytes to identify the next layer." 20 1)
+H3_2=$(add_hint "${Q3}" "Layer order: Base64 → then hex-decode the result → then apply ROT47 to the final string. Python's \`codecs.decode(s, 'rot_13')\` won't work for ROT47 — implement it manually or use CyberChef." 50 2)
 
 # Q4 — Hidden in Plain Sight
-add_hint "${Q4}" "This is a steganography challenge. The hidden data is encoded in the least significant bits (LSBs) of the image pixels." 20 1
-add_hint "${Q4}" "Try \`zsteg image.png\` or \`steghide extract -sf image.png -p ''\`. The data is in the red channel LSBs with no passphrase required." 40 2
+H4_1=$(add_hint "${Q4}" "This is a steganography challenge. The hidden data is encoded in the least significant bits (LSBs) of the image pixels." 20 1)
+H4_2=$(add_hint "${Q4}" "Try \`zsteg image.png\` or \`steghide extract -sf image.png -p ''\`. The data is in the red channel LSBs with no passphrase required." 40 2)
 
 # Q5 — Ghost in the Binary
-add_hint "${Q5}" "Run \`strings ./challenge | grep -i hctf\` — the binary stores the expected passphrase as a plaintext string constant before comparing it." 25 1
-add_hint "${Q5}" "The anti-debug check calls \`ptrace(PTRACE_TRACEME)\`. Patch byte \`0x75\` (JNZ) to \`0x74\` (JZ) at the check, or set a breakpoint on \`strcmp\` in GDB and read the arguments." 60 2
+H5_1=$(add_hint "${Q5}" "Run \`strings ./challenge | grep -i hctf\` — the binary stores the expected passphrase as a plaintext string constant before comparing it." 25 1)
+H5_2=$(add_hint "${Q5}" "The anti-debug check calls \`ptrace(PTRACE_TRACEME)\`. Patch byte \`0x75\` (JNZ) to \`0x74\` (JZ) at the check, or set a breakpoint on \`strcmp\` in GDB and read the arguments." 60 2)
 
 # Q6 — SQL Injection 101
-add_hint "${Q6}" "The username field is vulnerable. Try entering \`' OR '1'='1\` as the username with any password — does it log you in?" 20 1
-add_hint "${Q6}" "Use a UNION injection: \`' UNION SELECT 1,secret_value,3 FROM secrets --\`. First confirm the column count with \`' ORDER BY 3 --\` (no error = 3 columns)." 50 2
+H6_1=$(add_hint "${Q6}" "The username field is vulnerable. Try entering \`' OR '1'='1\` as the username with any password — does it log you in?" 20 1)
+H6_2=$(add_hint "${Q6}" "Use a UNION injection: \`' UNION SELECT 1,secret_value,3 FROM secrets --\`. First confirm the column count with \`' ORDER BY 3 --\` (no error = 3 columns)." 50 2)
 
 # Q7 — XOR Master
-add_hint "${Q7}" "XOR with a repeating key is reversible if you know part of the plaintext. The flag starts with \`hctf2{\` — XOR that against the first 6 bytes of ciphertext to recover the start of the key." 30 1
-add_hint "${Q7}" "The key is exactly 5 bytes long. XOR the known prefix \`hctf2\` against ciphertext bytes 0-4 to get the full key, then decrypt the entire file with \`bytes(c ^ k for c, k in zip(data, key * 999))\`." 70 2
+H7_1=$(add_hint "${Q7}" "XOR with a repeating key is reversible if you know part of the plaintext. The flag starts with \`hctf2{\` — XOR that against the first 6 bytes of ciphertext to recover the start of the key." 30 1)
+H7_2=$(add_hint "${Q7}" "The key is exactly 5 bytes long. XOR the known prefix \`hctf2\` against ciphertext bytes 0-4 to get the full key, then decrypt the entire file with \`bytes(c ^ k for c, k in zip(data, key * 999))\`." 70 2)
 
 # Q8 — Memory Forensics
-add_hint "${Q8}" "Start with \`strings memory.raw | grep -E 'hctf2\\{'\` — a simple string search often finds flags in memory dumps without needing full Volatility analysis." 30 1
-add_hint "${Q8}" "The backdoor process is named \`bindshell\` and its credentials are passed as a Base64-encoded argument. Run \`strings memory.raw | grep bindshell\` then decode the adjacent base64 blob." 75 2
+H8_1=$(add_hint "${Q8}" "Start with \`strings memory.raw | grep -E 'hctf2\\{'\` — a simple string search often finds flags in memory dumps without needing full Volatility analysis." 30 1)
+H8_2=$(add_hint "${Q8}" "The backdoor process is named \`bindshell\` and its credentials are passed as a Base64-encoded argument. Run \`strings memory.raw | grep bindshell\` then decode the adjacent base64 blob." 75 2)
 
 # Q9 — Titanic: A Data Tragedy
-add_hint "${Q9}" "Use the SQL Playground on this challenge page. The dataset is already loaded as the \`dataset\` table. Start with \`SELECT * FROM dataset LIMIT 5\` to explore the columns." 10 1
-add_hint "${Q9}" "The answer is a single integer. Run: \`SELECT COUNT(*) FROM dataset WHERE Survived = 1\`" 20 2
+H9_1=$(add_hint "${Q9}" "Use the SQL Playground on this challenge page. The dataset is already loaded as the \`dataset\` table. Start with \`SELECT * FROM dataset LIMIT 5\` to explore the columns." 10 1)
+H9_2=$(add_hint "${Q9}" "The answer is a single integer. Run: \`SELECT COUNT(*) FROM dataset WHERE Survived = 1\`" 20 2)
 
 # Q10 — Titanic: Women and Children First
-add_hint "${Q10}" "You need two WHERE conditions joined with AND. First check what values Sex can have: \`SELECT DISTINCT Sex FROM dataset\`" 15 1
-add_hint "${Q10}" "Run: \`SELECT COUNT(*) FROM dataset WHERE Survived = 1 AND Sex = 'female'\` — note that string values are case-sensitive in this dataset." 35 2
+H10_1=$(add_hint "${Q10}" "You need two WHERE conditions joined with AND. First check what values Sex can have: \`SELECT DISTINCT Sex FROM dataset\`" 15 1)
+H10_2=$(add_hint "${Q10}" "Run: \`SELECT COUNT(*) FROM dataset WHERE Survived = 1 AND Sex = 'female'\` — note that string values are case-sensitive in this dataset." 35 2)
 
 # Extra question hints
-add_hint "${Q1B}" "Browse to the /admin URL while watching the Network tab. A new Set-Cookie header appears in the response even if the page redirects." 15 1
+H1B_1=$(add_hint "${Q1B}" "Browse to the /admin URL while watching the Network tab. A new Set-Cookie header appears in the response even if the page redirects." 15 1)
 
-add_hint "${Q4B}" "Open the image in a hex editor or use \`zsteg -a image.png\` to scan all channels. Look for which channel shows readable output." 15 1
+H4B_1=$(add_hint "${Q4B}" "Open the image in a hex editor or use \`zsteg -a image.png\` to scan all channels. Look for which channel shows readable output." 15 1)
 
-add_hint "${Q6B}" "You already know the column count is 3. Try: \`' UNION SELECT 1, password, 3 FROM users WHERE username='admin' --\` to dump the hash." 30 1
-add_hint "${Q6B}" "The hash is stored in the \`password\` column of the \`users\` table. It is a bcrypt hash starting with \`\$2b\$\`. Submit the raw hash as the flag value." 60 2
+H6B_1=$(add_hint "${Q6B}" "You already know the column count is 3. Try: \`' UNION SELECT 1, password, 3 FROM users WHERE username='admin' --\` to dump the hash." 30 1)
+H6B_2=$(add_hint "${Q6B}" "The hash is stored in the \`password\` column of the \`users\` table. It is a bcrypt hash starting with \`\$2b\$\`. Submit the raw hash as the flag value." 60 2)
 
-add_hint "${Q8B}" "Run \`volatility pslist\` and look for a process without a parent (PPID=1) that isn't a normal system process. The PID is a 4-digit number." 25 1
+H8B_1=$(add_hint "${Q8B}" "Run \`volatility pslist\` and look for a process without a parent (PPID=1) that isn't a normal system process. The PID is a 4-digit number." 25 1)
 
-add_hint "${Q9B}" "No WHERE clause needed — just count everything: \`SELECT COUNT(*) FROM dataset\`" 5 1
+H9B_1=$(add_hint "${Q9B}" "No WHERE clause needed — just count everything: \`SELECT COUNT(*) FROM dataset\`" 5 1)
 
-add_hint "${Q9C}" "Filter on the \`Pclass\` column: \`SELECT COUNT(*) FROM dataset WHERE Pclass = 1\`" 10 1
+H9C_1=$(add_hint "${Q9C}" "Filter on the \`Pclass\` column: \`SELECT COUNT(*) FROM dataset WHERE Pclass = 1\`" 10 1)
 
-add_hint "${Q10B}" "Similar to the female survivor query but for the other sex value. Run \`SELECT DISTINCT Sex FROM dataset\` first to confirm exact casing." 15 1
+H10B_1=$(add_hint "${Q10B}" "Similar to the female survivor query but for the other sex value. Run \`SELECT DISTINCT Sex FROM dataset\` first to confirm exact casing." 15 1)
 
-add_hint "${Q10C}" "Combine two WHERE conditions: \`SELECT COUNT(*) FROM dataset WHERE Survived = 1 AND Pclass = 1\`" 20 1
+H10C_1=$(add_hint "${Q10C}" "Combine two WHERE conditions: \`SELECT COUNT(*) FROM dataset WHERE Survived = 1 AND Pclass = 1\`" 20 1)
 
 # ── Register demo users ───────────────────────────────────────────
 log "Registering demo users..."
@@ -414,6 +419,29 @@ submit_flag "${DAVE_TOKEN}" "${Q10B}" "hctf2{109}"
 
 # Eve: Q6B (web focused)
 submit_flag "${EVE_TOKEN}" "${Q6B}" "hctf2{p4ssw0rd_h4sh_3xp0s3d}"
+
+# ── Unlock hints for various users ───────────────────────────────
+log "Unlocking hints for demo users..."
+
+# Alice unlocked hint 1 for Q7 (XOR Master) before solving it
+[ -n "${H7_1}" ] && unlock_hint "${H7_1}" "${ALICE_TOKEN}"
+
+# Bob unlocked hint 1 for Q4 (Hidden in Plain Sight)
+[ -n "${H4_1}" ] && unlock_hint "${H4_1}" "${BOB_TOKEN}"
+# Bob also unlocked hint 2 (the detailed one)
+[ -n "${H4_1}" ] && [ -n "${H4_2}" ] && unlock_hint "${H4_2}" "${BOB_TOKEN}"
+
+# Carol unlocked hint 1 for Q2 (Caesar's Secret)
+[ -n "${H2_1}" ] && unlock_hint "${H2_1}" "${CAROL_TOKEN}"
+
+# Dave unlocked hint 1 for Q3 (Base64? No.)
+[ -n "${H3_1}" ] && unlock_hint "${H3_1}" "${DAVE_TOKEN}"
+
+# Eve unlocked hint 1 for Q6 (SQL Injection 101) before solving it
+[ -n "${H6_1}" ] && unlock_hint "${H6_1}" "${EVE_TOKEN}"
+
+# Alice also used hint 1 for Q9 (Titanic — SQL easy)
+[ -n "${H9_1}" ] && unlock_hint "${H9_1}" "${ALICE_TOKEN}"
 
 # Wrong attempts for realism
 submit_flag "${CAROL_TOKEN}" "${Q7}"  "hctf2{wrong_flag_lol}"

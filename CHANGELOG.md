@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-03-15
+
+### Fixed
+- SQL Playground no longer fails with "Table with name hint_unlocks does not exist" when no hints have been unlocked; the table is now always created in DuckDB even when empty
+- Demo seed now unlocks hints for several users, populating the `hint_unlocks` table with realistic data
+
 ## [0.8.4] - 2026-03-15
 
 ### Fixed
