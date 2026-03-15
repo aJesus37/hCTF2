@@ -25,10 +25,14 @@ wait_for_server() {
 }
 
 start_server() {
+    # Fresh secret each start — invalidates any JWT cookies from the previous
+    # cycle so stale sessions get a clean re-login instead of "User not found".
+    JWT_SECRET=$(head -c 32 /dev/urandom | od -A n -t x1 | tr -d ' \n')
     /app/hctf2 serve \
         --port "${PORT}" \
         --db "${DB}" \
         --dev \
+        --jwt-secret "${JWT_SECRET}" \
         --admin-email "${ADMIN_EMAIL}" \
         --admin-password "${ADMIN_PASSWORD}" \
         --base-url "${BASE_URL}" &
