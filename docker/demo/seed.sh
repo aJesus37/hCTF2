@@ -187,8 +187,8 @@ submit_flag() {
     USER_TOKEN="$1"
     QID="$2"
     FLAG="$3"
-    wget -q -O /dev/null --post-data="{\"flag\":\"${FLAG}\"}" \
-        --header="Content-Type: application/json" \
+    wget -q -O /dev/null \
+        --post-data="flag=${FLAG}" \
         --header="Authorization: Bearer ${USER_TOKEN}" \
         "${BASE}/api/questions/${QID}/submit" 2>/dev/null || true
 }
