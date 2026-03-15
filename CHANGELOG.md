@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-03-15
+
+### Added
+- Footer "Heavens CTF 2 (hCTF2)" text is now a clickable link to the GitHub repository
+
 ## [0.8.4] - 2026-03-15
 
 ### Fixed
