@@ -183,43 +183,45 @@ func runStatus(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// jwtExpiry extracts exp claim from a JWT without verifying signature.
-func jwtExpiry(token string) time.Time {
+// decodeJWTPayload base64-decodes and unmarshals the payload of a JWT without verifying the signature.
+func decodeJWTPayload(token string) (map[string]any, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		return time.Now().Add(24 * time.Hour)
+		return nil, fmt.Errorf("invalid token format")
 	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	b, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, err
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(b, &claims); err != nil {
+		return nil, err
+	}
+	return claims, nil
+}
+
+// jwtExpiry extracts exp claim from a JWT without verifying signature.
+func jwtExpiry(token string) time.Time {
+	claims, err := decodeJWTPayload(token)
 	if err != nil {
 		return time.Now().Add(24 * time.Hour)
 	}
-	var claims struct {
-		Exp int64 `json:"exp"`
-	}
-	_ = json.Unmarshal(payload, &claims)
-	if claims.Exp == 0 {
+	exp, _ := claims["exp"].(float64)
+	if exp == 0 {
 		return time.Now().Add(24 * time.Hour)
 	}
-	return time.Unix(claims.Exp, 0)
+	return time.Unix(int64(exp), 0)
 }
 
 // jwtSubject extracts the email claim from a JWT without verifying.
 func jwtSubject(token string) string {
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
-		return "unknown"
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	claims, err := decodeJWTPayload(token)
 	if err != nil {
 		return "unknown"
 	}
-	var claims struct {
-		Email string `json:"email"`
-		Sub   string `json:"sub"`
+	if email, _ := claims["email"].(string); email != "" {
+		return email
 	}
-	_ = json.Unmarshal(payload, &claims)
-	if claims.Email != "" {
-		return claims.Email
-	}
-	return claims.Sub
+	sub, _ := claims["sub"].(string)
+	return sub
 }

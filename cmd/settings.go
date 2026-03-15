@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/ajesus37/hCTF2/internal/client"
 	"github.com/ajesus37/hCTF2/internal/tui"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -90,136 +91,149 @@ func init() {
 	difficultyCreateCmd.Flags().IntVar(&diffOrder, "order", 0, "Sort order")
 }
 
-func runCategoryList(_ *cobra.Command, _ []string) error {
-	c, err := newClient()
-	if err != nil {
-		return err
-	}
-	cats, err := c.ListCategories()
-	if err != nil {
-		return err
-	}
-	if jsonOutput {
-		return json.NewEncoder(os.Stdout).Encode(cats)
-	}
+// settingItem is a generic representation of a category or difficulty row.
+type settingItem struct {
+	ID        string
+	Name      string
+	SortOrder int
+}
+
+// printSettingItems renders a table of setting items (categories or difficulties).
+func printSettingItems(items []settingItem) {
 	cols := []tui.Column{
 		{Header: "ID", Width: 34},
 		{Header: "NAME", Width: 20},
 		{Header: "ORDER", Width: 6},
 	}
 	var rows [][]string
-	for _, cat := range cats {
-		rows = append(rows, []string{tui.Truncate(cat.ID, 33), tui.Truncate(cat.Name, 19), strconv.Itoa(cat.SortOrder)})
+	for _, item := range items {
+		rows = append(rows, []string{tui.Truncate(item.ID, 33), tui.Truncate(item.Name, 19), strconv.Itoa(item.SortOrder)})
 	}
 	tui.PrintTable(os.Stdout, cols, rows)
+}
+
+// runSettingList is a shared list handler for categories and difficulties.
+// listFn calls the API and returns raw JSON-encodable items; toItem converts each to settingItem.
+func runSettingList[T any](listFn func() ([]T, error), toItem func(T) settingItem) error {
+	items, err := listFn()
+	if err != nil {
+		return err
+	}
+	if jsonOutput {
+		return json.NewEncoder(os.Stdout).Encode(items)
+	}
+	var rows []settingItem
+	for _, item := range items {
+		rows = append(rows, toItem(item))
+	}
+	printSettingItems(rows)
 	return nil
+}
+
+// runSettingCreate is a shared create handler for categories and difficulties.
+// name and order are pointers to the flag variables; label is "Category" or "Difficulty";
+// createFn calls the API.
+func runSettingCreate(args []string, name *string, order *int, label string, createFn func(*client.Client, string, int) (settingItem, error)) error {
+	if len(args) > 0 {
+		*name = args[0]
+	}
+	c, err := newClient()
+	if err != nil {
+		return err
+	}
+	if term.IsTerminal(int(os.Stdin.Fd())) && *name == "" {
+		if err := huh.NewForm(huh.NewGroup(
+			huh.NewInput().Title(label+" name").Value(name),
+		)).Run(); err != nil {
+			return err
+		}
+	}
+	if *name == "" {
+		return fmt.Errorf("--name is required")
+	}
+	item, err := createFn(c, *name, *order)
+	if err != nil {
+		return err
+	}
+	if !quietOutput {
+		fmt.Fprintf(os.Stdout, "Created %s %q\n", label, item.Name)
+	}
+	return nil
+}
+
+// runSettingDelete is a shared delete handler for categories and difficulties.
+func runSettingDelete(args []string, label string, deleteFn func(*client.Client, string) error) error {
+	c, err := newClient()
+	if err != nil {
+		return err
+	}
+	if err := deleteFn(c, args[0]); err != nil {
+		return err
+	}
+	if !quietOutput {
+		fmt.Fprintf(os.Stdout, "Deleted %s %s\n", label, args[0])
+	}
+	return nil
+}
+
+func runCategoryList(_ *cobra.Command, _ []string) error {
+	return runSettingList(
+		func() ([]client.Category, error) {
+			c, err := newClient()
+			if err != nil {
+				return nil, err
+			}
+			return c.ListCategories()
+		},
+		func(cat client.Category) settingItem {
+			return settingItem{ID: cat.ID, Name: cat.Name, SortOrder: cat.SortOrder}
+		},
+	)
 }
 
 func runCategoryCreate(_ *cobra.Command, args []string) error {
-	if len(args) > 0 {
-		catName = args[0]
-	}
-	c, err := newClient()
-	if err != nil {
-		return err
-	}
-	if term.IsTerminal(int(os.Stdin.Fd())) && catName == "" {
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewInput().Title("Category name").Value(&catName),
-		)).Run(); err != nil {
-			return err
+	return runSettingCreate(args, &catName, &catOrder, "category", func(c *client.Client, name string, order int) (settingItem, error) {
+		cat, err := c.CreateCategory(name, order)
+		if err != nil {
+			return settingItem{}, err
 		}
-	}
-	if catName == "" {
-		return fmt.Errorf("--name is required")
-	}
-	cat, err := c.CreateCategory(catName, catOrder)
-	if err != nil {
-		return err
-	}
-	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Created category %q\n", cat.Name)
-	}
-	return nil
+		return settingItem{ID: cat.ID, Name: cat.Name, SortOrder: cat.SortOrder}, nil
+	})
 }
 
 func runCategoryDelete(_ *cobra.Command, args []string) error {
-	c, err := newClient()
-	if err != nil {
-		return err
-	}
-	if err := c.DeleteCategory(args[0]); err != nil {
-		return err
-	}
-	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Deleted category %s\n", args[0])
-	}
-	return nil
+	return runSettingDelete(args, "category", func(c *client.Client, id string) error {
+		return c.DeleteCategory(id)
+	})
 }
 
 func runDifficultyList(_ *cobra.Command, _ []string) error {
-	c, err := newClient()
-	if err != nil {
-		return err
-	}
-	diffs, err := c.ListDifficulties()
-	if err != nil {
-		return err
-	}
-	if jsonOutput {
-		return json.NewEncoder(os.Stdout).Encode(diffs)
-	}
-	cols := []tui.Column{
-		{Header: "ID", Width: 34},
-		{Header: "NAME", Width: 20},
-		{Header: "ORDER", Width: 6},
-	}
-	var rows [][]string
-	for _, d := range diffs {
-		rows = append(rows, []string{tui.Truncate(d.ID, 33), tui.Truncate(d.Name, 19), strconv.Itoa(d.SortOrder)})
-	}
-	tui.PrintTable(os.Stdout, cols, rows)
-	return nil
+	return runSettingList(
+		func() ([]client.Difficulty, error) {
+			c, err := newClient()
+			if err != nil {
+				return nil, err
+			}
+			return c.ListDifficulties()
+		},
+		func(d client.Difficulty) settingItem {
+			return settingItem{ID: d.ID, Name: d.Name, SortOrder: d.SortOrder}
+		},
+	)
 }
 
 func runDifficultyCreate(_ *cobra.Command, args []string) error {
-	if len(args) > 0 {
-		diffName = args[0]
-	}
-	c, err := newClient()
-	if err != nil {
-		return err
-	}
-	if term.IsTerminal(int(os.Stdin.Fd())) && diffName == "" {
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewInput().Title("Difficulty name").Value(&diffName),
-		)).Run(); err != nil {
-			return err
+	return runSettingCreate(args, &diffName, &diffOrder, "difficulty", func(c *client.Client, name string, order int) (settingItem, error) {
+		d, err := c.CreateDifficulty(name, order)
+		if err != nil {
+			return settingItem{}, err
 		}
-	}
-	if diffName == "" {
-		return fmt.Errorf("--name is required")
-	}
-	d, err := c.CreateDifficulty(diffName, diffOrder)
-	if err != nil {
-		return err
-	}
-	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Created difficulty %q\n", d.Name)
-	}
-	return nil
+		return settingItem{ID: d.ID, Name: d.Name, SortOrder: d.SortOrder}, nil
+	})
 }
 
 func runDifficultyDelete(_ *cobra.Command, args []string) error {
-	c, err := newClient()
-	if err != nil {
-		return err
-	}
-	if err := c.DeleteDifficulty(args[0]); err != nil {
-		return err
-	}
-	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Deleted difficulty %s\n", args[0])
-	}
-	return nil
+	return runSettingDelete(args, "difficulty", func(c *client.Client, id string) error {
+		return c.DeleteDifficulty(id)
+	})
 }

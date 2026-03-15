@@ -266,76 +266,53 @@ func runCompRemoveChallenge(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-func runCompFreeze(_ *cobra.Command, args []string) error {
+// runCompToggle is a shared helper for competition boolean-toggle commands
+// (freeze/unfreeze, blackout/unblackout). fn is the client method, msg is the
+// success message printed when quietOutput is false.
+func runCompToggle(args []string, fn func(int64, bool) error, msg string, value bool) error {
 	id, err := parseCompetitionID(args[0])
 	if err != nil {
 		return err
 	}
+	if err := fn(id, value); err != nil {
+		return err
+	}
+	if !quietOutput {
+		fmt.Fprintf(os.Stdout, msg, id)
+	}
+	return nil
+}
+
+func runCompFreeze(_ *cobra.Command, args []string) error {
 	c, err := newClient()
 	if err != nil {
 		return err
 	}
-	if err := c.SetCompetitionFreeze(id, true); err != nil {
-		return err
-	}
-	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Froze scoreboard for competition %d\n", id)
-	}
-	return nil
+	return runCompToggle(args, c.SetCompetitionFreeze, "Froze scoreboard for competition %d\n", true)
 }
 
 func runCompUnfreeze(_ *cobra.Command, args []string) error {
-	id, err := parseCompetitionID(args[0])
-	if err != nil {
-		return err
-	}
 	c, err := newClient()
 	if err != nil {
 		return err
 	}
-	if err := c.SetCompetitionFreeze(id, false); err != nil {
-		return err
-	}
-	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Unfroze scoreboard for competition %d\n", id)
-	}
-	return nil
+	return runCompToggle(args, c.SetCompetitionFreeze, "Unfroze scoreboard for competition %d\n", false)
 }
 
 func runCompBlackout(_ *cobra.Command, args []string) error {
-	id, err := parseCompetitionID(args[0])
-	if err != nil {
-		return err
-	}
 	c, err := newClient()
 	if err != nil {
 		return err
 	}
-	if err := c.SetCompetitionBlackout(id, true); err != nil {
-		return err
-	}
-	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Enabled scoreboard blackout for competition %d\n", id)
-	}
-	return nil
+	return runCompToggle(args, c.SetCompetitionBlackout, "Enabled scoreboard blackout for competition %d\n", true)
 }
 
 func runCompUnblackout(_ *cobra.Command, args []string) error {
-	id, err := parseCompetitionID(args[0])
-	if err != nil {
-		return err
-	}
 	c, err := newClient()
 	if err != nil {
 		return err
 	}
-	if err := c.SetCompetitionBlackout(id, false); err != nil {
-		return err
-	}
-	if !quietOutput {
-		fmt.Fprintf(os.Stdout, "Disabled scoreboard blackout for competition %d\n", id)
-	}
-	return nil
+	return runCompToggle(args, c.SetCompetitionBlackout, "Disabled scoreboard blackout for competition %d\n", false)
 }
 
 func runCompUpdate(_ *cobra.Command, args []string) error {
