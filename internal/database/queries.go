@@ -703,7 +703,7 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 
 	// Hints (schema only - content is sensitive and requires unlock)
 	hints, err := queryToMaps(db.DB, `
-		SELECT h.id, h.question_id, h.cost, h.created_at
+		SELECT h.id, h.question_id, h."order", h.cost, h.created_at
 		FROM hints h
 		JOIN questions q ON h.question_id = q.id
 		WHERE q.challenge_id IN (SELECT id FROM challenges WHERE visible = 1)
@@ -725,6 +725,45 @@ func (db *DB) GetSQLSnapshot() (map[string]interface{}, error) {
 		return nil, err
 	}
 	snapshot["hint_unlocks"] = hintUnlocks
+
+	// Competitions (public fields only)
+	competitions, err := queryToMaps(db.DB, `
+		SELECT id, name, description, status, start_at, end_at,
+		       registration_start, registration_end,
+		       scoreboard_frozen, scoreboard_blackout, created_at
+		FROM competitions
+	`)
+	if err != nil {
+		return nil, err
+	}
+	snapshot["competitions"] = competitions
+
+	// Competition–challenge membership
+	compChallenges, err := queryToMaps(db.DB, `
+		SELECT competition_id, challenge_id FROM competition_challenges
+	`)
+	if err != nil {
+		return nil, err
+	}
+	snapshot["competition_challenges"] = compChallenges
+
+	// Competition–team membership
+	compTeams, err := queryToMaps(db.DB, `
+		SELECT competition_id, team_id, joined_at FROM competition_teams
+	`)
+	if err != nil {
+		return nil, err
+	}
+	snapshot["competition_teams"] = compTeams
+
+	// Score history snapshots
+	scoreHistory, err := queryToMaps(db.DB, `
+		SELECT id, user_id, team_id, score, solve_count, recorded_at FROM score_history
+	`)
+	if err != nil {
+		return nil, err
+	}
+	snapshot["score_history"] = scoreHistory
 
 	return snapshot, nil
 }
