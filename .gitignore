@@ -1,8 +1,6 @@
 # Binaries
 hctf
-hctf2
 hctf-*
-hctf2-*
 *.exe
 *.dll
 *.so

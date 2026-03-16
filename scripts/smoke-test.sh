@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# hCTF2 Smoke Test - Quick validation for CI/CD
+# hCTF Smoke Test - Quick validation for CI/CD
 # Tests critical paths without browser automation
 #
 
@@ -61,7 +61,7 @@ test_content() {
 }
 
 echo ""
-log_info "hCTF2 Smoke Tests"
+log_info "hCTF Smoke Tests"
 log_info "URL: $BASE_URL"
 echo ""
 

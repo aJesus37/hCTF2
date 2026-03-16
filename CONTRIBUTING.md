@@ -1,6 +1,6 @@
-# Contributing to hCTF2
+# Contributing to hCTF
 
-Thank you for your interest in contributing to hCTF2! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to hCTF! This document provides guidelines for contributing to the project.
 
 ## Table of Contents
 
@@ -22,8 +22,8 @@ Thank you for your interest in contributing to hCTF2! This document provides gui
 
 ```bash
 # Clone the repository
-git clone https://github.com/ajesus37/hCTF2.git
-cd hctf2
+git clone https://github.com/ajesus37/hCTF.git
+cd hctf
 
 # Install dependencies
 task deps

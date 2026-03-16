@@ -1,8 +1,8 @@
-# hCTF2 Architecture
+# hCTF Architecture
 
 ## Overview
 
-hCTF2 is a modern CTF platform built with simplicity and performance in mind. The architecture follows a traditional server-side rendering pattern with progressive enhancement via HTMX.
+hCTF is a modern CTF platform built with simplicity and performance in mind. The architecture follows a traditional server-side rendering pattern with progressive enhancement via HTMX.
 
 ## Tech Stack
 
@@ -33,7 +33,7 @@ This creates a truly portable single binary with zero external dependencies.
 
 ### Server-Side Rendering
 
-Unlike modern SPA frameworks, hCTF2 uses server-side rendering for several reasons:
+Unlike modern SPA frameworks, hCTF uses server-side rendering for several reasons:
 1. **Simplicity**: No complex build toolchain
 2. **SEO**: All content is immediately visible
 3. **Performance**: Faster initial page load
@@ -67,7 +67,7 @@ The binary serves a dual role: HTTP server and CLI client.
 
 ### Server (`cmd/serve.go`)
 
-All existing server logic lives here. Flags registered with `serveCmd.Flags()` mirror the old flat flags exactly — the only user-visible change is `hctf2 serve --port 8090` instead of `hctf2 --port 8090`.
+All existing server logic lives here. Flags registered with `serveCmd.Flags()` mirror the old flat flags exactly — the only user-visible change is `hctf serve --port 8090` instead of `hctf --port 8090`.
 
 ### CLI Client
 
@@ -81,13 +81,13 @@ cmd/user.go      → internal/client/users.go      → GET /api/admin/users
 ### Auth Flow (CLI)
 
 ```
-hctf2 login --email ... --password ...
+hctf login --email ... --password ...
       ↓
 POST /api/auth/login (form-encoded)
       ↓
 JWT extracted from Set-Cookie response header
       ↓
-Stored in ~/.config/hctf2/config.yaml
+Stored in ~/.config/hctf/config.yaml
       ↓
 Subsequent commands: Cookie: auth_token=<jwt> on every request
 ```
@@ -293,7 +293,7 @@ Future: Prometheus metrics endpoint
 ## Deployment Strategies
 
 ### Docker Compose (recommended)
-- Docker image from `ghcr.io/ajesus37/hCTF2`
+- Docker image from `ghcr.io/ajesus37/hCTF`
 - Named volume for database persistence
 - Environment variables for secrets (JWT_SECRET, SMTP)
 - Reverse proxy (Caddy/Nginx) for TLS
@@ -327,7 +327,7 @@ internal/
     teams.go         # ListTeams, GetTeam, CreateTeam, JoinTeam
     competitions.go  # ListCompetitions, CreateCompetition, ForceStart, ForceEnd
     users.go         # ListUsers, PromoteUser, DeleteUser
-  config/            # CLI config file (~/.config/hctf2/config.yaml)
+  config/            # CLI config file (~/.config/hctf/config.yaml)
     config.go        # Load() / Save() using gopkg.in/yaml.v3
   database/          # Database layer
     migrations/      # SQL migration files (001–017)

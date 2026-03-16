@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve hCTF2
+about: Create a report to help us improve hCTF
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -25,7 +25,7 @@ If applicable, add screenshots to help explain your problem.
 
 **Environment (please complete the following information):**
  - OS: [e.g. Ubuntu 22.04, macOS 14]
- - hCTF2 Version: [e.g. 0.5.0]
+ - hCTF Version: [e.g. 0.5.0]
  - Go Version: [e.g. 1.22]
  - Deployment: [e.g. Binary, Docker, systemd]
  - Browser: [e.g. Chrome 121, Firefox 122]

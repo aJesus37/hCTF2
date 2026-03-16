@@ -1,8 +1,8 @@
 {
-  "name": "hctf2-assets",
+  "name": "hctf-assets",
   "version": "1.0.0",
   "private": true,
-  "description": "Asset build dependencies for hCTF2",
+  "description": "Asset build dependencies for hCTF",
   "scripts": {
     "build:css": "tailwindcss -i ./assets/css/input.css -o ./internal/views/static/css/tailwind.css --minify",
     "watch:css": "tailwindcss -i ./assets/css/input.css -o ./internal/views/static/css/tailwind.css --watch"

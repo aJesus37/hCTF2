@@ -1,10 +1,10 @@
-# Claude Instructions for hCTF2
+# Claude Instructions for hCTF
 
-This file provides guidance for Claude (or other AI assistants) when working on the hCTF2 project.
+This file provides guidance for Claude (or other AI assistants) when working on the hCTF project.
 
 ## Project Overview
 
-**hCTF2** is a modern CTF (Capture The Flag) platform built with Go, featuring:
+**hCTF** is a modern CTF (Capture The Flag) platform built with Go, featuring:
 - User authentication and authorization (JWT-based)
 - Challenge and question management
 - Flag submission with auto-masking
@@ -32,7 +32,7 @@ This file provides guidance for Claude (or other AI assistants) when working on 
 ## Project Structure
 
 ```
-hctf2/
+hctf/
 ├── main.go              # Entry point — calls cmd.Execute(version)
 ├── cmd/                 # Cobra command tree
 │   ├── root.go         # Root command, global flags (--server, --json, --quiet)
@@ -54,7 +54,7 @@ hctf2/
 ├── internal/            # Private application code
 │   ├── auth/           # Authentication & middleware
 │   ├── client/         # HTTP client for CLI (wraps REST API)
-│   ├── config/         # CLI config file (~/.config/hctf2/config.yaml)
+│   ├── config/         # CLI config file (~/.config/hctf/config.yaml)
 │   ├── database/       # Database layer with embedded migrations
 │   │   └── migrations/ # SQL migrations (001-017)
 │   ├── handlers/       # HTTP handlers (auth, challenges, teams, hints, etc.)
@@ -75,7 +75,7 @@ hctf2/
 ### Making Changes
 
 1. **Read Before Editing**: Always read existing code before modifying
-1a. **Validate UI with agent-browser**: Use `npx agent-browser` to screenshot and verify EVERY UI change before marking it done — no exceptions, even for trivial changes. Run `task rebuild`, start server on a free port (`./hctf2 serve --port 8092 --dev`), then take a screenshot. NEVER use Python Playwright scripts — agent-browser is faster.
+1a. **Validate UI with agent-browser**: Use `npx agent-browser` to screenshot and verify EVERY UI change before marking it done — no exceptions, even for trivial changes. Run `task rebuild`, start server on a free port (`./hctf serve --port 8092 --dev`), then take a screenshot. NEVER use Python Playwright scripts — agent-browser is faster.
 2. **Force Rebuild**: Before running server, use `task rebuild` to ensure binary is fresh (task build uses caching)
 3. **Test Locally**: Changes should be testable with `task run`
 4. **Validate with agent-browser**: For UI changes, validate using agent-browser (see Validation section)
@@ -84,26 +84,26 @@ hctf2/
 
 ### Validation with agent-browser
 
-For browser-based projects like hCTF2, always validate UI changes using `npx agent-browser`. Commands chain with `&&` in a single shell call — the browser persists via daemon so there's no per-command startup cost.
+For browser-based projects like hCTF, always validate UI changes using `npx agent-browser`. Commands chain with `&&` in a single shell call — the browser persists via daemon so there's no per-command startup cost.
 
 ```bash
 # 1. Force rebuild
 task rebuild
 
 # 2. Start server (background)
-./hctf2 serve --port 8092 --dev --db /tmp/hctf2_test.db \
+./hctf serve --port 8092 --dev --db /tmp/hctf_test.db \
   --admin-email admin@test.com --admin-password testpass123 &
 
 # 3. Login and navigate in one chained call
-npx agent-browser --session hctf2 open http://localhost:8092/login && \
-npx agent-browser --session hctf2 fill 'input[name="email"]' admin@test.com && \
-npx agent-browser --session hctf2 fill 'input[name="password"]' testpass123 && \
-npx agent-browser --session hctf2 find role button click --name Login && \
-npx agent-browser --session hctf2 open http://localhost:8092/admin
+npx agent-browser --session hctf open http://localhost:8092/login && \
+npx agent-browser --session hctf fill 'input[name="email"]' admin@test.com && \
+npx agent-browser --session hctf fill 'input[name="password"]' testpass123 && \
+npx agent-browser --session hctf find role button click --name Login && \
+npx agent-browser --session hctf open http://localhost:8092/admin
 
 # 4. Interact and screenshot
-npx agent-browser --session hctf2 click 'button:has-text("+ Create Challenge")' && \
-npx agent-browser --session hctf2 screenshot --full /tmp/result.png
+npx agent-browser --session hctf click 'button:has-text("+ Create Challenge")' && \
+npx agent-browser --session hctf screenshot --full /tmp/result.png
 
 # 5. Read the screenshot with the Read tool to inspect it
 ```
@@ -248,7 +248,7 @@ task deps         # Install dependencies
 
 **Critical**: `task build` uses caching based on source file timestamps. If your changes don't appear:
 1. Use `task rebuild` to force a fresh build
-2. Or run `rm hctf2 && task build`
+2. Or run `rm hctf && task build`
 
 When documenting or writing scripts, **always use `task`**, never `make`.
 
@@ -261,7 +261,7 @@ When calling the REST API programmatically (e.g., in test scripts or seed.sh):
 - **Registration** expects `Content-Type: application/x-www-form-urlencoded` (form data): `POST /api/auth/register` with body `email=...&password=...&name=...`.
 - **Admin challenge/question/hint creation** expects `Content-Type: application/json`: `POST /api/admin/challenges`, `POST /api/admin/questions`, `POST /api/admin/hints`.
 - **Flag submission** expects form data: `POST /api/questions/{id}/submit` with body `flag=...`.
-- **Team creation** via web form uses cookie auth (redirects). For scripts, use the CLI: `./hctf2 team create`.
+- **Team creation** via web form uses cookie auth (redirects). For scripts, use the CLI: `./hctf team create`.
 
 See `docker/demo/seed.sh` for a complete working example of API usage patterns.
 
@@ -513,7 +513,7 @@ The following features have been implemented:
 22. ✅ **Live Submission Feed** - Per-competition and global `/submissions` page; public shows correct solves, admin sees all attempts with submitted flag text; polls every 10s
 23. ✅ **Multi-attempt Wrong Answers** - Removed unique constraint on submissions so users can submit multiple wrong flags without errors
 24. ✅ **Question Anchor Links** - Each question card has a `#question-{id}` anchor; hover the title to copy a direct link; live feed and profile activity link directly to the anchored question
-25. ✅ **Full CLI** - Complete web UI parity: all CRUD (challenge/question/hint/team/competition/user/category/difficulty), submissions feed (`--watch` live mode), user profile, challenge import/export, competition scoreboard/blackout, scoreboard freeze; interactive huh forms on TTY with per-field pages (back navigation), JSON/quiet flags throughout; `internal/client/` HTTP client; `internal/config/` config file at `~/.config/hctf2/config.yaml`
+25. ✅ **Full CLI** - Complete web UI parity: all CRUD (challenge/question/hint/team/competition/user/category/difficulty), submissions feed (`--watch` live mode), user profile, challenge import/export, competition scoreboard/blackout, scoreboard freeze; interactive huh forms on TTY with per-field pages (back navigation), JSON/quiet flags throughout; `internal/client/` HTTP client; `internal/config/` config file at `~/.config/hctf/config.yaml`
 26. ✅ **CLI Integration Tests** - `cli_integration_test.go`: TestMain pattern builds real binary and starts server subprocess; `runCLI(t, args...) (stdout, stderr, exitCode)`; 137 tests covering all commands, JSON output, error cases, and edge cases
 
 ### Planned Features
@@ -553,7 +553,7 @@ All delete/disband/transfer commands use `confirmIfTTY(msg)` from `cmd/helpers.g
 - `runCLI(t, args...) (stdout, stderr string, exitCode int)` — primary test runner
 - `createTestChallenge/Question/Hint/Competition` helpers available
 - Always use `-count=1 -timeout 120s` to prevent caching
-- Smoke test CI uses `./hctf2 serve --port 8090 ...` (note: `serve` subcommand required)
+- Smoke test CI uses `./hctf serve --port 8090 ...` (note: `serve` subcommand required)
 
 ## Questions to Ask
 
@@ -604,7 +604,7 @@ If something breaks:
 
 1. **Database corruption**: `task db-reset` (WARNING: deletes all data)
 2. **Build errors**: `task clean && task deps && task build`
-3. **Port conflicts**: Change port: `./hctf2 serve --port 3000` or `task run-dev -- --port 3000`
+3. **Port conflicts**: Change port: `./hctf serve --port 3000` or `task run-dev -- --port 3000`
 4. **Template errors**: Check embed paths, rebuild binary: `task clean && task build`
 5. **DuckDB WASM not loading**: Run `task setup-sql` to download WASM files
 6. **Migration failures**: Check `internal/database/migrations/` for syntax errors

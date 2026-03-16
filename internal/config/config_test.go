@@ -12,7 +12,7 @@ import (
 func TestSaveLoad(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
-	t.Setenv("HCTF2_CONFIG", path)
+	t.Setenv("HCTF_CONFIG", path)
 
 	cfg := &config.Config{
 		Server:       "http://localhost:8090",
@@ -36,8 +36,8 @@ func TestSaveLoad(t *testing.T) {
 }
 
 func TestLoadMissing(t *testing.T) {
-	t.Setenv("HCTF2_CONFIG", "/tmp/hctf2-nonexistent-test.yaml")
-	os.Remove("/tmp/hctf2-nonexistent-test.yaml")
+	t.Setenv("HCTF_CONFIG", "/tmp/hctf-nonexistent-test.yaml")
+	os.Remove("/tmp/hctf-nonexistent-test.yaml")
 
 	cfg, err := config.Load()
 	if err != nil {

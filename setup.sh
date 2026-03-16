@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "hCTF2 Setup Script"
+echo "hCTF Setup Script"
 echo "=================="
 
 # Check for Go
@@ -28,7 +28,7 @@ if [ $? -eq 0 ]; then
     echo "✅ Build successful!"
     echo ""
     echo "To run the server:"
-    echo "  ./hctf2 --port 8090 --admin-email admin@hctf.local --admin-password changeme"
+    echo "  ./hctf --port 8090 --admin-email admin@hctf.local --admin-password changeme"
     echo ""
     echo "Or use task:"
     echo "  task run"

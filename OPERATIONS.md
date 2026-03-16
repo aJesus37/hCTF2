@@ -26,19 +26,19 @@ Create a `docker-compose.yml`:
 
 ```yaml
 services:
-  hctf2:
-    image: ghcr.io/ajesus37/hCTF2:latest
-    container_name: hctf2
+  hctf:
+    image: ghcr.io/ajesus37/hCTF:latest
+    container_name: hctf
     ports:
       - "8090:8090"
     volumes:
-      - hctf2-data:/data
+      - hctf-data:/data
     command:
       - serve
       - --port
       - "8090"
       - --db
-      - /data/hctf2.db
+      - /data/hctf.db
       - --admin-email
       - admin@hctf.local
       - --admin-password
@@ -48,7 +48,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  hctf2-data:
+  hctf-data:
 ```
 
 Start, stop, and view logs:
@@ -64,12 +64,12 @@ docker compose restart       # restart
 
 ```bash
 docker run -d \
-  --name hctf2 \
+  --name hctf \
   -p 8090:8090 \
-  -v hctf2-data:/data \
+  -v hctf-data:/data \
   -e JWT_SECRET="$(openssl rand -base64 32)" \
-  ghcr.io/ajesus37/hCTF2:latest \
-  serve --db /data/hctf2.db \
+  ghcr.io/ajesus37/hCTF:latest \
+  serve --db /data/hctf.db \
     --admin-email admin@hctf.local \
     --admin-password changeme
 ```
@@ -77,16 +77,16 @@ docker run -d \
 ### Building the image locally
 
 ```bash
-docker build -t hctf2 .
+docker build -t hctf .
 docker compose up -d
 ```
 
 ### Reverse Proxy Setup (nginx)
 
-**Configuration file `/etc/nginx/sites-available/hctf2`:**
+**Configuration file `/etc/nginx/sites-available/hctf`:**
 
 ```nginx
-upstream hctf2 {
+upstream hctf {
     server 127.0.0.1:8080;
     keepalive 32;
 }
@@ -110,7 +110,7 @@ server {
     client_max_body_size 10M;
 
     location / {
-        proxy_pass http://hctf2;
+        proxy_pass http://hctf;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -125,7 +125,7 @@ server {
 
 Enable it:
 ```bash
-sudo ln -s /etc/nginx/sites-available/hctf2 /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/hctf /etc/nginx/sites-enabled/
 sudo nginx -s reload
 ```
 
@@ -133,7 +133,7 @@ sudo nginx -s reload
 
 ### Health Checks
 
-hCTF2 doesn't yet have a dedicated health check endpoint, but you can verify it's running:
+hCTF doesn't yet have a dedicated health check endpoint, but you can verify it's running:
 
 ```bash
 curl -I http://localhost:8090/
@@ -145,7 +145,7 @@ curl -I http://localhost:8090/
 ```bash
 docker compose logs -f         # follow all logs
 docker compose logs --tail 100 # last 100 lines
-docker logs -f hctf2           # follow by container name
+docker logs -f hctf           # follow by container name
 ```
 
 ### Key Log Messages
@@ -158,7 +158,7 @@ docker logs -f hctf2           # follow by container name
 
 ### Metrics & Telemetry
 
-hCTF2 uses **OpenTelemetry** for instrumentation. The telemetry package (`internal/telemetry/`) initializes a tracer and meter on startup.
+hCTF uses **OpenTelemetry** for instrumentation. The telemetry package (`internal/telemetry/`) initializes a tracer and meter on startup.
 
 #### Instrumented Metrics
 
@@ -176,18 +176,18 @@ hCTF2 uses **OpenTelemetry** for instrumentation. The telemetry package (`intern
 Set the environment variable to print traces to stdout (useful for debugging):
 
 ```bash
-OTEL_EXPORTER_STDOUT=true ./hctf2
+OTEL_EXPORTER_STDOUT=true ./hctf
 ```
 
 #### Exporting to an OTEL Collector
 
 To ship traces and metrics to a backend (Jaeger, Grafana Tempo, Datadog, etc.):
 
-1. Run an OpenTelemetry Collector alongside hCTF2
+1. Run an OpenTelemetry Collector alongside hCTF
 2. Configure the collector endpoint via environment variable:
 
 ```bash
-OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317 ./hctf2
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317 ./hctf
 ```
 
 Note: OTLP export requires adding the OTLP exporter package to the binary. Currently only stdout export is wired up.
@@ -215,38 +215,38 @@ Until then, monitor via log aggregation (see **Server Logs** section above).
 
 **Manual backup:**
 ```bash
-cp /var/lib/hctf2/hctf2.db /backups/hctf2-$(date +%Y%m%d-%H%M%S).db
+cp /var/lib/hctf/hctf.db /backups/hctf-$(date +%Y%m%d-%H%M%S).db
 ```
 
 **Automated backup (cron):**
 ```bash
 # Add to root crontab: sudo crontab -e
-0 2 * * * cp /var/lib/hctf2/hctf2.db /backups/hctf2-$(date +\%Y\%m\%d).db
+0 2 * * * cp /var/lib/hctf/hctf.db /backups/hctf-$(date +\%Y\%m\%d).db
 # Keep last 30 days
-30 2 * * * find /backups -name "hctf2-*.db" -mtime +30 -delete
+30 2 * * * find /backups -name "hctf-*.db" -mtime +30 -delete
 ```
 
 **Using rsync (remote backup):**
 ```bash
 # On backup server, add to crontab:
 0 3 * * * rsync -av -e ssh \
-  hctf2@prod-server:/var/lib/hctf2/hctf2.db \
-  /backups/prod/hctf2-$(date +\%Y\%m\%d).db
+  hctf@prod-server:/var/lib/hctf/hctf.db \
+  /backups/prod/hctf-$(date +\%Y\%m\%d).db
 ```
 
 ### Database Integrity Checks
 
 **Weekly integrity check:**
 ```bash
-sqlite3 /var/lib/hctf2/hctf2.db "PRAGMA integrity_check;"
+sqlite3 /var/lib/hctf/hctf.db "PRAGMA integrity_check;"
 ```
 
 **Schedule with cron:**
 ```bash
 # Sunday at 3 AM
-0 3 * * 0 sqlite3 /var/lib/hctf2/hctf2.db "PRAGMA integrity_check;" | \
+0 3 * * 0 sqlite3 /var/lib/hctf/hctf.db "PRAGMA integrity_check;" | \
   grep -q "ok" || echo "Database integrity check failed" | \
-  mail -s "hCTF2 Database Alert" admin@example.com
+  mail -s "hCTF Database Alert" admin@example.com
 ```
 
 ### Database Migrations
@@ -255,25 +255,25 @@ Migrations run automatically on application startup. To check migration status:
 
 1. Look for "Database migration applied" in logs
 2. Verify all migrations in `internal/database/migrations/` have been applied
-3. Check database schema: `sqlite3 data/hctf2.db ".schema"`
+3. Check database schema: `sqlite3 data/hctf.db ".schema"`
 
 ### Performance Monitoring
 
 **Database size:**
 ```bash
-du -h /var/lib/hctf2/hctf2.db
+du -h /var/lib/hctf/hctf.db
 # Should grow ~1MB per 10,000 submissions
 ```
 
 **Database free space:**
 ```bash
-sqlite3 /var/lib/hctf2/hctf2.db "PRAGMA page_count; PRAGMA page_size;"
+sqlite3 /var/lib/hctf/hctf.db "PRAGMA page_count; PRAGMA page_size;"
 # (page_count * page_size) = total size
 ```
 
 **Optimize database:**
 ```bash
-sqlite3 /var/lib/hctf2/hctf2.db "VACUUM;"
+sqlite3 /var/lib/hctf/hctf.db "VACUUM;"
 # Reclaims unused space, takes a few seconds
 ```
 
@@ -282,7 +282,7 @@ sqlite3 /var/lib/hctf2/hctf2.db "VACUUM;"
 **Docker Compose:**
 ```bash
 # 1. Backup database
-docker compose exec hctf2 cat /data/hctf2.db > /backups/hctf2-pre-update.db
+docker compose exec hctf cat /data/hctf.db > /backups/hctf-pre-update.db
 
 # 2. Pull and restart
 docker compose pull
@@ -316,7 +316,7 @@ docker compose logs --tail 50
 
 3. **Container keeps restarting:**
    ```bash
-   docker compose logs hctf2
+   docker compose logs hctf
    # Check for missing JWT_SECRET or other configuration errors
    ```
 
@@ -331,7 +331,7 @@ docker compose logs --tail 50
 
 **Solutions:**
 1. Restart container: `docker compose restart`
-2. Monitor memory: `docker stats hctf2`
+2. Monitor memory: `docker stats hctf`
 3. Consider load balancing if consistently high
 
 ### Database Locked
@@ -347,7 +347,7 @@ docker compose logs --tail 50
 
 1. Check for multiple instances:
    ```bash
-   ps aux | grep hctf2
+   ps aux | grep hctf
    # Should see exactly one process
    ```
 
@@ -358,13 +358,13 @@ docker compose logs --tail 50
 
 3. Check database integrity:
    ```bash
-   sqlite3 /var/lib/hctf2/hctf2.db "PRAGMA integrity_check;"
+   sqlite3 /var/lib/hctf/hctf.db "PRAGMA integrity_check;"
    ```
 
 4. If corrupted, restore from backup:
    ```bash
-   cp /backups/hctf2-latest.db /var/lib/hctf2/hctf2.db
-   sudo chown hctf2:hctf2 /var/lib/hctf2/hctf2.db
+   cp /backups/hctf-latest.db /var/lib/hctf/hctf.db
+   sudo chown hctf:hctf /var/lib/hctf/hctf.db
    ```
 
 ### Users Can't Login
@@ -380,7 +380,7 @@ docker compose logs --tail 50
 
 1. Verify admin user exists:
    ```bash
-   sqlite3 /var/lib/hctf2/hctf2.db "SELECT * FROM users WHERE is_admin = 1;"
+   sqlite3 /var/lib/hctf/hctf.db "SELECT * FROM users WHERE is_admin = 1;"
    ```
 
 2. Recreate admin by restarting with admin flags in `docker-compose.yml`, then restart:
@@ -463,8 +463,8 @@ docker compose logs --tail 10
 docker compose down
 
 # 2. Restore from backup (copy into the named volume)
-docker run --rm -v hctf2-data:/data -v $(pwd)/backups:/backups alpine \
-  cp /backups/hctf2-latest.db /data/hctf2.db
+docker run --rm -v hctf-data:/data -v $(pwd)/backups:/backups alpine \
+  cp /backups/hctf-latest.db /data/hctf.db
 
 # 3. Start application
 docker compose up -d
@@ -484,22 +484,22 @@ Restart the container with `--admin-email` and `--admin-password` flags to recre
 **Check for slow queries:**
 ```bash
 # Enable query logging in Go code (future enhancement)
-# Monitor with: grep "slow" /var/log/hctf2.log
+# Monitor with: grep "slow" /var/log/hctf.log
 ```
 
 **Database optimization:**
 ```bash
 # Ensure indexes exist (applied by migrations)
-sqlite3 /var/lib/hctf2/hctf2.db ".indices"
+sqlite3 /var/lib/hctf/hctf.db ".indices"
 
 # Analyze query plans
-sqlite3 /var/lib/hctf2/hctf2.db "EXPLAIN QUERY PLAN SELECT ...;"
+sqlite3 /var/lib/hctf/hctf.db "EXPLAIN QUERY PLAN SELECT ...;"
 
 # Vacuum database (reclaim space)
-sqlite3 /var/lib/hctf2/hctf2.db "VACUUM;"
+sqlite3 /var/lib/hctf/hctf.db "VACUUM;"
 
 # Analyze statistics
-sqlite3 /var/lib/hctf2/hctf2.db "ANALYZE;"
+sqlite3 /var/lib/hctf/hctf.db "ANALYZE;"
 ```
 
 ### Connection Pool Tuning
@@ -541,7 +541,7 @@ docker compose logs -f
 curl -I http://localhost:8090/
 
 # Backup database from volume
-docker compose exec hctf2 cat /data/hctf2.db > hctf2-backup.db
+docker compose exec hctf cat /data/hctf.db > hctf-backup.db
 ```
 
 ## Getting Help

@@ -1,4 +1,4 @@
-# Multi-stage build for hCTF2
+# Multi-stage build for hCTF
 
 # Build stage
 FROM golang:1.24-alpine AS builder
@@ -12,7 +12,7 @@ ARG VERSION=dev
 # Fully static binary — no libc dependency, suitable for scratch
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w -extldflags=-static -X main.version=${VERSION}" \
-    -o hctf2 main.go
+    -o hctf main.go
 
 # Pre-create writable directories owned by uid 1000
 # scratch has no shell so we do this in the build stage
@@ -30,7 +30,7 @@ FROM scratch
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Static binary
-COPY --from=builder /app/hctf2 /hctf2
+COPY --from=builder /app/hctf /hctf
 
 # Pre-created writable dirs (scratch has no shell to mkdir at runtime)
 COPY --from=builder --chown=1000:1000 /staging/data /data
@@ -39,10 +39,10 @@ COPY --from=builder --chown=1000:1000 /staging/tmp /tmp
 EXPOSE 8090
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["/hctf2", "healthcheck", "--port", "8090"]
+    CMD ["/hctf", "healthcheck", "--port", "8090"]
 
 # Run as non-root uid (no /etc/passwd needed when using numeric uid)
 USER 1000
 
-ENTRYPOINT ["/hctf2"]
-CMD ["serve", "--port", "8090", "--db", "/data/hctf2.db"]
+ENTRYPOINT ["/hctf"]
+CMD ["serve", "--port", "8090", "--db", "/data/hctf.db"]

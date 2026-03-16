@@ -1,8 +1,8 @@
-# hCTF2 - Testing Documentation
+# hCTF - Testing Documentation
 
 ## Overview
 
-hCTF2 has a comprehensive testing strategy covering unit tests, integration tests, and end-to-end (E2E) browser automation tests.
+hCTF has a comprehensive testing strategy covering unit tests, integration tests, and end-to-end (E2E) browser automation tests.
 
 ## Test Types
 
@@ -41,7 +41,7 @@ task test
 2. **Start the server**:
    ```bash
    task rebuild
-   ./hctf2 serve --admin-email admin@hctf.local --admin-password changeme
+   ./hctf serve --admin-email admin@hctf.local --admin-password changeme
    ```
 
 3. **Seed test data** (optional, creates sample challenges):
@@ -208,7 +208,7 @@ agent-browser --version
 ### Example Output
 
 ```
-[INFO] hCTF2 End-to-End Test Suite
+[INFO] hCTF End-to-End Test Suite
 [INFO] Base URL: http://localhost:8090
 [INFO] Mode: Headless
 
@@ -355,8 +355,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24'
-      - run: go build -o hctf2
-      - run: ./hctf2 --admin-email admin@test.com --admin-password admin123 &
+      - run: go build -o hctf
+      - run: ./hctf --admin-email admin@test.com --admin-password admin123 &
       - run: sleep 3
       - run: ./scripts/smoke-test.sh
 
@@ -371,8 +371,8 @@ jobs:
         with:
           node-version: '20'
       - run: npm install -g agent-browser
-      - run: go build -o hctf2
-      - run: ./hctf2 --admin-email admin@test.com --admin-password admin123 &
+      - run: go build -o hctf
+      - run: ./hctf --admin-email admin@test.com --admin-password admin123 &
       - run: sleep 3
       - run: ./scripts/seed-test-data.sh
       - run: ./scripts/e2e-test.sh
@@ -413,12 +413,12 @@ echo "All tests passed!"
 
 3. **Check browser console logs**:
    ```bash
-   agent-browser --session hctf2-e2e eval "console.log('test')"
+   agent-browser --session hctf-e2e eval "console.log('test')"
    ```
 
 4. **Inspect page state**:
    ```bash
-   agent-browser --session hctf2-e2e snapshot -i
+   agent-browser --session hctf-e2e snapshot -i
    ```
 
 ### Common Issues
@@ -437,15 +437,15 @@ Each test suite uses a unique browser session to prevent interference:
 
 ```bash
 # Default sessions
-e2e-test.sh          # session: hctf2-e2e
-browser-automation-tests.sh  # session: hctf2-automation
+e2e-test.sh          # session: hctf-e2e
+browser-automation-tests.sh  # session: hctf-automation
 ```
 
 To clean up stale sessions:
 
 ```bash
 agent-browser session list
-agent-browser --session hctf2-e2e close
+agent-browser --session hctf-e2e close
 ```
 
 ---

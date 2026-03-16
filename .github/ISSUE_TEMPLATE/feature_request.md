@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for hCTF2
+about: Suggest an idea for hCTF
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''

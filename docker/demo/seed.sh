@@ -83,7 +83,7 @@ CH4=$(api_post "/api/admin/challenges" \
     | extract_id)
 
 CH5=$(api_post "/api/admin/challenges" \
-    '{"name":"Ghost in the Binary","description":"## Overview\n\nA stripped binary with anti-debug tricks. Find the hidden validation logic.\n\nThe binary accepts a passphrase and validates it against a hardcoded secret:\n\n```\n$ ./challenge\nEnter secret: hello\nWrong!\n\n$ ./challenge\nEnter secret: ???\nCorrect! Flag: hctf2{...}\n```\n\n### Static Analysis\n\n```bash\n# Identify the binary\nfile challenge\nobjdump -d challenge | grep -B5 -A10 \"cmp\"\n\n# Search for string constants\nstrings challenge | grep -E \"hctf|flag|secret\"\n```\n\n### Dynamic Analysis\n\n```bash\n# Trace library calls (often reveals strcmp arguments)\nltrace ./challenge\n\n# Debug with GDB\ngdb ./challenge\n(gdb) break strcmp\n(gdb) run\n```\n\n> **Hint:** The anti-debug technique uses `ptrace()`. Set a breakpoint *after* the check, or patch the binary.","category":"misc","difficulty":"medium","visible":true}' \
+    '{"name":"Ghost in the Binary","description":"## Overview\n\nA stripped binary with anti-debug tricks. Find the hidden validation logic.\n\nThe binary accepts a passphrase and validates it against a hardcoded secret:\n\n```\n$ ./challenge\nEnter secret: hello\nWrong!\n\n$ ./challenge\nEnter secret: ???\nCorrect! Flag: hctf{...}\n```\n\n### Static Analysis\n\n```bash\n# Identify the binary\nfile challenge\nobjdump -d challenge | grep -B5 -A10 \"cmp\"\n\n# Search for string constants\nstrings challenge | grep -E \"hctf|flag|secret\"\n```\n\n### Dynamic Analysis\n\n```bash\n# Trace library calls (often reveals strcmp arguments)\nltrace ./challenge\n\n# Debug with GDB\ngdb ./challenge\n(gdb) break strcmp\n(gdb) run\n```\n\n> **Hint:** The anti-debug technique uses `ptrace()`. Set a breakpoint *after* the check, or patch the binary.","category":"misc","difficulty":"medium","visible":true}' \
     | extract_id)
 
 CH6=$(api_post "/api/admin/challenges" \
@@ -91,11 +91,11 @@ CH6=$(api_post "/api/admin/challenges" \
     | extract_id)
 
 CH7=$(api_post "/api/admin/challenges" \
-    '{"name":"XOR Master","description":"## Overview\n\nA file was XOR-encrypted with a short repeating key. Frequency analysis and known-plaintext attacks will crack it.\n\n### XOR Refresher\n\nXOR with a repeating key is a classic (but weak) stream cipher:\n\n```\nplaintext:  H    e    l    l    o\nkey:        k    e    y    k    e\nciphertext: 0x23 0x00 0x15 0x07 0x0a\n```\n\n**Key property:** `A XOR B XOR B = A` — XOR is its own inverse.\n\n### Known-Plaintext Attack\n\nIf the flag format is known (`hctf2{`), the first bytes of the key are:\n\n```python\nciphertext = bytes.fromhex(open(\"challenge.bin\", \"rb\").read().hex())\nknown = b\"hctf2{\"\nkey_start = bytes(a ^ b for a, b in zip(ciphertext, known))\nprint(f\"Key starts with: {key_start}\")\n```\n\n### Finding the Key Length\n\nTry key lengths 1–16. The **Index of Coincidence** spikes at the correct length.\n\n> **Hint:** Once you have the key, `bytes(a ^ b for a, b in zip(ciphertext, key * 999))` decrypts everything.","category":"crypto","difficulty":"hard","visible":true}' \
+    '{"name":"XOR Master","description":"## Overview\n\nA file was XOR-encrypted with a short repeating key. Frequency analysis and known-plaintext attacks will crack it.\n\n### XOR Refresher\n\nXOR with a repeating key is a classic (but weak) stream cipher:\n\n```\nplaintext:  H    e    l    l    o\nkey:        k    e    y    k    e\nciphertext: 0x23 0x00 0x15 0x07 0x0a\n```\n\n**Key property:** `A XOR B XOR B = A` — XOR is its own inverse.\n\n### Known-Plaintext Attack\n\nIf the flag format is known (`hctf{`), the first bytes of the key are:\n\n```python\nciphertext = bytes.fromhex(open(\"challenge.bin\", \"rb\").read().hex())\nknown = b\"hctf{\"\nkey_start = bytes(a ^ b for a, b in zip(ciphertext, known))\nprint(f\"Key starts with: {key_start}\")\n```\n\n### Finding the Key Length\n\nTry key lengths 1–16. The **Index of Coincidence** spikes at the correct length.\n\n> **Hint:** Once you have the key, `bytes(a ^ b for a, b in zip(ciphertext, key * 999))` decrypts everything.","category":"crypto","difficulty":"hard","visible":true}' \
     | extract_id)
 
 CH8=$(api_post "/api/admin/challenges" \
-    '{"name":"Memory Forensics","description":"## Overview\n\nA memory dump was captured from a compromised server. Somewhere in 2 GB of data, the attacker left their backdoor credentials.\n\n### Tools\n\n**Volatility** is the standard framework for memory forensics:\n\n```bash\n# Identify OS profile\nvolatility -f memory.raw imageinfo\n\n# List running processes\nvolatility -f memory.raw --profile=LinuxDebian pslist\n\n# Find network connections\nvolatility -f memory.raw --profile=LinuxDebian netscan\n\n# Dump process command lines\nvolatility -f memory.raw --profile=LinuxDebian cmdline\n```\n\n### What to Look For\n\nThe attacker installed a **bind shell** with credentials encoded in process arguments:\n\n```bash\n# Search raw memory for flag-shaped strings\nstrings memory.raw | grep -E \"hctf2\\{.*\\}\"\n\n# Scan for base64-encoded credentials\nstrings memory.raw | grep -E \"[A-Za-z0-9+/]{20,}={0,2}\" | base64 -d 2>/dev/null\n```\n\n> **Hint:** Look for processes spawned by `bash` with unusual parent relationships. The credentials are Base64-encoded in `argv`.","category":"forensics","difficulty":"hard","visible":true}' \
+    '{"name":"Memory Forensics","description":"## Overview\n\nA memory dump was captured from a compromised server. Somewhere in 2 GB of data, the attacker left their backdoor credentials.\n\n### Tools\n\n**Volatility** is the standard framework for memory forensics:\n\n```bash\n# Identify OS profile\nvolatility -f memory.raw imageinfo\n\n# List running processes\nvolatility -f memory.raw --profile=LinuxDebian pslist\n\n# Find network connections\nvolatility -f memory.raw --profile=LinuxDebian netscan\n\n# Dump process command lines\nvolatility -f memory.raw --profile=LinuxDebian cmdline\n```\n\n### What to Look For\n\nThe attacker installed a **bind shell** with credentials encoded in process arguments:\n\n```bash\n# Search raw memory for flag-shaped strings\nstrings memory.raw | grep -E \"hctf\\{.*\\}\"\n\n# Scan for base64-encoded credentials\nstrings memory.raw | grep -E \"[A-Za-z0-9+/]{20,}={0,2}\" | base64 -d 2>/dev/null\n```\n\n> **Hint:** Look for processes spawned by `bash` with unusual parent relationships. The credentials are Base64-encoded in `argv`.","category":"forensics","difficulty":"hard","visible":true}' \
     | extract_id)
 
 # SQL Playground challenges created last with a delay so they get a newer
@@ -106,11 +106,11 @@ TITANIC_URL="https://raw.githubusercontent.com/datasciencedojo/datasets/master/t
 TITANIC_SCHEMA="Columns: PassengerId (int), Survived (0=died/1=survived), Pclass (1/2/3), Name, Sex (male/female), Age (float), SibSp, Parch, Ticket, Fare (float), Cabin, Embarked. Query with: SELECT * FROM dataset LIMIT 10"
 
 CH9=$(api_post "/api/admin/challenges" \
-    "{\"name\":\"Titanic: A Data Tragedy\",\"description\":\"## Overview\\n\\nThe RMS *Titanic* passenger manifest has been digitized and loaded into an interactive SQL database. A survivor count has been encoded as a flag.\\n\\n**Use the SQL Playground below to query the dataset.**\\n\\n### Dataset\\n\\nThe `dataset` table contains records for 891 passengers. Start by exploring:\\n\\n\`\`\`sql\\nSELECT * FROM dataset LIMIT 5;\\n\`\`\`\\n\\n**Schema:**\\n\\n| Column | Type | Description |\\n|--------|------|-------------|\\n| \`PassengerId\` | INT | Unique passenger identifier |\\n| \`Survived\` | INT | **0** = did not survive, **1** = survived |\\n| \`Pclass\` | INT | Ticket class (1 = First, 2 = Second, 3 = Third) |\\n| \`Name\` | TEXT | Passenger full name |\\n| \`Sex\` | TEXT | \`male\` or \`female\` |\\n| \`Age\` | FLOAT | Age in years |\\n| \`Fare\` | FLOAT | Ticket price paid |\\n\\n### Mission\\n\\nHow many passengers survived? The flag is \`hctf2{N}\` where **N** is the survivor count.\\n\\n\`\`\`sql\\n-- Start here:\\nSELECT COUNT(*) FROM dataset WHERE Survived = ???;\\n\`\`\`\\n\\n> **Hint:** Filter on the \`Survived\` column. Survivors have a value of 1.\",\"category\":\"forensics\",\"difficulty\":\"medium\",\"visible\":true,\"sql_enabled\":true,\"sql_dataset_url\":\"${TITANIC_URL}\",\"sql_schema_hint\":\"${TITANIC_SCHEMA}\"}" \
+    "{\"name\":\"Titanic: A Data Tragedy\",\"description\":\"## Overview\\n\\nThe RMS *Titanic* passenger manifest has been digitized and loaded into an interactive SQL database. A survivor count has been encoded as a flag.\\n\\n**Use the SQL Playground below to query the dataset.**\\n\\n### Dataset\\n\\nThe `dataset` table contains records for 891 passengers. Start by exploring:\\n\\n\`\`\`sql\\nSELECT * FROM dataset LIMIT 5;\\n\`\`\`\\n\\n**Schema:**\\n\\n| Column | Type | Description |\\n|--------|------|-------------|\\n| \`PassengerId\` | INT | Unique passenger identifier |\\n| \`Survived\` | INT | **0** = did not survive, **1** = survived |\\n| \`Pclass\` | INT | Ticket class (1 = First, 2 = Second, 3 = Third) |\\n| \`Name\` | TEXT | Passenger full name |\\n| \`Sex\` | TEXT | \`male\` or \`female\` |\\n| \`Age\` | FLOAT | Age in years |\\n| \`Fare\` | FLOAT | Ticket price paid |\\n\\n### Mission\\n\\nHow many passengers survived? The flag is \`hctf{N}\` where **N** is the survivor count.\\n\\n\`\`\`sql\\n-- Start here:\\nSELECT COUNT(*) FROM dataset WHERE Survived = ???;\\n\`\`\`\\n\\n> **Hint:** Filter on the \`Survived\` column. Survivors have a value of 1.\",\"category\":\"forensics\",\"difficulty\":\"medium\",\"visible\":true,\"sql_enabled\":true,\"sql_dataset_url\":\"${TITANIC_URL}\",\"sql_schema_hint\":\"${TITANIC_SCHEMA}\"}" \
     | extract_id)
 
 CH10=$(api_post "/api/admin/challenges" \
-    "{\"name\":\"Titanic: Women and Children First\",\"description\":\"## Overview\\n\\nDig deeper into the Titanic passenger manifest. This challenge requires more targeted analysis of the survivors.\\n\\n**Use the SQL Playground below to query the dataset.**\\n\\n### Dataset\\n\\nSame Titanic dataset as the previous challenge. The \`dataset\` table is pre-loaded.\\n\\n\`\`\`sql\\nDESCRIBE dataset;\\nSELECT DISTINCT Sex FROM dataset;\\n\`\`\`\\n\\n### Mission\\n\\n*\\\"Women and children first\\\"* — but how many women actually made it?\\n\\nThe flag is \`hctf2{N}\` where **N** is the number of **female passengers who survived**.\\n\\n\`\`\`sql\\n-- Build your query step by step:\\nSELECT COUNT(*) FROM dataset\\nWHERE Survived = 1\\n  AND Sex = '???';\\n\`\`\`\\n\\n### SQL Tips\\n\\n| Clause | Purpose |\\n|--------|---------|\\n| \`WHERE col = val\` | Filter rows by exact value |\\n| \`AND\` | Combine multiple conditions |\\n| \`COUNT(*)\` | Count matching rows |\\n\\n> **Hint:** String comparisons in SQL are case-sensitive. Check the exact value with \`SELECT DISTINCT Sex FROM dataset\` first.\",\"category\":\"forensics\",\"difficulty\":\"hard\",\"visible\":true,\"sql_enabled\":true,\"sql_dataset_url\":\"${TITANIC_URL}\",\"sql_schema_hint\":\"${TITANIC_SCHEMA}\"}" \
+    "{\"name\":\"Titanic: Women and Children First\",\"description\":\"## Overview\\n\\nDig deeper into the Titanic passenger manifest. This challenge requires more targeted analysis of the survivors.\\n\\n**Use the SQL Playground below to query the dataset.**\\n\\n### Dataset\\n\\nSame Titanic dataset as the previous challenge. The \`dataset\` table is pre-loaded.\\n\\n\`\`\`sql\\nDESCRIBE dataset;\\nSELECT DISTINCT Sex FROM dataset;\\n\`\`\`\\n\\n### Mission\\n\\n*\\\"Women and children first\\\"* — but how many women actually made it?\\n\\nThe flag is \`hctf{N}\` where **N** is the number of **female passengers who survived**.\\n\\n\`\`\`sql\\n-- Build your query step by step:\\nSELECT COUNT(*) FROM dataset\\nWHERE Survived = 1\\n  AND Sex = '???';\\n\`\`\`\\n\\n### SQL Tips\\n\\n| Clause | Purpose |\\n|--------|---------|\\n| \`WHERE col = val\` | Filter rows by exact value |\\n| \`AND\` | Combine multiple conditions |\\n| \`COUNT(*)\` | Count matching rows |\\n\\n> **Hint:** String comparisons in SQL are case-sensitive. Check the exact value with \`SELECT DISTINCT Sex FROM dataset\` first.\",\"category\":\"forensics\",\"difficulty\":\"hard\",\"visible\":true,\"sql_enabled\":true,\"sql_dataset_url\":\"${TITANIC_URL}\",\"sql_schema_hint\":\"${TITANIC_SCHEMA}\"}" \
     | extract_id)
 
 # ── Attach files to challenges ───────────────────────────────────
@@ -137,82 +137,82 @@ api_form "/api/admin/challenges/${CH7}/files/url" \
 log "Creating questions..."
 
 Q1=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH1}\",\"name\":\"Find the hidden cookie\",\"description\":\"Inspect the HTTP response headers carefully. The flag is stored in a cookie named after a well-known blue puppet.\",\"flag\":\"hctf2{c00ki3_m0nst3r_w4s_here}\",\"points\":100}")
+    "{\"challenge_id\":\"${CH1}\",\"name\":\"Find the hidden cookie\",\"description\":\"Inspect the HTTP response headers carefully. The flag is stored in a cookie named after a well-known blue puppet.\",\"flag\":\"hctf{c00ki3_m0nst3r_w4s_here}\",\"points\":100}")
 Q1=$(echo "${Q1}" | extract_id)
 
 Q2=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH2}\",\"name\":\"Decrypt the ciphertext\",\"description\":\"The ciphertext in the challenge description encodes the flag. Apply the right Caesar shift to recover it.\",\"flag\":\"hctf2{julius_w0uld_be_pr0ud}\",\"points\":150}")
+    "{\"challenge_id\":\"${CH2}\",\"name\":\"Decrypt the ciphertext\",\"description\":\"The ciphertext in the challenge description encodes the flag. Apply the right Caesar shift to recover it.\",\"flag\":\"hctf{julius_w0uld_be_pr0ud}\",\"points\":150}")
 Q2=$(echo "${Q2}" | extract_id)
 
 Q3=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH3}\",\"name\":\"Decode all the layers\",\"description\":\"Peel each encoding layer in order: Base64 → Hex → ROT47. The result is the flag.\",\"flag\":\"hctf2{n0t_just_b4s3_64}\",\"points\":250}")
+    "{\"challenge_id\":\"${CH3}\",\"name\":\"Decode all the layers\",\"description\":\"Peel each encoding layer in order: Base64 → Hex → ROT47. The result is the flag.\",\"flag\":\"hctf{n0t_just_b4s3_64}\",\"points\":250}")
 Q3=$(echo "${Q3}" | extract_id)
 
 Q4=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH4}\",\"name\":\"Extract the hidden data\",\"description\":\"The least significant bits of the image encode the flag. Use a steganography tool to extract it.\",\"flag\":\"hctf2{st3g4n0gr4phy_1s_fun}\",\"points\":200}")
+    "{\"challenge_id\":\"${CH4}\",\"name\":\"Extract the hidden data\",\"description\":\"The least significant bits of the image encode the flag. Use a steganography tool to extract it.\",\"flag\":\"hctf{st3g4n0gr4phy_1s_fun}\",\"points\":200}")
 Q4=$(echo "${Q4}" | extract_id)
 
 Q5=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH5}\",\"name\":\"Find the validation key\",\"description\":\"Reverse-engineer or debug the binary to extract the hardcoded passphrase it checks against.\",\"flag\":\"hctf2{r3v3rs3_3ng1n33r1ng}\",\"points\":300}")
+    "{\"challenge_id\":\"${CH5}\",\"name\":\"Find the validation key\",\"description\":\"Reverse-engineer or debug the binary to extract the hardcoded passphrase it checks against.\",\"flag\":\"hctf{r3v3rs3_3ng1n33r1ng}\",\"points\":300}")
 Q5=$(echo "${Q5}" | extract_id)
 
 Q6=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH6}\",\"name\":\"Bypass the login\",\"description\":\"Use SQL injection to extract the flag from the secrets table. A UNION-based attack works well here.\",\"flag\":\"hctf2{sql_1nj3ct10n_m4st3r}\",\"points\":250}")
+    "{\"challenge_id\":\"${CH6}\",\"name\":\"Bypass the login\",\"description\":\"Use SQL injection to extract the flag from the secrets table. A UNION-based attack works well here.\",\"flag\":\"hctf{sql_1nj3ct10n_m4st3r}\",\"points\":250}")
 Q6=$(echo "${Q6}" | extract_id)
 
 Q7=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH7}\",\"name\":\"Recover the plaintext\",\"description\":\"Use the known flag prefix hctf2{ to recover the XOR key, then decrypt the entire file.\",\"flag\":\"hctf2{xor_1s_not_s3cur3}\",\"points\":400}")
+    "{\"challenge_id\":\"${CH7}\",\"name\":\"Recover the plaintext\",\"description\":\"Use the known flag prefix hctf{ to recover the XOR key, then decrypt the entire file.\",\"flag\":\"hctf{xor_1s_not_s3cur3}\",\"points\":400}")
 Q7=$(echo "${Q7}" | extract_id)
 
 Q8=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH8}\",\"name\":\"Find the backdoor credentials\",\"description\":\"Analyze the memory dump using Volatility. The credentials are Base64-encoded in a process argument.\",\"flag\":\"hctf2{m3m0ry_t3lls_4ll}\",\"points\":450}")
+    "{\"challenge_id\":\"${CH8}\",\"name\":\"Find the backdoor credentials\",\"description\":\"Analyze the memory dump using Volatility. The credentials are Base64-encoded in a process argument.\",\"flag\":\"hctf{m3m0ry_t3lls_4ll}\",\"points\":450}")
 Q8=$(echo "${Q8}" | extract_id)
 
 Q9=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH9}\",\"name\":\"Count the survivors\",\"description\":\"Of the 891 passengers aboard the Titanic, how many survived the disaster? Query the dataset to find out.\",\"flag\":\"hctf2{342}\",\"points\":200}")
+    "{\"challenge_id\":\"${CH9}\",\"name\":\"Count the survivors\",\"description\":\"Of the 891 passengers aboard the Titanic, how many survived the disaster? Query the dataset to find out.\",\"flag\":\"hctf{342}\",\"points\":200}")
 Q9=$(echo "${Q9}" | extract_id)
 
 Q10=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH10}\",\"name\":\"Count female survivors\",\"description\":\"History recorded that women were given priority in the lifeboats. How many female passengers made it out alive?\",\"flag\":\"hctf2{233}\",\"points\":350}")
+    "{\"challenge_id\":\"${CH10}\",\"name\":\"Count female survivors\",\"description\":\"History recorded that women were given priority in the lifeboats. How many female passengers made it out alive?\",\"flag\":\"hctf{233}\",\"points\":350}")
 Q10=$(echo "${Q10}" | extract_id)
 
 # Extra questions — varying counts per challenge to look natural
 # CH1: 2nd question (web)
 Q1B=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH1}\",\"name\":\"Find the admin path cookie\",\"description\":\"A second cookie reveals the hidden admin panel path. It is only set when you visit the /admin endpoint.\",\"flag\":\"hctf2{/4dm1n_p4n3l}\",\"points\":175}")
+    "{\"challenge_id\":\"${CH1}\",\"name\":\"Find the admin path cookie\",\"description\":\"A second cookie reveals the hidden admin panel path. It is only set when you visit the /admin endpoint.\",\"flag\":\"hctf{/4dm1n_p4n3l}\",\"points\":175}")
 Q1B=$(echo "${Q1B}" | extract_id)
 
 # CH4: 2nd question (forensics)
 Q4B=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH4}\",\"name\":\"Identify the steganography channel\",\"description\":\"Not all channels are equal. Which color channel of the image was used to embed the secret data?\",\"flag\":\"hctf2{r3d}\",\"points\":150}")
+    "{\"challenge_id\":\"${CH4}\",\"name\":\"Identify the steganography channel\",\"description\":\"Not all channels are equal. Which color channel of the image was used to embed the secret data?\",\"flag\":\"hctf{r3d}\",\"points\":150}")
 Q4B=$(echo "${Q4B}" | extract_id)
 
 # CH6: 2nd question (web / SQLi)
 Q6B=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH6}\",\"name\":\"Dump the admin password hash\",\"description\":\"Go further — extract the admin user's password hash from the users table using UNION injection.\",\"flag\":\"hctf2{p4ssw0rd_h4sh_3xp0s3d}\",\"points\":400}")
+    "{\"challenge_id\":\"${CH6}\",\"name\":\"Dump the admin password hash\",\"description\":\"Go further — extract the admin user's password hash from the users table using UNION injection.\",\"flag\":\"hctf{p4ssw0rd_h4sh_3xp0s3d}\",\"points\":400}")
 Q6B=$(echo "${Q6B}" | extract_id)
 
 # CH8: 2nd question (forensics)
 Q8B=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH8}\",\"name\":\"Find the backdoor process PID\",\"description\":\"The attacker's bind shell is still running in the memory snapshot. What process ID was it assigned by the OS?\",\"flag\":\"hctf2{4821}\",\"points\":300}")
+    "{\"challenge_id\":\"${CH8}\",\"name\":\"Find the backdoor process PID\",\"description\":\"The attacker's bind shell is still running in the memory snapshot. What process ID was it assigned by the OS?\",\"flag\":\"hctf{4821}\",\"points\":300}")
 Q8B=$(echo "${Q8B}" | extract_id)
 
 # CH9: 2 extra questions (SQL Playground — Titanic dataset facts)
 # Total passengers: SELECT COUNT(*) FROM dataset  → 891
 Q9B=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH9}\",\"name\":\"Count total passengers\",\"description\":\"Before diving into survival stats, get a feel for the dataset. How many passenger records does it contain in total?\",\"flag\":\"hctf2{891}\",\"points\":75}")
+    "{\"challenge_id\":\"${CH9}\",\"name\":\"Count total passengers\",\"description\":\"Before diving into survival stats, get a feel for the dataset. How many passenger records does it contain in total?\",\"flag\":\"hctf{891}\",\"points\":75}")
 Q9B=$(echo "${Q9B}" | extract_id)
 
 Q9C=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH9}\",\"name\":\"Count first-class passengers\",\"description\":\"The Titanic carried passengers across three ticket classes. How many were traveling in first class?\",\"flag\":\"hctf2{216}\",\"points\":125}")
+    "{\"challenge_id\":\"${CH9}\",\"name\":\"Count first-class passengers\",\"description\":\"The Titanic carried passengers across three ticket classes. How many were traveling in first class?\",\"flag\":\"hctf{216}\",\"points\":125}")
 Q9C=$(echo "${Q9C}" | extract_id)
 
 Q10B=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH10}\",\"name\":\"Count male survivors\",\"description\":\"Women were given priority access to the lifeboats. How many male passengers survived despite the odds?\",\"flag\":\"hctf2{109}\",\"points\":200}")
+    "{\"challenge_id\":\"${CH10}\",\"name\":\"Count male survivors\",\"description\":\"Women were given priority access to the lifeboats. How many male passengers survived despite the odds?\",\"flag\":\"hctf{109}\",\"points\":200}")
 Q10B=$(echo "${Q10B}" | extract_id)
 
 Q10C=$(api_post "/api/admin/questions" \
-    "{\"challenge_id\":\"${CH10}\",\"name\":\"First-class survivors\",\"description\":\"Wealthier passengers had cabins closer to the lifeboats. How many first-class passengers survived the sinking?\",\"flag\":\"hctf2{136}\",\"points\":275}")
+    "{\"challenge_id\":\"${CH10}\",\"name\":\"First-class survivors\",\"description\":\"Wealthier passengers had cabins closer to the lifeboats. How many first-class passengers survived the sinking?\",\"flag\":\"hctf{136}\",\"points\":275}")
 Q10C=$(echo "${Q10C}" | extract_id)
 
 # ── Create hints (2 per question: cheap nudge + expensive near-solution) ─
@@ -254,11 +254,11 @@ H6_1=$(add_hint "${Q6}" "The username field is vulnerable. Try entering \`' OR '
 H6_2=$(add_hint "${Q6}" "Use a UNION injection: \`' UNION SELECT 1,secret_value,3 FROM secrets --\`. First confirm the column count with \`' ORDER BY 3 --\` (no error = 3 columns)." 50 2)
 
 # Q7 — XOR Master
-H7_1=$(add_hint "${Q7}" "XOR with a repeating key is reversible if you know part of the plaintext. The flag starts with \`hctf2{\` — XOR that against the first 6 bytes of ciphertext to recover the start of the key." 30 1)
-H7_2=$(add_hint "${Q7}" "The key is exactly 5 bytes long. XOR the known prefix \`hctf2\` against ciphertext bytes 0-4 to get the full key, then decrypt the entire file with \`bytes(c ^ k for c, k in zip(data, key * 999))\`." 70 2)
+H7_1=$(add_hint "${Q7}" "XOR with a repeating key is reversible if you know part of the plaintext. The flag starts with \`hctf{\` — XOR that against the first 6 bytes of ciphertext to recover the start of the key." 30 1)
+H7_2=$(add_hint "${Q7}" "The key is exactly 5 bytes long. XOR the known prefix \`hctf\` against ciphertext bytes 0-4 to get the full key, then decrypt the entire file with \`bytes(c ^ k for c, k in zip(data, key * 999))\`." 70 2)
 
 # Q8 — Memory Forensics
-H8_1=$(add_hint "${Q8}" "Start with \`strings memory.raw | grep -E 'hctf2\\{'\` — a simple string search often finds flags in memory dumps without needing full Volatility analysis." 30 1)
+H8_1=$(add_hint "${Q8}" "Start with \`strings memory.raw | grep -E 'hctf\\{'\` — a simple string search often finds flags in memory dumps without needing full Volatility analysis." 30 1)
 H8_2=$(add_hint "${Q8}" "The backdoor process is named \`bindshell\` and its credentials are passed as a Base64-encoded argument. Run \`strings memory.raw | grep bindshell\` then decode the adjacent base64 blob." 75 2)
 
 # Q9 — Titanic: A Data Tragedy
@@ -290,7 +290,7 @@ H10C_1=$(add_hint "${Q10C}" "Combine two WHERE conditions: \`SELECT COUNT(*) FRO
 # ── Register demo users ───────────────────────────────────────────
 log "Registering demo users..."
 
-for ENTRY in "Alice:alice@demo.hctf2" "Bob:bob@demo.hctf2" "Carol:carol@demo.hctf2" "Dave:dave@demo.hctf2" "Eve:eve@demo.hctf2"; do
+for ENTRY in "Alice:alice@demo.hctf" "Bob:bob@demo.hctf" "Carol:carol@demo.hctf" "Dave:dave@demo.hctf" "Eve:eve@demo.hctf"; do
     NAME=$(echo "${ENTRY}" | cut -d: -f1)
     EMAIL=$(echo "${ENTRY}" | cut -d: -f2)
     wget -q -O /dev/null \
@@ -309,9 +309,9 @@ user_token() {
 # ── Create teams ──────────────────────────────────────────────────
 log "Creating teams..."
 
-ALICE_TOKEN=$(user_token "alice@demo.hctf2")
-BOB_TOKEN=$(user_token "bob@demo.hctf2")
-DAVE_TOKEN=$(user_token "dave@demo.hctf2")
+ALICE_TOKEN=$(user_token "alice@demo.hctf")
+BOB_TOKEN=$(user_token "bob@demo.hctf")
+DAVE_TOKEN=$(user_token "dave@demo.hctf")
 
 # Alice creates "Shadow Hackers"
 TEAM1_RESP=$(wget -q -O- --post-data='{"name":"Shadow Hackers","description":"We hack in the shadows"}' \
@@ -336,8 +336,8 @@ TEAM1_INVITE=$(echo "${TEAM1_RESP}" | sed -n 's/.*"invite_id":"\([^"]*\)".*/\1/p
 TEAM2_INVITE=$(echo "${TEAM2_RESP}" | sed -n 's/.*"invite_id":"\([^"]*\)".*/\1/p')
 
 # Carol joins Shadow Hackers, Eve joins Binary Wolves
-CAROL_TOKEN=$(user_token "carol@demo.hctf2")
-EVE_TOKEN=$(user_token "eve@demo.hctf2")
+CAROL_TOKEN=$(user_token "carol@demo.hctf")
+EVE_TOKEN=$(user_token "eve@demo.hctf")
 
 if [ -n "${TEAM1_INVITE}" ]; then
     wget -q -O /dev/null --post-data='{}' \
@@ -370,82 +370,82 @@ submit_flag() {
 log "Submitting flags and unlocking hints..."
 
 # Alice solves: Q1, Q2, Q3, Q6, Q7, Q9 (with hint penalties on Q7 and Q9)
-submit_flag "${ALICE_TOKEN}" "${Q1}" "hctf2{c00ki3_m0nst3r_w4s_here}"
-submit_flag "${ALICE_TOKEN}" "${Q2}" "hctf2{julius_w0uld_be_pr0ud}"
-submit_flag "${ALICE_TOKEN}" "${Q3}" "hctf2{n0t_just_b4s3_64}"
-submit_flag "${ALICE_TOKEN}" "${Q6}" "hctf2{sql_1nj3ct10n_m4st3r}"
+submit_flag "${ALICE_TOKEN}" "${Q1}" "hctf{c00ki3_m0nst3r_w4s_here}"
+submit_flag "${ALICE_TOKEN}" "${Q2}" "hctf{julius_w0uld_be_pr0ud}"
+submit_flag "${ALICE_TOKEN}" "${Q3}" "hctf{n0t_just_b4s3_64}"
+submit_flag "${ALICE_TOKEN}" "${Q6}" "hctf{sql_1nj3ct10n_m4st3r}"
 # Alice unlocks hint 1 for Q7 (XOR Master) before solving it — costs 25 pts
 [ -n "${H7_1}" ] && unlock_hint "${H7_1}" "${ALICE_TOKEN}"
-submit_flag "${ALICE_TOKEN}" "${Q7}" "hctf2{xor_1s_not_s3cur3}"
+submit_flag "${ALICE_TOKEN}" "${Q7}" "hctf{xor_1s_not_s3cur3}"
 # Alice also peeks at hint 1 for Q9 (Titanic) before submitting — costs 15 pts
 [ -n "${H9_1}" ] && unlock_hint "${H9_1}" "${ALICE_TOKEN}"
-submit_flag "${ALICE_TOKEN}" "${Q9}" "hctf2{342}"
+submit_flag "${ALICE_TOKEN}" "${Q9}" "hctf{342}"
 
 # Bob solves: Q1, Q4, Q5, Q8, Q10 (with hint penalties on Q4 and Q8)
-submit_flag "${BOB_TOKEN}" "${Q1}" "hctf2{c00ki3_m0nst3r_w4s_here}"
+submit_flag "${BOB_TOKEN}" "${Q1}" "hctf{c00ki3_m0nst3r_w4s_here}"
 # Bob unlocks both hints for Q4 (Steganography) before solving it — costs 50+75 pts
 [ -n "${H4_1}" ] && unlock_hint "${H4_1}" "${BOB_TOKEN}"
 [ -n "${H4_1}" ] && [ -n "${H4_2}" ] && unlock_hint "${H4_2}" "${BOB_TOKEN}"
-submit_flag "${BOB_TOKEN}" "${Q4}" "hctf2{st3g4n0gr4phy_1s_fun}"
-submit_flag "${BOB_TOKEN}" "${Q5}" "hctf2{r3v3rs3_3ng1n33r1ng}"
+submit_flag "${BOB_TOKEN}" "${Q4}" "hctf{st3g4n0gr4phy_1s_fun}"
+submit_flag "${BOB_TOKEN}" "${Q5}" "hctf{r3v3rs3_3ng1n33r1ng}"
 # Bob unlocks hint 1 for Q8 (Memory Forensics) before solving it — costs 40 pts
 [ -n "${H8_1}" ] && unlock_hint "${H8_1}" "${BOB_TOKEN}"
-submit_flag "${BOB_TOKEN}" "${Q8}" "hctf2{m3m0ry_t3lls_4ll}"
-submit_flag "${BOB_TOKEN}" "${Q10}" "hctf2{233}"
+submit_flag "${BOB_TOKEN}" "${Q8}" "hctf{m3m0ry_t3lls_4ll}"
+submit_flag "${BOB_TOKEN}" "${Q10}" "hctf{233}"
 
 # Carol solves: Q1, Q2, Q4 (with hint penalty on Q2)
-submit_flag "${CAROL_TOKEN}" "${Q1}" "hctf2{c00ki3_m0nst3r_w4s_here}"
+submit_flag "${CAROL_TOKEN}" "${Q1}" "hctf{c00ki3_m0nst3r_w4s_here}"
 # Carol unlocks hint 1 for Q2 (Caesar's Secret) before solving it — costs 20 pts
 [ -n "${H2_1}" ] && unlock_hint "${H2_1}" "${CAROL_TOKEN}"
-submit_flag "${CAROL_TOKEN}" "${Q2}" "hctf2{julius_w0uld_be_pr0ud}"
-submit_flag "${CAROL_TOKEN}" "${Q4}" "hctf2{st3g4n0gr4phy_1s_fun}"
+submit_flag "${CAROL_TOKEN}" "${Q2}" "hctf{julius_w0uld_be_pr0ud}"
+submit_flag "${CAROL_TOKEN}" "${Q4}" "hctf{st3g4n0gr4phy_1s_fun}"
 
 # Dave solves: Q2, Q3, Q7, Q9 (with hint penalty on Q3)
-submit_flag "${DAVE_TOKEN}" "${Q2}" "hctf2{julius_w0uld_be_pr0ud}"
+submit_flag "${DAVE_TOKEN}" "${Q2}" "hctf{julius_w0uld_be_pr0ud}"
 # Dave unlocks hint 1 for Q3 (Base64? No.) before solving it — costs 30 pts
 [ -n "${H3_1}" ] && unlock_hint "${H3_1}" "${DAVE_TOKEN}"
-submit_flag "${DAVE_TOKEN}" "${Q3}" "hctf2{n0t_just_b4s3_64}"
-submit_flag "${DAVE_TOKEN}" "${Q7}" "hctf2{xor_1s_not_s3cur3}"
-submit_flag "${DAVE_TOKEN}" "${Q9}" "hctf2{342}"
+submit_flag "${DAVE_TOKEN}" "${Q3}" "hctf{n0t_just_b4s3_64}"
+submit_flag "${DAVE_TOKEN}" "${Q7}" "hctf{xor_1s_not_s3cur3}"
+submit_flag "${DAVE_TOKEN}" "${Q9}" "hctf{342}"
 
 # Eve solves: Q1, Q6 (with hint penalty on Q6)
-submit_flag "${EVE_TOKEN}" "${Q1}" "hctf2{c00ki3_m0nst3r_w4s_here}"
+submit_flag "${EVE_TOKEN}" "${Q1}" "hctf{c00ki3_m0nst3r_w4s_here}"
 # Eve unlocks hint 1 for Q6 (SQL Injection 101) before solving it — costs 25 pts
 [ -n "${H6_1}" ] && unlock_hint "${H6_1}" "${EVE_TOKEN}"
-submit_flag "${EVE_TOKEN}" "${Q6}" "hctf2{sql_1nj3ct10n_m4st3r}"
+submit_flag "${EVE_TOKEN}" "${Q6}" "hctf{sql_1nj3ct10n_m4st3r}"
 
 # Extra questions
 # Alice: Q1B, Q9B, Q9C (good at web + SQL intro)
-submit_flag "${ALICE_TOKEN}" "${Q1B}" "hctf2{/4dm1n_p4n3l}"
-submit_flag "${ALICE_TOKEN}" "${Q9B}" "hctf2{891}"
-submit_flag "${ALICE_TOKEN}" "${Q9C}" "hctf2{216}"
+submit_flag "${ALICE_TOKEN}" "${Q1B}" "hctf{/4dm1n_p4n3l}"
+submit_flag "${ALICE_TOKEN}" "${Q9B}" "hctf{891}"
+submit_flag "${ALICE_TOKEN}" "${Q9C}" "hctf{216}"
 
 # Bob: Q4B, Q8B, Q10B, Q10C (forensics specialist)
-submit_flag "${BOB_TOKEN}" "${Q4B}"  "hctf2{r3d}"
-submit_flag "${BOB_TOKEN}" "${Q8B}"  "hctf2{4821}"
-submit_flag "${BOB_TOKEN}" "${Q10B}" "hctf2{109}"
-submit_flag "${BOB_TOKEN}" "${Q10C}" "hctf2{136}"
+submit_flag "${BOB_TOKEN}" "${Q4B}"  "hctf{r3d}"
+submit_flag "${BOB_TOKEN}" "${Q8B}"  "hctf{4821}"
+submit_flag "${BOB_TOKEN}" "${Q10B}" "hctf{109}"
+submit_flag "${BOB_TOKEN}" "${Q10C}" "hctf{136}"
 
 # Carol: Q1B, Q9B (partial)
-submit_flag "${CAROL_TOKEN}" "${Q1B}" "hctf2{/4dm1n_p4n3l}"
-submit_flag "${CAROL_TOKEN}" "${Q9B}" "hctf2{891}"
+submit_flag "${CAROL_TOKEN}" "${Q1B}" "hctf{/4dm1n_p4n3l}"
+submit_flag "${CAROL_TOKEN}" "${Q9B}" "hctf{891}"
 
 # Dave: Q9B, Q9C, Q10B (SQL focused)
-submit_flag "${DAVE_TOKEN}" "${Q9B}"  "hctf2{891}"
-submit_flag "${DAVE_TOKEN}" "${Q9C}"  "hctf2{216}"
-submit_flag "${DAVE_TOKEN}" "${Q10B}" "hctf2{109}"
+submit_flag "${DAVE_TOKEN}" "${Q9B}"  "hctf{891}"
+submit_flag "${DAVE_TOKEN}" "${Q9C}"  "hctf{216}"
+submit_flag "${DAVE_TOKEN}" "${Q10B}" "hctf{109}"
 
 # Eve: Q6B (web focused)
-submit_flag "${EVE_TOKEN}" "${Q6B}" "hctf2{p4ssw0rd_h4sh_3xp0s3d}"
+submit_flag "${EVE_TOKEN}" "${Q6B}" "hctf{p4ssw0rd_h4sh_3xp0s3d}"
 
 # Wrong attempts for realism
-submit_flag "${CAROL_TOKEN}" "${Q7}"  "hctf2{wrong_flag_lol}"
-submit_flag "${EVE_TOKEN}"   "${Q3}"  "hctf2{base64_maybe}"
-submit_flag "${DAVE_TOKEN}"  "${Q8}"  "hctf2{nope_not_this}"
-submit_flag "${EVE_TOKEN}"   "${Q9}"  "hctf2{891}"
-submit_flag "${CAROL_TOKEN}" "${Q10}" "hctf2{470}"
-submit_flag "${CAROL_TOKEN}" "${Q6B}" "hctf2{admin_hash}"
-submit_flag "${EVE_TOKEN}"   "${Q10B}" "hctf2{233}"
+submit_flag "${CAROL_TOKEN}" "${Q7}"  "hctf{wrong_flag_lol}"
+submit_flag "${EVE_TOKEN}"   "${Q3}"  "hctf{base64_maybe}"
+submit_flag "${DAVE_TOKEN}"  "${Q8}"  "hctf{nope_not_this}"
+submit_flag "${EVE_TOKEN}"   "${Q9}"  "hctf{891}"
+submit_flag "${CAROL_TOKEN}" "${Q10}" "hctf{470}"
+submit_flag "${CAROL_TOKEN}" "${Q6B}" "hctf{admin_hash}"
+submit_flag "${EVE_TOKEN}"   "${Q10B}" "hctf{233}"
 
 # ── Backdate submissions for interesting score evolution ──────────
 log "Backdating submissions for score chart..."
@@ -518,7 +518,7 @@ log "Creating active competition..."
 
 # Create the competition (form-encoded; no start/end so it stays open)
 COMP_RESP=$(api_form "/api/admin/competitions" \
-    "name=hCTF2+Open+Qualifier&description=An+open+qualifier+event+showcasing+all+challenge+categories.+Try+all+challenge+types+including+the+interactive+SQL+Playground!")
+    "name=hCTF+Open+Qualifier&description=An+open+qualifier+event+showcasing+all+challenge+categories.+Try+all+challenge+types+including+the+interactive+SQL+Playground!")
 COMP_ID=$(echo "${COMP_RESP}" | extract_id_int)
 
 if [ -z "${COMP_ID}" ]; then

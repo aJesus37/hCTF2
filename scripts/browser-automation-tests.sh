@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# hCTF2 Comprehensive Browser Automation Tests
+# hCTF Comprehensive Browser Automation Tests
 # Detailed validation of all features using agent-browser
 #
 
 set -e
 
 BASE_URL="${BASE_URL:-http://localhost:8090}"
-SESSION_NAME="hctf2-automation"
+SESSION_NAME="hctf-automation"
 HEADED="${HEADED:-false}"
 SCREENSHOTS="${SCREENSHOTS:-false}"
 SCREENSHOT_DIR="${SCREENSHOT_DIR:-./test-screenshots}"
@@ -51,7 +51,7 @@ setup() {
 cleanup() {
     log_info "Cleaning up..."
     agent-browser $BROWSER_OPTS close 2>/dev/null || true
-    rm -f /tmp/hctf2-test-*.txt 2>/dev/null || true
+    rm -f /tmp/hctf-test-*.txt 2>/dev/null || true
 }
 
 trap cleanup EXIT
@@ -124,8 +124,8 @@ JS
     fi
     
     # Save credentials
-    echo "$test_email" > /tmp/hctf2-test-email.txt
-    echo "$test_password" > /tmp/hctf2-test-password.txt
+    echo "$test_email" > /tmp/hctf-test-email.txt
+    echo "$test_password" > /tmp/hctf-test-password.txt
     
     # Step 2: Logout
     log_info "Step 2: Logout"
@@ -541,7 +541,7 @@ print_summary() {
 }
 
 usage() {
-    echo "hCTF2 Browser Automation Tests"
+    echo "hCTF Browser Automation Tests"
     echo ""
     echo "Usage: $0 [options]"
     echo ""
@@ -601,7 +601,7 @@ main() {
     done
     
     echo ""
-    log_info "hCTF2 Browser Automation Tests"
+    log_info "hCTF Browser Automation Tests"
     log_info "URL: $BASE_URL"
     log_info "Mode: $([ "$HEADED" = "true" ] && echo "Headed" || echo "Headless")"
     [ "$SCREENSHOTS" = "true" ] && log_info "Screenshots: $SCREENSHOT_DIR"

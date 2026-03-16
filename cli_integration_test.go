@@ -2,7 +2,7 @@ package main
 
 // CLI integration tests — exercise every command, subcommand, and flag.
 //
-// Strategy: TestMain builds the binary once, starts hctf2 serve as a
+// Strategy: TestMain builds the binary once, starts hctf serve as a
 // subprocess on a free port, logs in as admin, and stores the server URL
 // and config-file path in package-level variables.  Each test then calls
 // runCLI() which execs the binary with HCTF_CONFIG pointing at the temp
@@ -45,7 +45,7 @@ const (
 
 func TestMain(m *testing.M) {
 	code := func() int {
-		// 1. Build binary into a temp dir so we don't clobber ./hctf2.
+		// 1. Build binary into a temp dir so we don't clobber ./hctf.
 		tmpDir, err := os.MkdirTemp("", "hctf-cli-test-*")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "TestMain: MkdirTemp: %v\n", err)

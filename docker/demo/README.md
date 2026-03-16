@@ -1,6 +1,6 @@
-# hCTF2 Demo
+# hCTF Demo
 
-Self-contained demo environment for hCTF2 that resets every 30 minutes.
+Self-contained demo environment for hCTF that resets every 30 minutes.
 
 ## Quick Start
 
@@ -12,8 +12,8 @@ Then open http://localhost:8090.
 
 ## What You Get
 
-- **Admin account**: `admin@demo.hctf2` / `Admin123!`
-- **5 demo users**: alice, bob, carol, dave, eve (`@demo.hctf2`, password: `demo123`)
+- **Admin account**: `admin@demo.hctf` / `Admin123!`
+- **5 demo users**: alice, bob, carol, dave, eve (`@demo.hctf`, password: `demo123`)
 - **3 teams**: Shadow Hackers, Binary Wolves, Crypto Ninjas
 - **8 challenges** across web, crypto, forensics, and misc categories
 - **Pre-populated scoreboard** with staggered submissions over the past 2 hours
@@ -28,7 +28,7 @@ The MOTD is updated with the next reset time after each cycle.
 
 A single Alpine-based container runs:
 
-1. The hCTF2 binary (Go server)
+1. The hCTF binary (Go server)
 2. A seed script that populates data via the REST API
 3. A background loop that resets every 30 minutes
 

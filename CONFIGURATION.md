@@ -2,7 +2,7 @@
 
 ## Overview
 
-hCTF2 can be configured via:
+hCTF can be configured via:
 - **Command-line flags**: Override all other configuration
 - **Environment variables**: Override defaults
 - **Defaults**: Built-in sensible defaults for local development
@@ -11,13 +11,13 @@ The precedence order is: CLI flags > environment variables > defaults.
 
 ## Command-Line Flags
 
-All server flags live under the `serve` subcommand. Run `./hctf2 serve --help` to see all available flags:
+All server flags live under the `serve` subcommand. Run `./hctf serve --help` to see all available flags:
 
 ```
-./hctf2 serve [flags]
+./hctf serve [flags]
 
 --port PORT                    Server port (default: 8090)
---db PATH                      SQLite database path (default: ./hctf2.db)
+--db PATH                      SQLite database path (default: ./hctf.db)
 --admin-email EMAIL            Initial admin email (required for first setup)
 --admin-password PASSWORD      Initial admin password (required for first setup)
 --motd TEXT                    Message of the Day displayed below login form
@@ -36,20 +36,20 @@ All server flags live under the `serve` subcommand. Run `./hctf2 serve --help` t
 --dev                          Enable development mode (allows default JWT secret)
 ```
 
-Run `./hctf2 --help` to see the full command tree including CLI subcommands.
+Run `./hctf --help` to see the full command tree including CLI subcommands.
 
 ### Examples
 
 **Local Development:**
 ```bash
-./hctf2 serve --port 3000 --admin-email admin@test.com --admin-password testpass123
+./hctf serve --port 3000 --admin-email admin@test.com --admin-password testpass123
 ```
 
 **Production:**
 ```bash
-./hctf2 serve \
+./hctf serve \
   --port 8080 \
-  --db /var/lib/hctf2/hctf2.db \
+  --db /var/lib/hctf/hctf.db \
   --jwt-secret $(openssl rand -base64 32) \
   --admin-email admin@example.com \
   --admin-password "$(read -sp 'Admin password: ' pass && echo $pass)"
@@ -77,7 +77,7 @@ export UMAMI_WEBSITE_ID=your-website-id
 
 Then run:
 ```bash
-./hctf2 serve
+./hctf serve
 ```
 
 ## Server Configuration
@@ -90,12 +90,12 @@ Then run:
 
 Local only (development):
 ```bash
-./hctf2 serve --port 3000
+./hctf serve --port 3000
 ```
 
 All interfaces (production):
 ```bash
-./hctf2 serve --port 8080
+./hctf serve --port 8080
 ```
 
 **Note:** The server listens on all interfaces (0.0.0.0) by default. Use a firewall to restrict access if needed.
@@ -145,17 +145,17 @@ For most deployments, leave this empty as the web UI is served from the same ori
 
 Same-origin only (default, secure):
 ```bash
-./hctf2 serve
+./hctf serve
 ```
 
 Allow specific origins:
 ```bash
-./hctf2 serve --cors-origins "https://app.example.com,https://admin.example.com"
+./hctf serve --cors-origins "https://app.example.com,https://admin.example.com"
 ```
 
 Allow all origins (NOT recommended for production):
 ```bash
-./hctf2 serve --cors-origins "*"
+./hctf serve --cors-origins "*"
 ```
 
 ## Database Configuration
@@ -163,7 +163,7 @@ Allow all origins (NOT recommended for production):
 ### SQLite Database
 
 **Environment Variable:**
-- Database path defaults to `./hctf2.db` (use `--db` flag to change)
+- Database path defaults to `./hctf.db` (use `--db` flag to change)
 
 **Notes:**
 - Directory must exist before running the application
@@ -174,17 +174,17 @@ Allow all origins (NOT recommended for production):
 
 Local development:
 ```bash
-./hctf2 serve --db data/hctf2.db
+./hctf serve --db data/hctf.db
 ```
 
 Production:
 ```bash
-./hctf2 serve --db /var/lib/hctf2/hctf2.db
+./hctf serve --db /var/lib/hctf/hctf.db
 ```
 
 Docker:
 ```bash
-./hctf2 serve --db /data/hctf2.db
+./hctf serve --db /data/hctf.db
 ```
 
 ### Database Location Setup
@@ -192,14 +192,14 @@ Docker:
 For production, create the database directory with proper permissions:
 
 ```bash
-sudo mkdir -p /var/lib/hctf2
-sudo chown ctf2:ctf2 /var/lib/hctf2
-sudo chmod 750 /var/lib/hctf2
+sudo mkdir -p /var/lib/hctf
+sudo chown ctf2:ctf2 /var/lib/hctf
+sudo chmod 750 /var/lib/hctf
 ```
 
 Then run as the `ctf2` user:
 ```bash
-sudo -u ctf2 ./hctf2 serve --db /var/lib/hctf2/hctf2.db
+sudo -u ctf2 ./hctf serve --db /var/lib/hctf/hctf.db
 ```
 
 ### Backup Configuration
@@ -208,7 +208,7 @@ Database backups should be handled outside the application. Example cron job:
 
 ```bash
 # Daily backup at 2 AM
-0 2 * * * cp /var/lib/hctf2/hctf2.db /backups/hctf2-$(date +\%Y\%m\%d).db
+0 2 * * * cp /var/lib/hctf/hctf.db /backups/hctf-$(date +\%Y\%m\%d).db
 ```
 
 ## Security Settings
@@ -221,18 +221,18 @@ The JWT secret is **required** for production deployments. The server will refus
 
 1. **Command-Line Flag:**
    ```bash
-   ./hctf2 serve --jwt-secret "$(openssl rand -base64 32)"
+   ./hctf serve --jwt-secret "$(openssl rand -base64 32)"
    ```
 
 2. **Environment Variable:**
    ```bash
    export JWT_SECRET="$(openssl rand -base64 32)"
-   ./hctf2 serve
+   ./hctf serve
    ```
 
 3. **Development Mode** (insecure, for local development only):
    ```bash
-   ./hctf2 serve --dev
+   ./hctf serve --dev
    ```
 
 **Security Requirements:**
@@ -263,8 +263,8 @@ cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
 
 | Mode | Command | Behavior |
 |------|---------|----------|
-| Production (default) | `./hctf2 serve --jwt-secret <secret>` | Requires valid JWT secret |
-| Development | `./hctf2 serve --dev` | Allows default insecure secret with warning |
+| Production (default) | `./hctf serve --jwt-secret <secret>` | Requires valid JWT secret |
+| Development | `./hctf serve --dev` | Allows default insecure secret with warning |
 
 **Failure Modes:**
 
@@ -291,7 +291,7 @@ ERROR: Invalid JWT secret: JWT secret must be at least 32 characters
 
 **Required on First Run:**
 ```bash
-./hctf2 serve \
+./hctf serve \
   --admin-email admin@example.com \
   --admin-password "securepassword123"
 ```
@@ -380,7 +380,7 @@ This allows CTF organizers to participate without affecting competition rankings
 
 ### Analytics (Umami)
 
-hCTF2 has native support for [Umami](https://umami.is/) analytics. When configured, the Umami script is injected into every page and the following CTF-specific events are tracked automatically:
+hCTF has native support for [Umami](https://umami.is/) analytics. When configured, the Umami script is injected into every page and the following CTF-specific events are tracked automatically:
 
 | Event | Trigger |
 |-------|---------|
@@ -393,14 +393,14 @@ hCTF2 has native support for [Umami](https://umami.is/) analytics. When configur
 
 ```bash
 # Via CLI flags
-./hctf2 serve \
+./hctf serve \
   --umami-script-url https://umami.example.com/script.js \
   --umami-website-id your-website-id
 
 # Via environment variables
 export UMAMI_SCRIPT_URL=https://umami.example.com/script.js
 export UMAMI_WEBSITE_ID=your-website-id
-./hctf2 serve
+./hctf serve
 ```
 
 **Disabled by default** — analytics are only active when both `UMAMI_SCRIPT_URL` and `UMAMI_WEBSITE_ID` are set. Self-hosting Umami is recommended for privacy.
@@ -440,14 +440,14 @@ See [DOCKER.md](DOCKER.md) for complete Docker setup.
 
 **Quick Start:**
 ```bash
-docker build -t hctf2 .
+docker build -t hctf .
 docker run -d \
-  --name hctf2 \
+  --name hctf \
   -p 8080:8080 \
   -e JWT_SECRET="$(openssl rand -base64 32)" \
-  -v hctf2-data:/data \
-  hctf2 \
-  --db /data/hctf2.db \
+  -v hctf-data:/data \
+  hctf \
+  --db /data/hctf.db \
   --admin-email admin@example.com \
   --admin-password password123
 ```
@@ -461,7 +461,7 @@ docker run -d \
 lsof -i :8080
 
 # Use a different port
-./hctf2 serve --port 3000
+./hctf serve --port 3000
 ```
 
 ### Database File Permissions
@@ -470,11 +470,11 @@ If you get "permission denied" errors:
 
 ```bash
 # Check permissions (adjust path as needed)
-ls -la hctf2.db
-ls -la /var/lib/hctf2/hctf2.db
+ls -la hctf.db
+ls -la /var/lib/hctf/hctf.db
 
 # Fix permissions (if needed)
-chmod 644 hctf2.db
+chmod 644 hctf.db
 chmod 755 ./
 ```
 
@@ -508,7 +508,7 @@ If users get "invalid token" errors after restart:
 
 Using Gmail SMTP:
 ```bash
-./hctf2 serve \
+./hctf serve \
   --smtp-host smtp.gmail.com \
   --smtp-port 587 \
   --smtp-from noreply@yourdomain.com \
@@ -525,7 +525,7 @@ export SMTP_USER=apikey
 export SMTP_PASSWORD="your-sendgrid-api-key"
 export BASE_URL=https://ctf.yourdomain.com
 
-./hctf2 serve
+./hctf serve
 ```
 
 **Development Mode:**
@@ -549,7 +549,7 @@ The `/metrics` endpoint serves metrics in Prometheus format, including:
 
 **Example:**
 ```bash
-./hctf2 serve --metrics --port 8090
+./hctf serve --metrics --port 8090
 curl http://localhost:8090/metrics
 ```
 
@@ -572,8 +572,8 @@ docker run -d --name jaeger \
   -p 4318:4318 \
   jaegertracing/all-in-one:latest
 
-# Run hCTF2 with OTLP export
-./hctf2 serve --otel-otlp-endpoint localhost:4318
+# Run hCTF with OTLP export
+./hctf serve --otel-otlp-endpoint localhost:4318
 ```
 
 ### Stdout Exporter (Debug)
@@ -585,7 +585,7 @@ Useful for debugging OpenTelemetry instrumentation during development.
 
 ## Health Check Endpoints
 
-hCTF2 provides Kubernetes-style health check endpoints:
+hCTF provides Kubernetes-style health check endpoints:
 
 ### Liveness Probe
 
@@ -640,7 +640,7 @@ The production image (scratch-based) uses the built-in `healthcheck` subcommand:
 
 ```dockerfile
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["/hctf2", "healthcheck", "--port", "8090"]
+    CMD ["/hctf", "healthcheck", "--port", "8090"]
 ```
 
 The demo image (Alpine-based) uses `wget`:
@@ -653,7 +653,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 You can also run the health check manually from the host:
 
 ```bash
-./hctf2 healthcheck --port 8090
+./hctf healthcheck --port 8090
 ```
 
 The command exits 0 when the server is healthy and 1 otherwise.
@@ -664,11 +664,11 @@ If migrations fail on startup:
 
 ```bash
 # Check database integrity (adjust path as needed)
-sqlite3 hctf2.db "PRAGMA integrity_check;"
-sqlite3 /var/lib/hctf2/hctf2.db "PRAGMA integrity_check;"
+sqlite3 hctf.db "PRAGMA integrity_check;"
+sqlite3 /var/lib/hctf/hctf.db "PRAGMA integrity_check;"
 
 # For corrupted database, restore from backup
-cp /backups/hctf2-latest.db hctf2.db
+cp /backups/hctf-latest.db hctf.db
 ```
 
 ## Example Configurations
@@ -676,7 +676,7 @@ cp /backups/hctf2-latest.db hctf2.db
 ### Minimal Development Setup
 
 ```bash
-./hctf2 serve \
+./hctf serve \
   --port 3000 \
   --admin-email dev@example.com \
   --admin-password devpass123
@@ -685,10 +685,10 @@ cp /backups/hctf2-latest.db hctf2.db
 ### Standard Production Setup
 
 ```bash
-./hctf2 serve \
+./hctf serve \
   --port 8080 \
   --host 0.0.0.0 \
-  --database-path /var/lib/hctf2/hctf2.db \
+  --database-path /var/lib/hctf/hctf.db \
   --jwt-secret "$(openssl rand -base64 32)" \
   --admin-email admin@ctf.example.com \
   --admin-password "$(read -sp 'Password: ' p && echo $p)"
@@ -698,13 +698,13 @@ cp /backups/hctf2-latest.db hctf2.db
 
 ```bash
 docker run -d \
-  --name hctf2-prod \
+  --name hctf-prod \
   --restart unless-stopped \
   -p 127.0.0.1:8080:8080 \
   -e JWT_SECRET="$(openssl rand -base64 32)" \
-  -v /var/lib/hctf2:/data \
-  hctf2:latest \
-  --db /data/hctf2.db \
+  -v /var/lib/hctf:/data \
+  hctf:latest \
+  --db /data/hctf.db \
   --admin-email admin@example.com \
   --admin-password securepassword123
 ```

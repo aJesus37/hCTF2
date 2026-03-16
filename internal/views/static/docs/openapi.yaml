@@ -1,15 +1,15 @@
 openapi: 3.0.3
 info:
-  title: HCTF2 CTF Platform API
+  title: HCTF CTF Platform API
   description: |
-    API for the HCTF2 Capture The Flag platform. This API provides endpoints for managing challenges, 
+    API for the HCTF Capture The Flag platform. This API provides endpoints for managing challenges, 
     user authentication, team management, scoreboards, and SQL playground functionality.
     
     **Important**: Any changes to the API should be reflected in this OpenAPI specification.
-    This file is located at `/home/jesus/Projects/hCTF2/docs/openapi.yaml`.
+    This file is located at `/home/jesus/Projects/hCTF/docs/openapi.yaml`.
   version: 1.0.0
   contact:
-    name: HCTF2 Team
+    name: HCTF Team
 servers:
   - url: http://localhost:8090
     description: Local development server

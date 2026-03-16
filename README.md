@@ -1,13 +1,13 @@
-# Heavens CTF 2 (hCTF2)
+# Heavens CTF 2 (hCTF)
 
-![hCTF2 logo](internal/views/static/logo.svg)
+![hCTF logo](internal/views/static/logo.svg)
 
-[![CI](https://github.com/ajesus37/hCTF2/actions/workflows/ci.yml/badge.svg)](https://github.com/ajesus37/hCTF2/actions/workflows/ci.yml)
-[![Release](https://github.com/ajesus37/hCTF2/actions/workflows/release.yml/badge.svg)](https://github.com/ajesus37/hCTF2/actions/workflows/release.yml)
+[![CI](https://github.com/ajesus37/hCTF/actions/workflows/ci.yml/badge.svg)](https://github.com/ajesus37/hCTF/actions/workflows/ci.yml)
+[![Release](https://github.com/ajesus37/hCTF/actions/workflows/release.yml/badge.svg)](https://github.com/ajesus37/hCTF/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](./LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://go.dev)
 
-**Heavens CTF 2** (**hCTF2**) is a self-hosted CTF (Capture The Flag) platform. Single binary, no dependencies, runs anywhere Go does.
+**Heavens CTF 2** (**hCTF**) is a self-hosted CTF (Capture The Flag) platform. Single binary, no dependencies, runs anywhere Go does.
 
 ---
 
@@ -45,8 +45,8 @@ Open http://localhost:8090 — default credentials: `admin@hctf.local` / `change
 
 ```yaml
 services:
-  hctf2:
-    image: ghcr.io/ajesus37/hCTF2:latest
+  hctf:
+    image: ghcr.io/ajesus37/hCTF:latest
     ports:
       - "8090:8090"
     volumes:
@@ -54,7 +54,7 @@ services:
     environment:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
     command: >
-      --db /data/hctf2.db
+      --db /data/hctf.db
       --admin-email admin@hctf.local
       --admin-password changeme
     restart: unless-stopped
@@ -67,12 +67,12 @@ services:
 
 ### Option 1: Binary (fastest)
 
-Download the latest binary from [Releases](https://github.com/ajesus37/hCTF2/releases):
+Download the latest binary from [Releases](https://github.com/ajesus37/hCTF/releases):
 
 ```bash
-curl -L https://github.com/ajesus37/hCTF2/releases/latest/download/hctf2-linux-amd64 -o hctf2
-chmod +x hctf2
-./hctf2 serve --admin-email admin@example.com --admin-password yourpassword
+curl -L https://github.com/ajesus37/hCTF/releases/latest/download/hctf-linux-amd64 -o hctf
+chmod +x hctf
+./hctf serve --admin-email admin@example.com --admin-password yourpassword
 ```
 
 ### Option 2: Build from source
@@ -80,23 +80,23 @@ chmod +x hctf2
 Requires Go 1.24+ and [Task](https://taskfile.dev):
 
 ```bash
-git clone https://github.com/ajesus37/hCTF2.git
-cd hctf2
+git clone https://github.com/ajesus37/hCTF.git
+cd hctf
 ./setup.sh   # checks requirements and downloads dependencies
 task build
-./hctf2 serve --admin-email admin@example.com --admin-password yourpassword
+./hctf serve --admin-email admin@example.com --admin-password yourpassword
 ```
 
 ---
 
 ## Configuration
 
-All server options are set via flags on `hctf2 serve`. See [CONFIGURATION.md](CONFIGURATION.md) for a fully annotated reference.
+All server options are set via flags on `hctf serve`. See [CONFIGURATION.md](CONFIGURATION.md) for a fully annotated reference.
 
 | Option | Flag | Default |
 |--------|------|---------|
 | Port | `--port` | `8090` |
-| Database | `--db` | `./hctf2.db` |
+| Database | `--db` | `./hctf.db` |
 | Admin email | `--admin-email` | — |
 | Admin password | `--admin-password` | — |
 | Message of the Day | `--motd` | — |
@@ -107,45 +107,45 @@ The binary doubles as a full-featured CLI client for a running server:
 
 ```bash
 # Authenticate
-hctf2 login --server http://localhost:8090 --email admin@example.com --password yourpassword
+hctf login --server http://localhost:8090 --email admin@example.com --password yourpassword
 
 # Browse challenges interactively (TTY)
-hctf2 challenge browse
+hctf challenge browse
 
 # Submit a flag
-hctf2 flag submit <question-id> FLAG{...}
+hctf flag submit <question-id> FLAG{...}
 
 # Live submission feed (auto-refreshes every 5s)
-hctf2 submissions --watch
+hctf submissions --watch
 
 # View your profile
-hctf2 user profile
+hctf user profile
 
 # Admin: create a challenge (interactive on TTY, or via flags)
-hctf2 challenge create --title "My Challenge" --category Web --difficulty Easy --points 200
-hctf2 challenge export --output backup.json
-hctf2 challenge import backup.json
+hctf challenge create --title "My Challenge" --category Web --difficulty Easy --points 200
+hctf challenge export --output backup.json
+hctf challenge import backup.json
 
 # Admin: manage competitions
-hctf2 competition create "CTF 2026"
-hctf2 competition start <id>
-hctf2 competition scoreboard <id>
+hctf competition create "CTF 2026"
+hctf competition start <id>
+hctf competition scoreboard <id>
 
 # Admin: manage users
-hctf2 user list
-hctf2 user promote <user-id>
+hctf user list
+hctf user promote <user-id>
 
 # Admin: export/import full platform config (challenges, competitions, settings)
-hctf2 config export -o backup.yaml
-hctf2 config import backup.yaml
+hctf config export -o backup.yaml
+hctf config import backup.yaml
 
 # JSON output for scripting
-hctf2 --json challenge list | jq '.[] | .title'
+hctf --json challenge list | jq '.[] | .title'
 ```
 
 All create/update commands prompt interactively on TTY. Pass `--quiet` to suppress output (returns ID only), `--json` for machine-readable output.
 
-Run `hctf2 --help` for the full command tree.
+Run `hctf --help` for the full command tree.
 
 ---
 
@@ -156,10 +156,10 @@ Run `hctf2 --help` for the full command tree.
 ```bash
 docker run -d \
   -p 8090:8090 \
-  -v hctf2-data:/data \
+  -v hctf-data:/data \
   -e JWT_SECRET="$(openssl rand -base64 32)" \
-  ghcr.io/ajesus37/hCTF2 \
-  serve --db /data/hctf2.db --admin-email admin@hctf.local --admin-password changeme
+  ghcr.io/ajesus37/hCTF \
+  serve --db /data/hctf.db --admin-email admin@hctf.local --admin-password changeme
 ```
 
 Or use Docker Compose (see `docker-compose.yml` in the repo):
@@ -195,10 +195,10 @@ server {
 
 ```bash
 # Docker volume
-docker compose exec hctf2 cat /data/hctf2.db > hctf2.db.backup-$(date +%Y%m%d)
+docker compose exec hctf cat /data/hctf.db > hctf.db.backup-$(date +%Y%m%d)
 
 # Or if using a bind mount
-cp ./data/hctf2.db ./data/hctf2.db.backup-$(date +%Y%m%d)
+cp ./data/hctf.db ./data/hctf.db.backup-$(date +%Y%m%d)
 ```
 
 ### Upgrading
@@ -217,7 +217,7 @@ No manual migration steps needed.
 If you prefer running the binary directly without Docker:
 
 ```bash
-./hctf2 serve --db /var/lib/hctf2/hctf2.db \
+./hctf serve --db /var/lib/hctf/hctf.db \
   --admin-email admin@example.com \
   --admin-password yourpassword \
   --jwt-secret "$(openssl rand -base64 32)"
@@ -239,18 +239,18 @@ Use your preferred process manager (e.g. supervisord, runit) to keep it running.
 
 **Production (required):**
 ```bash
-./hctf2 serve --jwt-secret "$(openssl rand -base64 32)"
+./hctf serve --jwt-secret "$(openssl rand -base64 32)"
 ```
 
 Or via environment variable:
 ```bash
 export JWT_SECRET="$(openssl rand -base64 32)"
-./hctf2 serve
+./hctf serve
 ```
 
 **Development (insecure):**
 ```bash
-./hctf2 serve --dev  # Allows default JWT secret with warning
+./hctf serve --dev  # Allows default JWT secret with warning
 ```
 
 The server will refuse to start in production mode without a proper JWT secret (minimum 32 characters). See [CONFIGURATION.md](CONFIGURATION.md) for details.

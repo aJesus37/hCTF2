@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# hCTF2 Test Data Seeder
+# hCTF Test Data Seeder
 # Creates test challenges, questions, and users for E2E testing
 #
 
@@ -27,11 +27,11 @@ get_admin_token() {
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "email=$ADMIN_EMAIL" \
         -d "password=$ADMIN_PASSWORD" \
-        -c /tmp/hctf2-admin-cookies.txt)
+        -c /tmp/hctf-admin-cookies.txt)
     
     # Extract token from cookies or response
-    if [ -f /tmp/hctf2-admin-cookies.txt ]; then
-        local token=$(grep "auth_token" /tmp/hctf2-admin-cookies.txt | awk '{print $7}')
+    if [ -f /tmp/hctf-admin-cookies.txt ]; then
+        local token=$(grep "auth_token" /tmp/hctf-admin-cookies.txt | awk '{print $7}')
         echo "$token"
     fi
 }
@@ -43,7 +43,7 @@ create_category() {
     
     curl -s -X POST "$BASE_URL/api/admin/categories" \
         -H "Content-Type: application/json" \
-        -b /tmp/hctf2-admin-cookies.txt \
+        -b /tmp/hctf-admin-cookies.txt \
         -d "{\"name\":\"$name\",\"color\":\"$color\"}" > /dev/null 2>&1
     
     log_pass "Created category: $name"
@@ -57,7 +57,7 @@ create_difficulty() {
     
     curl -s -X POST "$BASE_URL/api/admin/difficulties" \
         -H "Content-Type: application/json" \
-        -b /tmp/hctf2-admin-cookies.txt \
+        -b /tmp/hctf-admin-cookies.txt \
         -d "{\"name\":\"$name\",\"color\":\"$color\",\"text_color\":\"$text_color\"}" > /dev/null 2>&1
     
     log_pass "Created difficulty: $name"
@@ -73,7 +73,7 @@ create_challenge() {
     
     local response=$(curl -s -X POST "$BASE_URL/api/admin/challenges" \
         -H "Content-Type: application/x-www-form-urlencoded" \
-        -b /tmp/hctf2-admin-cookies.txt \
+        -b /tmp/hctf-admin-cookies.txt \
         -d "name=$name" \
         -d "description=$description" \
         -d "category=$category" \
@@ -96,7 +96,7 @@ create_question() {
     
     curl -s -X POST "$BASE_URL/api/admin/questions" \
         -H "Content-Type: application/x-www-form-urlencoded" \
-        -b /tmp/hctf2-admin-cookies.txt \
+        -b /tmp/hctf-admin-cookies.txt \
         -d "challenge_id=$challenge_id" \
         -d "name=$name" \
         -d "description=$description" \
@@ -116,7 +116,7 @@ create_hint() {
     
     curl -s -X POST "$BASE_URL/api/admin/hints" \
         -H "Content-Type: application/x-www-form-urlencoded" \
-        -b /tmp/hctf2-admin-cookies.txt \
+        -b /tmp/hctf-admin-cookies.txt \
         -d "question_id=$question_id" \
         -d "content=$content" \
         -d "cost=$cost" \
@@ -146,7 +146,7 @@ create_user() {
 
 main() {
     echo ""
-    log_info "hCTF2 Test Data Seeder"
+    log_info "hCTF Test Data Seeder"
     log_info "Target: $BASE_URL"
     log_info "Admin: $ADMIN_EMAIL"
     echo ""
@@ -161,7 +161,7 @@ main() {
     log_info "Authenticating as admin..."
     local token=$(get_admin_token)
     
-    if [ -z "$token" ] && [ ! -s /tmp/hctf2-admin-cookies.txt ]; then
+    if [ -z "$token" ] && [ ! -s /tmp/hctf-admin-cookies.txt ]; then
         log_fail "Failed to authenticate as admin"
         log_info "Check ADMIN_EMAIL and ADMIN_PASSWORD environment variables"
         exit 1
@@ -284,7 +284,7 @@ main() {
     # Challenge 6: Misc - Easy
     local ch6_id=$(create_challenge \
         "Welcome Challenge" \
-        "Submit this flag to get your first points: flag{w3lc0m3_t0_hctf2}" \
+        "Submit this flag to get your first points: flag{w3lc0m3_t0_hctf}" \
         "Misc" \
         "Easy" \
         "true")
@@ -293,7 +293,7 @@ main() {
         create_question "$ch6_id" \
             "Welcome" \
             "Just submit the flag mentioned in the description!" \
-            "flag{w3lc0m3_t0_hctf2}" \
+            "flag{w3lc0m3_t0_hctf}" \
             25 \
             "false"
     fi
@@ -322,7 +322,7 @@ main() {
 
 # Show help
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-    echo "hCTF2 Test Data Seeder"
+    echo "hCTF Test Data Seeder"
     echo ""
     echo "Usage: $0 [options]"
     echo ""

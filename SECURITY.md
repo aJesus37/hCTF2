@@ -9,7 +9,7 @@
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability in hCTF2, please report it responsibly.
+We take security seriously. If you discover a security vulnerability in hCTF, please report it responsibly.
 
 ### How to Report
 
@@ -27,7 +27,7 @@ When reporting a vulnerability, please include:
 - **Description**: Clear description of the vulnerability
 - **Impact**: What could an attacker accomplish?
 - **Reproduction**: Step-by-step instructions to reproduce
-- **Version**: hCTF2 version affected
+- **Version**: hCTF version affected
 - **Environment**: Operating system, deployment method
 - **Possible fix**: If you have suggestions (optional)
 
@@ -58,18 +58,18 @@ When reporting a vulnerability, please include:
 
 2. **Database**: Keep database files outside web root with proper permissions
    ```bash
-   chmod 600 hctf2.db
+   chmod 600 hctf.db
    ```
 
 3. **HTTPS**: Use HTTPS in production (terminate at reverse proxy)
 
-4. **Updates**: Keep hCTF2 updated to the latest version
+4. **Updates**: Keep hCTF updated to the latest version
 
 5. **Backups**: Regular database backups before updates
 
 ### Security Features
 
-hCTF2 includes these security measures:
+hCTF includes these security measures:
 
 - Passwords hashed with bcrypt (cost 12)
 - SQL injection prevention via parameterized queries

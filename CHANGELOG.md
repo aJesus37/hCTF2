@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `healthcheck` CLI subcommand — hits `/healthz` and exits 0/1; used by Docker `HEALTHCHECK` in scratch images where no shell or wget is available
-- `HEALTHCHECK` directive added to `Dockerfile` (uses `hctf2 healthcheck`) and `Dockerfile.demo` (uses `wget`); both `docker-compose.yml` files updated with corresponding `healthcheck:` blocks
+- `HEALTHCHECK` directive added to `Dockerfile` (uses `hctf healthcheck`) and `Dockerfile.demo` (uses `wget`); both `docker-compose.yml` files updated with corresponding `healthcheck:` blocks
 
 ### Fixed
 - Set `db.SetMaxOpenConns(1)` on the SQLite connection pool — prevents `SQLITE_BUSY` errors that caused intermittent 500 responses on flag submissions and hint unlocks when the background score-recorder goroutine wrote to the DB concurrently
@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.5] - 2026-03-15
 
 ### Added
-- Footer "Heavens CTF 2 (hCTF2)" text is now a clickable link to the GitHub repository
+- Footer "Heavens CTF 2 (hCTF)" text is now a clickable link to the GitHub repository
 - Admin dashboard Questions list now shows Challenge name instead of Challenge ID for each question
 - Admin dashboard Hints list now shows which Challenge → Question each hint belongs to, both in view and edit mode
 - Hints are now unlocked sequentially: hint N can only be unlocked after hint N-1 has been unlocked. Locked-out hints show a disabled "Unlock hint N first" button.
@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Teams page now shows a "View Team Profile" button next to your team's name, and highlights your team with a "My Team" badge in the All Teams list
 
 ### Changed
-- `docker-compose.yml` now uses the pre-built `ghcr.io/ajesus37/hctf2:latest` image instead of building from source; `docker compose up -d` works out of the box without requiring Go or a local build
+- `docker-compose.yml` now uses the pre-built `ghcr.io/ajesus37/hctf:latest` image instead of building from source; `docker compose up -d` works out of the box without requiring Go or a local build
 
 ### Fixed
 - Team profile "All Activity" now correctly shows the total number of questions per challenge instead of only counting solved questions
@@ -75,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation overhaul: Docker is now the primary deployment method across README, OPERATIONS, and ARCHITECTURE
 - Removed all systemd/systemctl references from documentation — use Docker Compose instead
 - Fixed broken `docker run` commands in README (missing `serve` subcommand, nonexistent `DATABASE_PATH` env var)
-- Fixed `--jwt-secret` and bare `./hctf2` commands missing `serve` subcommand
+- Fixed `--jwt-secret` and bare `./hctf` commands missing `serve` subcommand
 - Dockerfile uses scratch base image with non-root user (UID 1000)
 - Tailwind CSS content scan now includes handler and cmd Go files to prevent dark-mode classes from being purged
 
@@ -115,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Category/difficulty list showed truncated IDs (widened column to 34 for 32-char hex IDs)
-- Smoke test CI used stale `./hctf2 --port` invocation (fixed to `./hctf2 serve --port`)
+- Smoke test CI used stale `./hctf --port` invocation (fixed to `./hctf serve --port`)
 - `UpdateQuestion`/`UpdateHint`/`SetCompetitionBlackout` now return 404 on nonexistent IDs
 - `GetSubmissionFeed` validates competition exists before querying (returns 404 for unknown IDs)
 - `ImportChallenges` client now uses correct `multipart/form-data` with `file` field
@@ -215,17 +215,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker deployment support
 - Task-based build system (Taskfile.yml)
 
-[Unreleased]: https://github.com/ajesus37/hCTF2/compare/v0.8.6...HEAD
-[0.8.6]: https://github.com/ajesus37/hCTF2/compare/v0.8.5...v0.8.6
-[0.8.5]: https://github.com/ajesus37/hCTF2/compare/v0.8.4...v0.8.5
-[0.8.4]: https://github.com/ajesus37/hCTF2/compare/v0.8.2...v0.8.4
-[0.8.2]: https://github.com/ajesus37/hCTF2/compare/v0.8.1...v0.8.2
-[0.8.1]: https://github.com/ajesus37/hCTF2/compare/v0.8.0...v0.8.1
-[0.8.0]: https://github.com/ajesus37/hCTF2/compare/v0.7.0...v0.8.0
-[0.7.0]: https://github.com/ajesus37/hCTF2/compare/v0.6.0...v0.7.0
-[0.6.0]: https://github.com/ajesus37/hCTF2/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/ajesus37/hCTF2/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/ajesus37/hCTF2/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/ajesus37/hCTF2/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/ajesus37/hCTF2/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/ajesus37/hCTF2/releases/tag/v0.1.0
+[Unreleased]: https://github.com/ajesus37/hCTF/compare/v0.8.6...HEAD
+[0.8.6]: https://github.com/ajesus37/hCTF/compare/v0.8.5...v0.8.6
+[0.8.5]: https://github.com/ajesus37/hCTF/compare/v0.8.4...v0.8.5
+[0.8.4]: https://github.com/ajesus37/hCTF/compare/v0.8.2...v0.8.4
+[0.8.2]: https://github.com/ajesus37/hCTF/compare/v0.8.1...v0.8.2
+[0.8.1]: https://github.com/ajesus37/hCTF/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/ajesus37/hCTF/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/ajesus37/hCTF/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/ajesus37/hCTF/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/ajesus37/hCTF/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/ajesus37/hCTF/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/ajesus37/hCTF/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/ajesus37/hCTF/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/ajesus37/hCTF/releases/tag/v0.1.0

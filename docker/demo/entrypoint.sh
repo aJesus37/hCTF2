@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-DB=/data/hctf2.db
-ADMIN_EMAIL="admin@demo.hctf2"
+DB=/data/hctf.db
+ADMIN_EMAIL="admin@demo.hctf"
 ADMIN_PASSWORD="Admin123!"
 PORT=8090
 BASE_URL="http://localhost:${PORT}"
@@ -28,7 +28,7 @@ start_server() {
     # Fresh secret each start — invalidates any JWT cookies from the previous
     # cycle so stale sessions get a clean re-login instead of "User not found".
     JWT_SECRET=$(head -c 32 /dev/urandom | od -A n -t x1 | tr -d ' \n')
-    /app/hctf2 serve \
+    /app/hctf serve \
         --port "${PORT}" \
         --db "${DB}" \
         --dev \
@@ -36,16 +36,16 @@ start_server() {
         --admin-email "${ADMIN_EMAIL}" \
         --admin-password "${ADMIN_PASSWORD}" \
         --base-url "${BASE_URL}" &
-    echo $! > /tmp/hctf2.pid
+    echo $! > /tmp/hctf.pid
     wait_for_server
 }
 
 stop_server() {
-    if [ -f /tmp/hctf2.pid ]; then
-        kill "$(cat /tmp/hctf2.pid)" 2>/dev/null || true
+    if [ -f /tmp/hctf.pid ]; then
+        kill "$(cat /tmp/hctf.pid)" 2>/dev/null || true
         # Wait for process to actually exit
         for _ in $(seq 1 10); do
-            kill -0 "$(cat /tmp/hctf2.pid)" 2>/dev/null || break
+            kill -0 "$(cat /tmp/hctf.pid)" 2>/dev/null || break
             sleep 1
         done
     fi
@@ -56,16 +56,16 @@ update_motd() {
     NEXT_TS=$((NOW_TS + RESET_MINUTES * 60))
     NEXT_RESET=$(date -d "@${NEXT_TS}" '+%H:%M UTC' 2>/dev/null || date -r "${NEXT_TS}" '+%H:%M UTC')
 
-    MOTD="<h3>Welcome to the hCTF2 Demo!</h3>
+    MOTD="<h3>Welcome to the hCTF Demo!</h3>
 <p><strong>Admin credentials</strong><br>
 Email: <code>${ADMIN_EMAIL}</code><br>
 Password: <code>${ADMIN_PASSWORD}</code></p>
 <p><strong>Demo users</strong> (password: <code>demo123</code>)<br>
-alice@demo.hctf2, bob@demo.hctf2, carol@demo.hctf2,<br>
-dave@demo.hctf2, eve@demo.hctf2</p>
+alice@demo.hctf, bob@demo.hctf, carol@demo.hctf,<br>
+dave@demo.hctf, eve@demo.hctf</p>
 <p>This demo resets every <strong>${RESET_MINUTES} minutes</strong>.<br>
 Next reset: <strong>${NEXT_RESET}</strong></p>
-<p>Flags follow the format: <code>hctf2{...}</code></p>"
+<p>Flags follow the format: <code>hctf{...}</code></p>"
 
     sqlite3 "${DB}" "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('motd', '$(echo "${MOTD}" | sed "s/'/''/g")');"
 }
@@ -81,7 +81,7 @@ do_reset() {
 }
 
 # ── main ───────────────────────────────────────────────────────────
-log "Starting hCTF2 demo (reset every ${RESET_MINUTES}m)..."
+log "Starting hCTF demo (reset every ${RESET_MINUTES}m)..."
 
 # Initial seed
 start_server

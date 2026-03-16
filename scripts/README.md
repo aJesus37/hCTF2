@@ -1,6 +1,6 @@
-# hCTF2 Test Scripts
+# hCTF Test Scripts
 
-This directory contains testing scripts for the hCTF2 platform.
+This directory contains testing scripts for the hCTF platform.
 
 ## Quick Reference
 
@@ -114,7 +114,7 @@ task run
 ```bash
 # Build and start server
 task build
-./hctf2 --admin-email admin@test.com --admin-password test123 &
+./hctf --admin-email admin@test.com --admin-password test123 &
 sleep 3
 
 # Run tests
@@ -144,7 +144,7 @@ npm install -g agent-browser
 # Start the server first
 task run
 # or
-./hctf2 --admin-email admin@hctf.local --admin-password changeme
+./hctf --admin-email admin@hctf.local --admin-password changeme
 ```
 
 ### Test timeouts
@@ -162,17 +162,17 @@ Clean up old browser sessions:
 
 ```bash
 agent-browser session list
-agent-browser --session hctf2-e2e close
-agent-browser --session hctf2-automation close
+agent-browser --session hctf-e2e close
+agent-browser --session hctf-automation close
 ```
 
 ## Output Files
 
 | File | Description |
 |------|-------------|
-| `/tmp/hctf2-test-*.txt` | Temporary test data |
+| `/tmp/hctf-test-*.txt` | Temporary test data |
 | `./test-screenshots/*.png` | Screenshots (if enabled) |
-| `/tmp/hctf2-admin-cookies.txt` | Admin session cookies |
+| `/tmp/hctf-admin-cookies.txt` | Admin session cookies |
 
 ## See Also
 

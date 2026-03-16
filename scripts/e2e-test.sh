@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# hCTF2 End-to-End Test Suite
+# hCTF End-to-End Test Suite
 # Uses agent-browser to validate all pages and business rules
 #
 
@@ -8,7 +8,7 @@ set -e
 
 # Configuration
 BASE_URL="${BASE_URL:-http://localhost:8090}"
-SESSION_NAME="hctf2-e2e"
+SESSION_NAME="hctf-e2e"
 HEADED="${HEADED:-false}"
 VERBOSE="${VERBOSE:-false}"
 
@@ -66,7 +66,7 @@ check_server() {
     log_info "Checking if server is running at $BASE_URL..."
     if ! curl -s "$BASE_URL/healthz" > /dev/null 2>&1; then
         log_fail "Server is not running at $BASE_URL"
-        log_info "Please start the server with: ./hctf2 --admin-email admin@test.com --admin-password admin123"
+        log_info "Please start the server with: ./hctf --admin-email admin@test.com --admin-password admin123"
         exit 1
     fi
     log_pass "Server is running"
@@ -295,8 +295,8 @@ run_auth_tests() {
     fi
     
     # Store test user credentials for other tests
-    echo "TEST_EMAIL=$test_email" > /tmp/hctf2-test-creds.txt
-    echo "TEST_PASSWORD=$test_password" >> /tmp/hctf2-test-creds.txt
+    echo "TEST_EMAIL=$test_email" > /tmp/hctf-test-creds.txt
+    echo "TEST_PASSWORD=$test_password" >> /tmp/hctf-test-creds.txt
 }
 
 # ============================================
@@ -372,8 +372,8 @@ run_business_rules_tests() {
     # Load test credentials
     local test_email=""
     local test_password=""
-    if [ -f /tmp/hctf2-test-creds.txt ]; then
-        source /tmp/hctf2-test-creds.txt
+    if [ -f /tmp/hctf-test-creds.txt ]; then
+        source /tmp/hctf-test-creds.txt
     fi
     
     # Login as test user
@@ -726,7 +726,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --help)
-            echo "hCTF2 End-to-End Test Suite"
+            echo "hCTF End-to-End Test Suite"
             echo ""
             echo "Usage: $0 [options]"
             echo ""
@@ -752,7 +752,7 @@ done
 # Main execution
 main() {
     echo ""
-    log_info "hCTF2 End-to-End Test Suite"
+    log_info "hCTF End-to-End Test Suite"
     log_info "Base URL: $BASE_URL"
     log_info "Mode: $([ "$HEADED" = "true" ] && echo "Headed (visible browser)" || echo "Headless")"
     echo ""
