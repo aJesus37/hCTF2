@@ -33,6 +33,7 @@ All server flags live under the `serve` subcommand. Run `./hctf serve --help` to
 --cors-origins ORIGINS         Comma-separated list of allowed CORS origins (empty = same-origin only)
 --umami-script-url URL         Umami analytics script URL (e.g. https://umami.example.com/script.js)
 --umami-website-id ID          Umami analytics website ID (from your Umami dashboard)
+--submission-rate-limit INT    Max flag submissions per minute per user (default: 5, 0 = unlimited)
 --dev                          Enable development mode (allows default JWT secret)
 ```
 
@@ -193,13 +194,13 @@ For production, create the database directory with proper permissions:
 
 ```bash
 sudo mkdir -p /var/lib/hctf
-sudo chown ctf2:ctf2 /var/lib/hctf
+sudo chown 1000:1000 /var/lib/hctf
 sudo chmod 750 /var/lib/hctf
 ```
 
-Then run as the `ctf2` user:
+Then run as the application user (UID 1000):
 ```bash
-sudo -u ctf2 ./hctf serve --db /var/lib/hctf/hctf.db
+sudo -u 1000 ./hctf serve --db /var/lib/hctf/hctf.db
 ```
 
 ### Backup Configuration
@@ -306,7 +307,7 @@ These flags set up the initial administrator account. Subsequent runs don't requ
 ### Session Management
 
 **Session Duration:**
-- Currently 24 hours per JWT token
+- Currently 7 days per JWT token
 - Users must re-login after token expiration
 
 **HttpOnly Cookies:**
@@ -687,8 +688,7 @@ cp /backups/hctf-latest.db hctf.db
 ```bash
 ./hctf serve \
   --port 8080 \
-  --host 0.0.0.0 \
-  --database-path /var/lib/hctf/hctf.db \
+  --db /var/lib/hctf/hctf.db \
   --jwt-secret "$(openssl rand -base64 32)" \
   --admin-email admin@ctf.example.com \
   --admin-password "$(read -sp 'Password: ' p && echo $p)"
@@ -700,11 +700,11 @@ cp /backups/hctf-latest.db hctf.db
 docker run -d \
   --name hctf-prod \
   --restart unless-stopped \
-  -p 127.0.0.1:8080:8080 \
+  -p 8090:8090 \
   -e JWT_SECRET="$(openssl rand -base64 32)" \
   -v /var/lib/hctf:/data \
   hctf:latest \
-  --db /data/hctf.db \
+  serve --db /data/hctf.db \
   --admin-email admin@example.com \
   --admin-password securepassword123
 ```

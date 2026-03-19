@@ -4,8 +4,8 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.6.x   | :white_check_mark: |
-| < 0.6   | :x:                |
+| 0.8.x   | :white_check_mark: |
+| < 0.8   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -17,8 +17,7 @@ We take security seriously. If you discover a security vulnerability in hCTF, pl
 
 Instead, please report via one of these channels:
 
-1. **Email**: security@yourdomain.com (replace with actual security contact)
-2. **GitHub Private Vulnerability Reporting**: [Report a vulnerability](../../security/advisories/new)
+1. **GitHub Private Vulnerability Reporting**: [Report a vulnerability](../../security/advisories/new)
 
 ### What to Include
 

@@ -56,17 +56,11 @@ Pass `--admin-email` and `--admin-password` flags (or use `task run` which sets 
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run all tests (unit + CLI integration)
 task test
 
-# Run with coverage
-task test-coverage
-
-# Run smoke tests (requires running server)
-task smoke-test
-
-# Run E2E tests (requires running server and Playwright)
-task e2e-test
+# Run tests bypassing cache with explicit timeout
+go test -count=1 -timeout 120s ./...
 ```
 
 ### Manual Testing Checklist

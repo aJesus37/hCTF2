@@ -164,7 +164,7 @@ Follow this order:
 - **Naming**: Use Go conventions (camelCase for private, PascalCase for public)
 - **Errors**: Always check errors, don't use `_` unless justified
 - **Context**: Pass `context.Context` as first parameter
-- **Logging**: Use `log.Printf` for now (TODO: structured logging)
+- **Logging**: Use `log.Printf` (structured logging not yet implemented)
 
 ### Example Patterns
 

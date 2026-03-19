@@ -133,11 +133,20 @@ sudo nginx -s reload
 
 ### Health Checks
 
-hCTF doesn't yet have a dedicated health check endpoint, but you can verify it's running:
+hCTF exposes two health check endpoints:
+
+- **`GET /healthz`** — liveness probe, returns `{"status":"ok"}` when the process is running
+- **`GET /readyz`** — readiness probe, returns `{"status":"ready","checks":{"database":"ok"}}` when the database is reachable (HTTP 503 otherwise)
 
 ```bash
-curl -I http://localhost:8090/
-# Should return 200 or 302 (redirect to login)
+curl http://localhost:8090/healthz
+curl http://localhost:8090/readyz
+```
+
+You can also use the built-in CLI health check:
+
+```bash
+./hctf healthcheck --port 8090
 ```
 
 ### Server Logs
@@ -176,7 +185,7 @@ hCTF uses **OpenTelemetry** for instrumentation. The telemetry package (`interna
 Set the environment variable to print traces to stdout (useful for debugging):
 
 ```bash
-OTEL_EXPORTER_STDOUT=true ./hctf
+OTEL_EXPORTER_STDOUT=true ./hctf serve
 ```
 
 #### Exporting to an OTEL Collector
@@ -194,13 +203,14 @@ Note: OTLP export requires adding the OTLP exporter package to the binary. Curre
 
 #### Prometheus / Grafana
 
-The current implementation does not expose a `/metrics` Prometheus scrape endpoint. To add one:
+Enable the `/metrics` Prometheus scrape endpoint with the `--metrics` flag:
 
-1. Add `go.opentelemetry.io/otel/exporters/prometheus` to `go.mod`
-2. Register the Prometheus exporter in `internal/telemetry/telemetry.go`
-3. Expose `/metrics` route in `main.go`
+```bash
+./hctf serve --metrics --port 8090
+curl http://localhost:8090/metrics
+```
 
-Until then, monitor via log aggregation (see **Server Logs** section above).
+If not enabled, monitor via log aggregation (see **Server Logs** section above).
 
 #### Recommended Alerts
 
