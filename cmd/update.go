@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -153,6 +154,23 @@ func atomicReplace(newPath, targetPath string) error {
 		return fmt.Errorf("replacing binary: %w", err)
 	}
 	return nil
+}
+
+// buildSudoArgs constructs the argument list for a sudo re-exec.
+// Returns ["sudo", execPath, arg1, arg2, ...]
+func buildSudoArgs(execPath string, args []string) []string {
+	return append([]string{"sudo", execPath}, args...)
+}
+
+// reexecWithSudo re-runs the current binary with sudo, forwarding os.Args[1:].
+// Only called on Linux when canWriteExec returns false.
+func reexecWithSudo(execPath string) error {
+	args := buildSudoArgs(execPath, os.Args[1:])
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 // assetName returns the expected asset name for the running platform.

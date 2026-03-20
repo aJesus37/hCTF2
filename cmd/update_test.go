@@ -161,3 +161,19 @@ func TestCanWriteExec(t *testing.T) {
 		t.Error("expected writable file to return true")
 	}
 }
+
+func TestSudoReexecArgs(t *testing.T) {
+	args := buildSudoArgs("/usr/local/bin/hctf", []string{"update", "--yes"})
+	if len(args) < 3 {
+		t.Fatalf("expected at least 3 args, got %d", len(args))
+	}
+	if args[0] != "sudo" {
+		t.Errorf("expected sudo at [0], got %s", args[0])
+	}
+	if args[1] != "/usr/local/bin/hctf" {
+		t.Errorf("expected binary path at [1], got %s", args[1])
+	}
+	if args[2] != "update" {
+		t.Errorf("expected 'update' at [2], got %s", args[2])
+	}
+}
