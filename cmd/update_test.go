@@ -122,4 +122,12 @@ func TestDownloadAndExtract(t *testing.T) {
 	if !bytes.Equal(got, want) {
 		t.Errorf("content mismatch: got %q want %q", got, want)
 	}
+
+	info, err := os.Stat(dest)
+	if err != nil {
+		t.Fatalf("stat dest: %v", err)
+	}
+	if info.Mode().Perm() != 0755 {
+		t.Errorf("expected mode 0755, got %v", info.Mode().Perm())
+	}
 }

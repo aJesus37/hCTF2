@@ -127,6 +127,7 @@ func downloadAndExtract(url, destPath string) error {
 		}
 		if _, err := io.Copy(f, tr); err != nil {
 			f.Close()
+			os.Remove(destPath)
 			return fmt.Errorf("writing: %w", err)
 		}
 		return f.Close()
