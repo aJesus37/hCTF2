@@ -12,6 +12,7 @@ import (
 	"github.com/ajesus37/hCTF/internal/database"
 	"github.com/ajesus37/hCTF/internal/email"
 	"github.com/ajesus37/hCTF/internal/handlers"
+	"github.com/ajesus37/hCTF/internal/models"
 )
 
 // TestPageContent validates that each page renders with correct content
@@ -525,4 +526,97 @@ func newTestRouter(s *Server) *http.ServeMux {
 	})
 
 	return mux
+}
+
+func TestExportIncludesSQLFields(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create in-memory database: %v", err)
+	}
+	defer db.Close()
+
+	datasetURL := "https://example.com/dataset.csv"
+	schemaHint := "CREATE TABLE test (id INT);"
+	_, err = db.CreateChallenge(
+		"SQL Challenge", "A challenge with SQL", "web", "easy",
+		nil, true,
+		true, &datasetURL, &schemaHint,
+		false, 100, 50, 10, nil,
+	)
+	if err != nil {
+		t.Fatalf("Failed to create challenge: %v", err)
+	}
+
+	bundle, err := db.ExportBundle()
+	if err != nil {
+		t.Fatalf("ExportBundle() error: %v", err)
+	}
+
+	if len(bundle.Challenges) == 0 {
+		t.Fatal("ExportBundle returned no challenges")
+	}
+
+	ec := bundle.Challenges[0]
+	if !ec.SQLEnabled {
+		t.Errorf("SQLEnabled: got false, want true")
+	}
+	if ec.SQLDatasetURL != datasetURL {
+		t.Errorf("SQLDatasetURL: got %q, want %q", ec.SQLDatasetURL, datasetURL)
+	}
+	if ec.SQLSchemaHint != schemaHint {
+		t.Errorf("SQLSchemaHint: got %q, want %q", ec.SQLSchemaHint, schemaHint)
+	}
+}
+
+func TestImportRestoresSQLFields(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create in-memory database: %v", err)
+	}
+	defer db.Close()
+
+	challenges := []models.ExportChallenge{
+		{
+			Name:          "SQL Challenge",
+			Description:   "test",
+			Category:      "forensics",
+			Difficulty:    "easy",
+			SQLEnabled:    true,
+			SQLDatasetURL: "https://example.com/data.json.gz",
+			SQLSchemaHint: "SELECT * FROM dataset",
+		},
+	}
+
+	result, err := db.ImportBundle([]string{"forensics"}, []string{"easy"}, challenges)
+	if err != nil {
+		t.Fatalf("ImportBundle() error: %v", err)
+	}
+	if result.Imported != 1 {
+		t.Fatalf("ImportBundle() imported %d, want 1", result.Imported)
+	}
+
+	imported, err := db.GetChallenges(false)
+	if err != nil {
+		t.Fatalf("GetChallenges() error: %v", err)
+	}
+	if len(imported) != 1 {
+		t.Fatalf("GetChallenges() returned %d challenges, want 1", len(imported))
+	}
+
+	c := imported[0]
+	if !c.SQLEnabled {
+		t.Errorf("SQLEnabled: got false, want true")
+	}
+	if c.SQLDatasetURL == nil {
+		t.Fatal("SQLDatasetURL: got nil, want non-nil")
+	}
+	if *c.SQLDatasetURL != "https://example.com/data.json.gz" {
+		t.Errorf("SQLDatasetURL: got %q, want %q", *c.SQLDatasetURL, "https://example.com/data.json.gz")
+	}
+	if c.SQLSchemaHint == nil {
+		t.Fatal("SQLSchemaHint: got nil, want non-nil")
+	}
+	if *c.SQLSchemaHint != "SELECT * FROM dataset" {
+		t.Errorf("SQLSchemaHint: got %q, want %q", *c.SQLSchemaHint, "SELECT * FROM dataset")
+	}
 }

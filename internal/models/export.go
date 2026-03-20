@@ -30,6 +30,9 @@ type ExportChallenge struct {
 	MinimumPoints  int              `json:"minimum_points"`
 	DecayThreshold int              `json:"decay_threshold"`
 	FileURL        string           `json:"file_url,omitempty"`
+	SQLEnabled     bool             `json:"sql_enabled,omitempty"`
+	SQLDatasetURL  string           `json:"sql_dataset_url,omitempty"`
+	SQLSchemaHint  string           `json:"sql_schema_hint,omitempty"`
 	Questions      []ExportQuestion `json:"questions"`
 }
 
