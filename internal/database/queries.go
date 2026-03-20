@@ -2225,12 +2225,22 @@ func (db *DB) ImportBundle(categories, difficulties []string, challenges []model
 		if ec.FileURL != "" {
 			fileURL = ec.FileURL
 		}
+		var sqlDatasetURL interface{}
+		if ec.SQLDatasetURL != "" {
+			sqlDatasetURL = ec.SQLDatasetURL
+		}
+		var sqlSchemaHint interface{}
+		if ec.SQLSchemaHint != "" {
+			sqlSchemaHint = ec.SQLSchemaHint
+		}
 		_, err := db.Exec(`
 			INSERT INTO challenges (id, name, description, category, difficulty, visible,
-				dynamic_scoring, initial_points, minimum_points, decay_threshold, file_url, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+				dynamic_scoring, initial_points, minimum_points, decay_threshold, file_url,
+				sql_enabled, sql_dataset_url, sql_schema_hint, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 			cID, name, ec.Description, ec.Category, ec.Difficulty, ec.Visible,
-			ec.DynamicScoring, ec.InitialPoints, ec.MinimumPoints, ec.DecayThreshold, fileURL)
+			ec.DynamicScoring, ec.InitialPoints, ec.MinimumPoints, ec.DecayThreshold, fileURL,
+			ec.SQLEnabled, sqlDatasetURL, sqlSchemaHint)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("Failed to import %q: %v", ec.Name, err))
 			continue
