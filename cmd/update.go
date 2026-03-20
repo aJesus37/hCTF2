@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime"
+	"time"
 )
 
 const ghReleasesURL = "https://api.github.com/repos/ajesus37/hCTF/releases"
@@ -23,7 +25,10 @@ type ghRelease struct {
 // fetchLatestRelease calls the given URL (overridable in tests) and returns
 // the newest release matching the channel. beta=true includes pre-releases.
 func fetchLatestRelease(apiURL string, beta bool) (*ghRelease, error) {
-	req, err := http.NewRequest("GET", apiURL, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -46,7 +51,6 @@ func fetchLatestRelease(apiURL string, beta bool) (*ghRelease, error) {
 	}
 
 	for _, r := range releases {
-		r := r
 		if !beta && r.Prerelease {
 			continue
 		}
@@ -64,7 +68,6 @@ func findAsset(rel *ghRelease, goos, goarch string) (*ghAsset, error) {
 	}
 	want := fmt.Sprintf("hctf_%s_%s.%s", goos, goarch, ext)
 	for _, a := range rel.Assets {
-		a := a
 		if a.Name == want {
 			return &a, nil
 		}
