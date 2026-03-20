@@ -28,8 +28,8 @@ func TestFetchLatestRelease_Stable(t *testing.T) {
 
 func TestFetchLatestRelease_Beta(t *testing.T) {
 	releases := []ghRelease{
+		{TagName: "v1.1.0-beta.1", Prerelease: true}, // newest, comes first in API response
 		{TagName: "v1.0.0", Prerelease: false},
-		{TagName: "v1.1.0-beta.1", Prerelease: true},
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(releases)

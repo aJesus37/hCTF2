@@ -47,9 +47,6 @@ func fetchLatestRelease(apiURL string, beta bool) (*ghRelease, error) {
 
 	for _, r := range releases {
 		r := r
-		if beta && !r.Prerelease {
-			continue
-		}
 		if !beta && r.Prerelease {
 			continue
 		}
