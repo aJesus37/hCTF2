@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"archive/tar"
+	"bufio"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -12,7 +13,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
+
+	"github.com/ajesus37/hCTF/internal/config"
+	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 const ghReleasesURL = "https://api.github.com/repos/ajesus37/hCTF/releases"
@@ -171,6 +177,108 @@ func reexecWithSudo(execPath string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+var (
+	updateFlagBeta  bool
+	updateFlagCheck bool
+	updateFlagYes   bool
+)
+
+var updateCmd = &cobra.Command{
+	Use:   "update",
+	Short: "Check for and install the latest hCTF release",
+	Long: `Checks GitHub Releases for a newer version and replaces the running binary.
+
+Channels:
+  stable  tagged releases only (default)
+  beta    includes pre-releases
+
+Channel is resolved from: --beta flag > config update_channel > stable`,
+	RunE: runUpdate,
+}
+
+func init() {
+	updateCmd.Flags().BoolVar(&updateFlagBeta, "beta", false, "Use beta channel (includes pre-releases)")
+	updateCmd.Flags().BoolVar(&updateFlagCheck, "check", false, "Only check for updates, do not install")
+	updateCmd.Flags().BoolVarP(&updateFlagYes, "yes", "y", false, "Skip confirmation prompt")
+}
+
+func runUpdate(cmd *cobra.Command, args []string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	beta := resolveChannel(updateFlagBeta, cfg.UpdateChannel)
+	fmt.Fprintf(os.Stderr, "Checking for updates (channel: %s)...\n", channelName(beta))
+
+	rel, err := fetchLatestRelease(ghReleasesURL, beta)
+	if err != nil {
+		return err
+	}
+
+	current := rootCmd.Version
+	latestTag := rel.TagName
+	// Normalize: compare with and without leading "v"
+	if latestTag == current || latestTag == "v"+strings.TrimPrefix(current, "v") || "v"+latestTag == current {
+		fmt.Println("Already up to date:", current)
+		return nil
+	}
+
+	fmt.Printf("Current: %s\nLatest:  %s\n", current, rel.TagName)
+
+	if updateFlagCheck {
+		return nil
+	}
+
+	asset, err := findAsset(rel, runtime.GOOS, runtime.GOARCH)
+	if err != nil {
+		return err
+	}
+
+	if !updateFlagYes && term.IsTerminal(int(os.Stdin.Fd())) {
+		fmt.Printf("Install %s? [y/N] ", rel.TagName)
+		r := bufio.NewReader(os.Stdin)
+		line, _ := r.ReadString('\n')
+		if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(line)), "y") {
+			fmt.Println("Aborted.")
+			return nil
+		}
+	}
+
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolving binary path: %w", err)
+	}
+
+	if !canWriteExec(execPath) {
+		if runtime.GOOS == "linux" {
+			fmt.Fprintln(os.Stderr, "Insufficient permissions, re-running with sudo...")
+			return reexecWithSudo(execPath)
+		}
+		return fmt.Errorf("cannot write to %s — re-run as administrator", execPath)
+	}
+
+	tmpPath := execPath + ".new"
+	fmt.Fprintf(os.Stderr, "Downloading %s...\n", asset.Name)
+	if err := downloadAndExtract(asset.DownloadURL, tmpPath); err != nil {
+		return err
+	}
+
+	if err := atomicReplace(tmpPath, execPath); err != nil {
+		return err
+	}
+
+	fmt.Printf("Updated to %s\n", rel.TagName)
+	return nil
+}
+
+func channelName(beta bool) string {
+	if beta {
+		return "beta"
+	}
+	return "stable"
 }
 
 // assetName returns the expected asset name for the running platform.

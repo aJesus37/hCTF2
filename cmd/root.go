@@ -52,5 +52,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&serverOverride, "server", "", "Server URL (overrides config)")
 	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output as JSON")
 	rootCmd.PersistentFlags().BoolVar(&quietOutput, "quiet", false, "Minimal output")
-	rootCmd.AddCommand(versionCmd, infoCmd)
+	rootCmd.AddCommand(versionCmd, infoCmd, updateCmd)
 }
