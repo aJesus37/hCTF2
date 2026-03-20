@@ -2144,6 +2144,13 @@ func (db *DB) ExportBundle() (*models.ExportBundle, error) {
 		if c.FileURL != nil {
 			ec.FileURL = *c.FileURL
 		}
+		ec.SQLEnabled = c.SQLEnabled
+		if c.SQLDatasetURL != nil {
+			ec.SQLDatasetURL = *c.SQLDatasetURL
+		}
+		if c.SQLSchemaHint != nil {
+			ec.SQLSchemaHint = *c.SQLSchemaHint
+		}
 
 		questions, err := db.GetQuestionsByChallengeID(c.ID)
 		if err != nil {

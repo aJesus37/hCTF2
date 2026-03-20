@@ -526,3 +526,43 @@ func newTestRouter(s *Server) *http.ServeMux {
 
 	return mux
 }
+
+func TestExportIncludesSQLFields(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create in-memory database: %v", err)
+	}
+	defer db.Close()
+
+	datasetURL := "https://example.com/dataset.csv"
+	schemaHint := "CREATE TABLE test (id INT);"
+	_, err = db.CreateChallenge(
+		"SQL Challenge", "A challenge with SQL", "web", "easy",
+		nil, true,
+		true, &datasetURL, &schemaHint,
+		false, 100, 50, 10, nil,
+	)
+	if err != nil {
+		t.Fatalf("Failed to create challenge: %v", err)
+	}
+
+	bundle, err := db.ExportBundle()
+	if err != nil {
+		t.Fatalf("ExportBundle() error: %v", err)
+	}
+
+	if len(bundle.Challenges) == 0 {
+		t.Fatal("ExportBundle returned no challenges")
+	}
+
+	ec := bundle.Challenges[0]
+	if !ec.SQLEnabled {
+		t.Errorf("SQLEnabled: got false, want true")
+	}
+	if ec.SQLDatasetURL != datasetURL {
+		t.Errorf("SQLDatasetURL: got %q, want %q", ec.SQLDatasetURL, datasetURL)
+	}
+	if ec.SQLSchemaHint != schemaHint {
+		t.Errorf("SQLSchemaHint: got %q, want %q", ec.SQLSchemaHint, schemaHint)
+	}
+}
