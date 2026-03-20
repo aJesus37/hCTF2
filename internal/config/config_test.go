@@ -47,3 +47,34 @@ func TestLoadMissing(t *testing.T) {
 		t.Errorf("expected default server, got %q", cfg.Server)
 	}
 }
+
+func TestUpdateChannelDefault(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HCTF_CONFIG", filepath.Join(tmp, "config.yaml"))
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.UpdateChannel != "" {
+		t.Errorf("expected empty UpdateChannel, got %q", cfg.UpdateChannel)
+	}
+}
+
+func TestUpdateChannelRoundtrip(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HCTF_CONFIG", filepath.Join(tmp, "config.yaml"))
+
+	cfg := &config.Config{Server: "http://localhost:8090", UpdateChannel: "beta"}
+	if err := config.Save(cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	loaded, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if loaded.UpdateChannel != "beta" {
+		t.Errorf("expected beta, got %q", loaded.UpdateChannel)
+	}
+}
