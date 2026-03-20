@@ -1,0 +1,273 @@
+{
+  "version": 1,
+  "exported_at": "2026-03-19T00:00:00Z",
+  "categories": ["forensics"],
+  "difficulties": ["easy", "medium", "hard"],
+  "challenges": [
+    {
+      "name": "Incident Data Analysis with Modern Data Tools - Pt. 2",
+      "description": "A company has suffered a security incident. CloudTrail logs have been recovered and loaded into the SQL Playground below.\n\nYour job is to analyze the logs, reconstruct the attack chain, and answer the questions below.\n\nThe attacker had a foothold — find out what they did with it.",
+      "category": "forensics",
+      "difficulty": "medium",
+      "visible": false,
+      "sql_enabled": true,
+      "sql_dataset_url": "https://forgejo.local.heaven-labs.com/jesus/ctf-challenges/raw/branch/main/01.incident-data-analysis-with-modern-data-tools.pt2/.consolidated/cloudtrail.json.gz",
+      "dynamic_scoring": false,
+      "initial_points": 0,
+      "minimum_points": 0,
+      "decay_threshold": 0,
+      "questions": [
+        {
+          "name": "First Contact",
+          "description": "What IP address did the attacker operate from?",
+          "flag": "130.185.119.166",
+          "flag_mask": "###.###.###.###",
+          "case_sensitive": false,
+          "points": 50,
+          "hints": [
+            {
+              "content": "Look for the first event where the attacker verified their access. What called `GetCallerIdentity`?",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Filter CloudTrail events by `eventName = 'GetCallerIdentity'` and look at the `sourceIPAddress` column.",
+              "cost": 5,
+              "order": 2
+            },
+            {
+              "content": "The IP is not an AWS service IP — it's a real external address. It appears consistently across all attacker actions.",
+              "cost": 10,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "name": "Who Are You?",
+          "description": "What IAM username did the attacker use to carry out the attack?",
+          "flag": "forgejo-ci-cd",
+          "flag_mask": "**********-**-**",
+          "case_sensitive": true,
+          "points": 50,
+          "hints": [
+            {
+              "content": "Look at the `userIdentity` field in the CloudTrail events. The attacker used a specific IAM user, not root.",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Filter for events where `userIdentity.type = 'IAMUser'` and look at the `userIdentity.userName` values.",
+              "cost": 5,
+              "order": 2
+            },
+            {
+              "content": "The username is designed to look like a legitimate CI/CD service account for a well-known self-hosted Git platform.",
+              "cost": 10,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "name": "Skeleton Key",
+          "description": "What access key ID was used during the attack?",
+          "flag": "AKIAVX3VQZD4KIDZEA26",
+          "flag_mask": "AKIA****************",
+          "case_sensitive": true,
+          "points": 100,
+          "hints": [
+            {
+              "content": "Access key IDs appear in the `userIdentity.accessKeyId` field of CloudTrail events.",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Filter for events performed by the attacker's IAM user and look at the `accessKeyId` column.",
+              "cost": 5,
+              "order": 2
+            },
+            {
+              "content": "AWS access key IDs always start with `AKIA` for long-term credentials.",
+              "cost": 10,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "name": "Verify Before You Strike",
+          "description": "What was the first AWS action the attacker performed to verify their access?",
+          "flag": "GetCallerIdentity",
+          "flag_mask": "Get**************",
+          "case_sensitive": true,
+          "points": 50,
+          "hints": [
+            {
+              "content": "Think about what an attacker would do first after obtaining credentials — they'd want to confirm the credentials actually work.",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Look at the earliest `eventTime` for the attacker's IAM user and check the `eventName`.",
+              "cost": 5,
+              "order": 2
+            },
+            {
+              "content": "This is a read-only STS action that returns who you are — commonly used to validate stolen credentials.",
+              "cost": 10,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "name": "Locked Doors",
+          "description": "The attacker tried to escalate their access but hit walls. What three AWS actions were denied? (comma-separated, alphabetical order)",
+          "flag": "DescribeInstances,ListPolicies,ListUsers",
+          "flag_mask": "****************,************,*********",
+          "case_sensitive": true,
+          "points": 150,
+          "hints": [
+            {
+              "content": "Look for events where the `errorCode` field contains an access denied error.",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Filter for `errorCode = 'AccessDenied'` or `errorCode = 'Client.UnauthorizedOperation'` in the attacker's events.",
+              "cost": 10,
+              "order": 2
+            },
+            {
+              "content": "The three actions span IAM (two events) and EC2 (one event). The attacker was testing the boundaries of their S3-only permissions.",
+              "cost": 20,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "name": "The Target",
+          "description": "What S3 bucket did the attacker exfiltrate data from?",
+          "flag": "definetly-company-trading-secrets",
+          "flag_mask": "********-*******-*******-*******",
+          "case_sensitive": true,
+          "points": 100,
+          "hints": [
+            {
+              "content": "Look for S3 events — specifically `ListObjects` or `GetObject` calls — and check which bucket was targeted.",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Filter for `eventSource = 's3.amazonaws.com'` and look at the `requestParameters.bucketName` field.",
+              "cost": 5,
+              "order": 2
+            },
+            {
+              "content": "The bucket name is a deliberate typosquat — it closely resembles a legitimate bucket name in the account but has extra words appended.",
+              "cost": 10,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "name": "How Much Did They Take?",
+          "description": "How many files did the attacker successfully exfiltrate from the bucket?",
+          "flag": "136",
+          "flag_mask": "###",
+          "case_sensitive": false,
+          "points": 100,
+          "hints": [
+            {
+              "content": "Exfiltration shows up as `GetObject` calls in S3 CloudTrail events.",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Count the number of `GetObject` events performed by the attacker's user against the target bucket.",
+              "cost": 5,
+              "order": 2
+            },
+            {
+              "content": "Try: `SELECT COUNT(*) FROM dataset WHERE eventName = 'GetObject' AND userIdentity_userName = '...'`",
+              "cost": 15,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "name": "Scorched Earth",
+          "description": "After exfiltrating the data, the attacker destroyed evidence. How many files were deleted?",
+          "flag": "124",
+          "flag_mask": "###",
+          "case_sensitive": false,
+          "points": 100,
+          "hints": [
+            {
+              "content": "Destruction of evidence shows up as `DeleteObject` or `DeleteObjects` calls in S3 events.",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Count the `DeleteObject` events performed by the attacker's user — note this may differ from the number of files exfiltrated.",
+              "cost": 5,
+              "order": 2
+            },
+            {
+              "content": "The number of files deleted is slightly less than the number exfiltrated — not all files were wiped in the cleanup.",
+              "cost": 15,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "name": "Parting Words",
+          "description": "The attacker left a message behind. What was the name of the file they dropped in the bucket?",
+          "flag": "YOU_HAVE_BEEN_HACKED.txt",
+          "flag_mask": "***_****_****_******.***",
+          "case_sensitive": true,
+          "points": 50,
+          "hints": [
+            {
+              "content": "After the deletions, the attacker performed one final `PutObject` call. What was the key name?",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Filter for `eventName = 'PutObject'` on the target bucket and look at `requestParameters.key`.",
+              "cost": 5,
+              "order": 2
+            },
+            {
+              "content": "It's the kind of message a ransomware group or hacktivist would leave. All caps, underscores.",
+              "cost": 10,
+              "order": 3
+            }
+          ]
+        },
+        {
+          "name": "The Policy That Made It Possible",
+          "description": "What AWS managed policy was attached to the attacker's IAM user that enabled the entire exfiltration?",
+          "flag": "AmazonS3FullAccess",
+          "flag_mask": "Amazon**Full******",
+          "case_sensitive": true,
+          "points": 150,
+          "hints": [
+            {
+              "content": "Look for `AttachUserPolicy` events in the logs — this is when a policy is granted to a user.",
+              "cost": 0,
+              "order": 1
+            },
+            {
+              "content": "Filter for `eventName = 'AttachUserPolicy'` and check the `requestParameters.policyArn` for the attacker's username.",
+              "cost": 5,
+              "order": 2
+            },
+            {
+              "content": "The policy ARN follows the format `arn:aws:iam::aws:policy/<PolicyName>`. The attacker only needed storage access — not full admin.",
+              "cost": 15,
+              "order": 3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
