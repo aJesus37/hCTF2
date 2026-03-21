@@ -95,7 +95,9 @@ func makeTarGz(t *testing.T, content []byte) []byte {
 	gw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gw)
 	_ = tw.WriteHeader(&tar.Header{Name: "hctf", Size: int64(len(content)), Mode: 0755})
-	tw.Write(content)
+	if _, err := tw.Write(content); err != nil {
+		t.Fatalf("tw.Write: %v", err)
+	}
 	tw.Close()
 	gw.Close()
 	return buf.Bytes()
@@ -137,8 +139,12 @@ func TestAtomicReplace(t *testing.T) {
 	target := filepath.Join(dir, "hctf")
 	newBin := filepath.Join(dir, "hctf.new")
 
-	os.WriteFile(target, []byte("old"), 0755)
-	os.WriteFile(newBin, []byte("new"), 0755)
+	if err := os.WriteFile(target, []byte("old"), 0755); err != nil {
+		t.Fatalf("WriteFile target: %v", err)
+	}
+	if err := os.WriteFile(newBin, []byte("new"), 0755); err != nil {
+		t.Fatalf("WriteFile newBin: %v", err)
+	}
 
 	if err := atomicReplace(newBin, target); err != nil {
 		t.Fatalf("unexpected error: %v", err)
