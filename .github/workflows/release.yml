@@ -29,11 +29,23 @@ jobs:
         mkdir -p dist
         VERSION=${GITHUB_REF#refs/tags/}
 
-        GOOS=linux   GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION}" -o dist/hctf-linux-amd64 .
-        GOOS=linux   GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION}" -o dist/hctf-linux-arm64 .
-        GOOS=darwin  GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION}" -o dist/hctf-darwin-amd64 .
-        GOOS=darwin  GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION}" -o dist/hctf-darwin-arm64 .
-        GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION}" -o dist/hctf-windows-amd64.exe .
+        # Build and package as tar.gz / zip matching the asset name convention
+        # expected by `hctf update`: hctf_{os}_{arch}.tar.gz (or .zip on windows)
+
+        for PLATFORM in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+          GOOS=${PLATFORM%/*}
+          GOARCH=${PLATFORM#*/}
+          CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build \
+            -ldflags "-s -w -X main.version=${VERSION}" \
+            -o dist/hctf .
+          tar -czf dist/hctf_${GOOS}_${GOARCH}.tar.gz -C dist hctf
+          rm dist/hctf
+        done
+
+        CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
+          -ldflags "-s -w -X main.version=${VERSION}" \
+          -o dist/hctf.exe .
+        cd dist && zip hctf_windows_amd64.zip hctf.exe && rm hctf.exe && cd ..
 
     - name: Create checksums
       run: cd dist && sha256sum * > checksums.txt

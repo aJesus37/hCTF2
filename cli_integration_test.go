@@ -2245,3 +2245,18 @@ func TestCLIConfigExportCLI(t *testing.T) {
 		t.Fatalf("config import yaml failed (stderr: %s, stdout: %s)", stderr, stdout)
 	}
 }
+
+func TestUpdateCheck(t *testing.T) {
+	// --check should never modify anything and must exit 0
+	stdout, stderr, code := runCLI(t, "update", "--check")
+	if code != 0 {
+		t.Fatalf("update --check exited %d\nstdout: %s\nstderr: %s", code, stdout, stderr)
+	}
+	// Should print either "Already up to date" or version comparison lines
+	combined := stdout + stderr
+	if !strings.Contains(combined, "up to date") &&
+		!strings.Contains(combined, "Current:") &&
+		!strings.Contains(combined, "Checking") {
+		t.Errorf("unexpected output:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+}
