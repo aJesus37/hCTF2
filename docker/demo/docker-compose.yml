@@ -4,10 +4,12 @@ services:
       context: ../..
       dockerfile: docker/demo/Dockerfile.demo
     ports:
-      - "8090:8090"
+      - "${PORT:-8090}:${PORT:-8090}"
+    environment:
+      - PORT=${PORT:-8090}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8090/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:${PORT:-8090}/healthz"]
       interval: 30s
       timeout: 5s
       start_period: 60s
