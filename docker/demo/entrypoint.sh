@@ -4,7 +4,7 @@ set -e
 DB=/data/hctf.db
 ADMIN_EMAIL="admin@demo.hctf"
 ADMIN_PASSWORD="Admin123!"
-PORT=8090
+PORT=${PORT:-8090}
 BASE_URL="http://localhost:${PORT}"
 RESET_MINUTES=30
 

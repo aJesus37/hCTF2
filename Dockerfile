@@ -36,7 +36,10 @@ COPY --from=builder /app/hctf /hctf
 COPY --from=builder --chown=1000:1000 /staging/data /data
 COPY --from=builder --chown=1000:1000 /staging/tmp /tmp
 
-EXPOSE 8090
+ARG PORT=8090
+ENV PORT=$PORT
+
+EXPOSE $PORT
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/hctf", "healthcheck", "--port", "8090"]

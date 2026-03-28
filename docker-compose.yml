@@ -3,14 +3,14 @@ services:
     image: ghcr.io/ajesus37/hctf:latest
     container_name: hctf
     ports:
-      - "8090:8090"
+      - "${PORT:-8090}:${PORT:-8090}"
     volumes:
       # Persist database
       - hctf-data:/data
     command:
       - serve
       - --port
-      - "8090"
+      - "${PORT:-8090}"
       - --db
       - /data/hctf.db
       # Uncomment to create admin user on first run
@@ -19,8 +19,9 @@ services:
       # - --admin-password
       # - changeme
     environment:
+      - PORT=${PORT:-8090}
       - JWT_SECRET=${JWT_SECRET:-}
-      - BASE_URL=${BASE_URL:-http://localhost:8090}
+      - BASE_URL=${BASE_URL:-http://localhost:${PORT:-8090}}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_FROM=${SMTP_FROM:-}
@@ -31,7 +32,7 @@ services:
       - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "/hctf", "healthcheck", "--port", "8090"]
+      test: ["CMD", "/hctf", "healthcheck", "--port", "${PORT:-8090}"]
       interval: 30s
       timeout: 5s
       start_period: 10s

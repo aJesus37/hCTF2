@@ -5,14 +5,14 @@ services:
       dockerfile: Dockerfile
     container_name: hctf-dev
     ports:
-      - "8090:8090"
+      - "${PORT:-8090}:${PORT:-8090}"
     volumes:
       # Persist database
       - ./data:/data
     command:
       - serve
       - --port
-      - "8090"
+      - "${PORT:-8090}"
       - --db
       - /data/hctf.db
       - --dev
@@ -21,8 +21,9 @@ services:
       - --admin-password
       - changeme
     environment:
+      - PORT=${PORT:-8090}
       - JWT_SECRET=${JWT_SECRET:-dev-secret-change-me}
-      - BASE_URL=${BASE_URL:-http://localhost:8090}
+      - BASE_URL=${BASE_URL:-http://localhost:${PORT:-8090}}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_FROM=${SMTP_FROM:-}
