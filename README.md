@@ -1,4 +1,4 @@
-# Heavens CTF 2 (hCTF)
+# Heavens CTF (hCTF)
 
 ![hCTF logo](internal/views/static/logo.svg)
 
@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](./LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://go.dev)
 
-**Heavens CTF 2** (**hCTF**) is a self-hosted CTF (Capture The Flag) platform. Single binary, no dependencies, runs anywhere Go does.
+**Heavens CTF** (**hCTF**) is a self-hosted CTF (Capture The Flag) platform. Single binary, no dependencies, runs anywhere Go does.
 
 ---
 
